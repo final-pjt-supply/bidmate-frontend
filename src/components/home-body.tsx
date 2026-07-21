@@ -99,30 +99,9 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
   const recommended = recommendedAll.slice(0, MAX_CARDS);
   const recent = recentAll.slice(0, MAX_CARDS);
 
-  return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
-      {/* 업종 필터 */}
-      <div className="flex gap-2.5">
-        {FILTERS.map(({ label, value }) => {
-          const active = filter === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilter(value)}
-              className={`rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                active
-                  ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                  : "border-transparent bg-slate-100 text-slate-500 hover:bg-slate-200"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 내 조건 맞춤 추천 */}
+  // 내 조건 맞춤 추천 섹션 (비회원은 블러 + 로그인 유도)
+  const recommendedSection = (
+    <div className="flex flex-col gap-6" key="recommended">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-bold text-gray-900">내 조건 맞춤 추천</h2>
@@ -162,8 +141,12 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
           )}
         </>
       )}
+    </div>
+  );
 
-      {/* 최신 공고 (회원·비회원 모두 공개) */}
+  // 최신 공고 섹션 (회원·비회원 모두 공개)
+  const latestSection = (
+    <div className="flex flex-col gap-6" key="latest">
       <div className="flex flex-col gap-0.5">
         <h2 className="text-lg font-bold text-gray-900">최신 공고</h2>
         <p className="text-[13px] text-slate-400">최근 자동 수집된 공고예요.</p>
@@ -178,6 +161,36 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
           <MoreLink href="#" />
         </div>
       )}
+    </div>
+  );
+
+  // 비회원은 최신 공고를 위로, 추천을 아래로
+  const sections = gated ? [latestSection, recommendedSection] : [recommendedSection, latestSection];
+
+  return (
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+      {/* 업종 필터 */}
+      <div className="flex gap-2.5">
+        {FILTERS.map(({ label, value }) => {
+          const active = filter === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFilter(value)}
+              className={`rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                active
+                  ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                  : "border-transparent bg-slate-100 text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {sections}
     </div>
   );
 }
