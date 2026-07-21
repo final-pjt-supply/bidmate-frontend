@@ -56,6 +56,11 @@ export default function MyPage() {
     if (ready && !user) router.replace("/login");
   }, [ready, user, router]);
 
+  // 가입 완료 → "회사 정보 등록하기"로 진입 시 바로 수정 모드
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("edit") === "1") setEditing(true);
+  }, []);
+
   // 저장된 프로필 로드 (없으면 기본값 + 로그인 회사명)
   useEffect(() => {
     if (!user) return;
