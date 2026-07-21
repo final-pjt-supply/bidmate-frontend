@@ -31,6 +31,8 @@ export default function LoginPage() {
     setError(null);
   };
 
+  const canSubmit = email.trim() !== "" && password !== "";
+
   return (
     <AuthCardLayout>
       <AuthCard title="로그인">
@@ -60,7 +62,8 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="rounded-md bg-indigo-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            disabled={!canSubmit}
+            className="rounded-md py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
           >
             로그인
           </button>
