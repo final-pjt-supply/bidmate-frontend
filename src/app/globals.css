@@ -16,14 +16,12 @@ body {
   color: var(--foreground);
 }
 
-/* 드롭다운 등장 애니메이션 */
-@keyframes dropdown-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
+/* Tailwind v4는 버튼 기본 cursor를 제거했으므로 클릭 커서를 복원한다.
+   (비활성 버튼은 각자의 disabled:cursor-* 로 처리) */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  label:has(> input[type="checkbox"]) {
+    cursor: pointer;
   }
 }
