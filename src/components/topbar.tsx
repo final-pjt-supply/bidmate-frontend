@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown } from "lucide-react";
+import { Bell, ChevronDown, User, Bookmark, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const NAV_ITEMS: { label: string; href: string }[] = [
@@ -11,6 +12,81 @@ const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "비드봇", href: "#" },
   { label: "이용안내", href: "/guide" },
 ];
+
+/** 회원 유저 pill + 드롭다운 메뉴 (Figma user-menu 248:1012) */
+function UserMenu({ company, onLogout }: { company: string; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const itemClass =
+    "flex w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-sm text-slate-700 transition-colors hover:bg-slate-100";
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex items-center gap-2 rounded-full bg-slate-100 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-slate-200"
+      >
+        <span className="flex size-7 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white">
+          {company.replace(/^\(주\)/, "").charAt(0)}
+        </span>
+        <span className="text-[15px] font-bold text-gray-900">{company}</span>
+        <ChevronDown
+          className={`size-3.5 text-gray-700 transition-transform ${open ? "rotate-180" : ""}`}
+          strokeWidth={2}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-20 mt-2 w-[180px] rounded-md border border-slate-100 bg-white p-[5px] shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
+        >
+          <Link href="#" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+            <User className="size-4 text-slate-500" strokeWidth={2} />
+            마이페이지
+          </Link>
+          <Link href="#" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+            <Bookmark className="size-4 text-slate-500" strokeWidth={2} />
+            스크랩한 공고
+          </Link>
+          <div className="my-1 h-px bg-slate-100" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            className={itemClass}
+          >
+            <LogOut className="size-4 text-slate-500" strokeWidth={2} />
+            로그아웃
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Topbar() {
   const pathname = usePathname();
@@ -44,7 +120,6 @@ export function Topbar() {
 
         {/* 우측 액션: 로그인 상태에 따라 분기 */}
         <div className="flex items-center gap-3.5">
-          {/* ready 전에는 깜빡임을 막기 위해 아무것도 렌더하지 않음 */}
           {ready && user ? (
             <>
               <button type="button" aria-label="알림" className="relative">
@@ -53,18 +128,7 @@ export function Topbar() {
                   2
                 </span>
               </button>
-              <button
-                type="button"
-                onClick={logout}
-                title="클릭하면 로그아웃"
-                className="flex items-center gap-2 rounded-full bg-slate-100 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-slate-200"
-              >
-                <span className="flex size-7 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white">
-                  {user.company.replace(/^\(주\)/, "").charAt(0)}
-                </span>
-                <span className="text-[15px] font-bold text-gray-900">{user.company}</span>
-                <ChevronDown className="size-3.5 text-gray-700" strokeWidth={2} />
-              </button>
+              <UserMenu company={user.company} onLogout={logout} />
             </>
           ) : ready ? (
             <>
