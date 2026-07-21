@@ -2,8 +2,7 @@ import bidsData from "@/lib/data/bids.json";
 import type { Bid } from "@/lib/types";
 import { computeDday } from "@/lib/format";
 import { Topbar } from "@/components/topbar";
-import { HomeHero } from "@/components/home-hero";
-import { HomeBody } from "@/components/home-body";
+import { HomeView } from "@/components/home-view";
 import { SiteFooter } from "@/components/site-footer";
 
 const bids = (bidsData as { bids: Bid[] }).bids;
@@ -25,13 +24,12 @@ export default function Home() {
     <div className="flex min-h-full flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
-        <HomeHero
-          companyName="(주)비드메이트"
-          newCount={bids.length}
+        <HomeView
+          recommendedBids={recommendedBids}
+          recentBids={recentBids}
           urgentCount={urgentCount}
-          scrapCount={0}
+          totalCount={bids.length}
         />
-        <HomeBody recommendedBids={recommendedBids} recentBids={recentBids} />
       </main>
       <SiteFooter />
     </div>

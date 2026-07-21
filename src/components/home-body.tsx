@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, Info, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { RefreshCw, Info, ChevronRight, Lock } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
 
@@ -31,7 +32,6 @@ function SyncTooltip() {
           open ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
         }`}
       >
-        {/* 아이콘을 가리키는 caret */}
         <span
           aria-hidden
           className="absolute -top-1 right-1.5 size-2 rotate-45 rounded-[1px] bg-slate-400"
@@ -55,6 +55,25 @@ function MoreLink({ href }: { href: string }) {
   );
 }
 
+/** 비회원 추천 잠금 오버레이 (Figma 150:103) */
+function LoginGate() {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5 rounded-xl bg-slate-50/70 px-4 text-center backdrop-blur-[1px]">
+      <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
+        <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
+      </span>
+      <p className="text-lg font-bold text-gray-900">우리 회사 맞춤 추천이 준비돼 있어요</p>
+      <p className="text-sm text-gray-500">무료로 가입하면 매칭 점수순으로 추천 공고를 볼 수 있어요.</p>
+      <Link
+        href="/signup"
+        className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+      >
+        무료로 시작하기
+      </Link>
+    </div>
+  );
+}
+
 const FILTERS: { label: string; value: BidCategory | "all" }[] = [
   { label: "전체", value: "all" },
   { label: "공사", value: "cnstwk" },
@@ -66,9 +85,11 @@ const FILTERS: { label: string; value: BidCategory | "all" }[] = [
 type HomeBodyProps = {
   recommendedBids: Bid[];
   recentBids: Bid[];
+  /** 비회원: 추천 섹션을 블러 + 로그인 유도 오버레이로 잠금 */
+  gated?: boolean;
 };
 
-export function HomeBody({ recommendedBids, recentBids }: HomeBodyProps) {
+export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBodyProps) {
   const [filter, setFilter] = useState<BidCategory | "all">("all");
 
   const MAX_CARDS = 6;
@@ -105,26 +126,44 @@ export function HomeBody({ recommendedBids, recentBids }: HomeBodyProps) {
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-bold text-gray-900">내 조건 맞춤 추천</h2>
-          <p className="text-sm text-slate-500">매칭 점수가 높은 순으로 보여드려요.</p>
+          <p className="text-sm text-slate-500">
+            {gated ? "로그인하면 매칭 점수순으로 볼 수 있어요." : "매칭 점수가 높은 순으로 보여드려요."}
+          </p>
         </div>
-        <div className="flex items-center gap-[5px] text-gray-500">
-          <RefreshCw className="size-3.5" strokeWidth={2} />
-          <span className="text-[11.5px]">목록 동기화 3분 전</span>
-          <SyncTooltip />
-        </div>
+        {!gated && (
+          <div className="flex items-center gap-[5px] text-gray-500">
+            <RefreshCw className="size-3.5" strokeWidth={2} />
+            <span className="text-[11.5px]">목록 동기화 3분 전</span>
+            <SyncTooltip />
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {recommended.map((bid) => (
-          <BidCard key={bid.bid_id} bid={bid} showMatch />
-        ))}
-      </div>
-      {recommendedAll.length > MAX_CARDS && (
-        <div className="flex justify-end">
-          <MoreLink href="#" />
+
+      {gated ? (
+        <div className="relative">
+          <div className="pointer-events-none grid select-none grid-cols-1 gap-5 blur-[6px] md:grid-cols-2 xl:grid-cols-3">
+            {recommended.map((bid) => (
+              <BidCard key={bid.bid_id} bid={bid} showMatch />
+            ))}
+          </div>
+          <LoginGate />
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {recommended.map((bid) => (
+              <BidCard key={bid.bid_id} bid={bid} showMatch />
+            ))}
+          </div>
+          {recommendedAll.length > MAX_CARDS && (
+            <div className="flex justify-end">
+              <MoreLink href="#" />
+            </div>
+          )}
+        </>
       )}
 
-      {/* 최신 공고 */}
+      {/* 최신 공고 (회원·비회원 모두 공개) */}
       <div className="flex flex-col gap-0.5">
         <h2 className="text-lg font-bold text-gray-900">최신 공고</h2>
         <p className="text-[13px] text-slate-400">최근 자동 수집된 공고예요.</p>
