@@ -35,7 +35,7 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
   }, [open]);
 
   const itemClass =
-    "flex w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-sm text-slate-700 transition-colors hover:bg-slate-100 active:bg-slate-200";
+    "flex w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-sm text-slate-700 transition-colors hover:bg-slate-100";
 
   return (
     <div className="relative" ref={ref}>
@@ -44,10 +44,8 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex select-none items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 transition-all duration-100 active:scale-[0.97] ${
-          open
-            ? "bg-slate-200 ring-2 ring-indigo-200"
-            : "bg-slate-100 hover:bg-slate-200 active:bg-slate-300"
+        className={`flex select-none items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 transition-colors ${
+          open ? "bg-slate-200" : "bg-slate-100 hover:bg-slate-200"
         }`}
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white">
@@ -63,7 +61,7 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-20 mt-2 w-[180px] origin-top-right animate-[dropdown-in_120ms_ease-out] rounded-md border border-slate-100 bg-white p-[5px] shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]"
+          className="absolute right-0 top-full z-20 mt-2 w-[180px] rounded-md border border-slate-100 bg-white p-[5px] shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
         >
           <Link href="#" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             <User className="size-4 text-slate-500" strokeWidth={2} />
