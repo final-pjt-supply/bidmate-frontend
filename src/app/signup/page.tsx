@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Check } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isEmailTaken } from "@/lib/auth";
 import { AuthCardLayout, AuthCard, Field, inputClass } from "@/components/auth-card";
 import { TermsModal } from "@/components/terms-modal";
+
+// 영어 + 숫자 포함 8자 이상
+const PW_RULE = /^(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
+const EMAIL_RULE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type EmailStatus = "idle" | "invalid" | "available" | "taken";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -21,6 +27,18 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [termsOpen, setTermsOpen] = useState(false);
   const [done, setDone] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
+
+  const pwValid = PW_RULE.test(password);
+
+  const checkEmail = () => {
+    const e = email.trim();
+    if (!EMAIL_RULE.test(e)) {
+      setEmailStatus("invalid");
+      return;
+    }
+    setEmailStatus(isEmailTaken(e) ? "taken" : "available");
+  };
 
   // 이미 로그인 상태면 홈으로 (단, 방금 가입 완료 화면은 예외)
   useEffect(() => {
@@ -31,6 +49,14 @@ export default function SignupPage() {
     e.preventDefault();
     if (!company.trim() || !email.trim() || !password) {
       setError("모든 필드를 입력해 주세요.");
+      return;
+    }
+    if (emailStatus !== "available") {
+      setError("이메일 중복확인을 해주세요.");
+      return;
+    }
+    if (!pwValid) {
+      setError("비밀번호는 영어와 숫자를 포함해 8자 이상이어야 해요.");
       return;
     }
     if (password !== confirm) {
@@ -48,8 +74,8 @@ export default function SignupPage() {
 
   const canSubmit =
     company.trim() !== "" &&
-    email.trim() !== "" &&
-    password !== "" &&
+    emailStatus === "available" &&
+    pwValid &&
     confirm !== "" &&
     password === confirm &&
     agree;
@@ -99,16 +125,38 @@ export default function SignupPage() {
                 className={inputClass}
               />
             </Field>
-            <Field label="이메일">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="kim@bidmate.co.kr"
-                autoComplete="email"
-                className={inputClass}
-              />
-            </Field>
+            <div className="flex w-full flex-col gap-1.5">
+              <span className="text-xs font-medium text-slate-600">이메일</span>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailStatus("idle");
+                  }}
+                  placeholder="kim@bidmate.co.kr"
+                  autoComplete="email"
+                  className={`${inputClass} flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={checkEmail}
+                  className="h-[46px] shrink-0 rounded-lg border border-gray-300 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  중복확인
+                </button>
+              </div>
+              {emailStatus === "invalid" && (
+                <p className="text-[12px] text-red-600">올바른 이메일 형식이 아니에요.</p>
+              )}
+              {emailStatus === "taken" && (
+                <p className="text-[12px] text-red-600">이미 가입된 이메일이에요.</p>
+              )}
+              {emailStatus === "available" && (
+                <p className="text-[12px] text-emerald-600">사용 가능한 이메일이에요.</p>
+              )}
+            </div>
             <Field label="비밀번호">
               <div className="relative">
                 <input
@@ -128,6 +176,9 @@ export default function SignupPage() {
                   {showPw ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}
                 </button>
               </div>
+              <p className={`text-[11.5px] ${password && !pwValid ? "text-red-600" : "text-slate-400"}`}>
+                영어와 숫자를 포함해 8자 이상 입력하세요.
+              </p>
             </Field>
             <Field label="비밀번호 확인">
               <div className="relative">
