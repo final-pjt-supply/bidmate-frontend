@@ -40,6 +40,13 @@ function readAccounts(): StoredAccount[] {
   }
 }
 
+/** 이메일 중복 여부 (기본 목업 계정 + 가입된 계정 대조). 클라이언트에서만 호출. */
+export function isEmailTaken(email: string): boolean {
+  const e = email.trim().toLowerCase();
+  if (e === MOCK_ACCOUNT.email) return true;
+  return readAccounts().some((a) => a.email.toLowerCase() === e);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
