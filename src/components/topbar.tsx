@@ -63,7 +63,7 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
           role="menu"
           className="absolute right-0 top-full z-20 mt-2 w-[180px] rounded-md border border-slate-100 bg-white p-[5px] shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
         >
-          <Link href="#" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+          <Link href="/mypage" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             <User className="size-4 text-slate-500" strokeWidth={2} />
             마이페이지
           </Link>
