@@ -42,6 +42,14 @@ export default function SignupPage() {
     else setError(result.error);
   };
 
+  const canSubmit =
+    company.trim() !== "" &&
+    email.trim() !== "" &&
+    password !== "" &&
+    confirm !== "" &&
+    password === confirm &&
+    agree;
+
   return (
     <AuthCardLayout>
       <AuthCard title="회원가입">
@@ -131,7 +139,8 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            className="rounded-[10px] bg-indigo-700 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800"
+            disabled={!canSubmit}
+            className="rounded-[10px] py-3 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
           >
             회원가입
           </button>
