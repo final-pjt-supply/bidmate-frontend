@@ -25,15 +25,17 @@ export function BidCard({ bid, showMatch = false, className = "" }: BidCardProps
     <div
       className={`flex h-64 flex-col gap-3.5 rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-md ${className}`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between">
+        {/* D-day: 좌측 상단 고정 */}
+        <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${DDAY_STYLE[dday.kind]}`}>
+          {dday.text}
+        </span>
+        {/* 매칭 점수: 우측 상단 */}
         {showMatch && (
           <span className="rounded-md bg-indigo-50 px-[11px] py-[5px] text-xs font-bold text-indigo-700">
             {bid.match_score == null ? "매칭 —" : `매칭 ${bid.match_score}점`}
           </span>
         )}
-        <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${DDAY_STYLE[dday.kind]}`}>
-          {dday.text}
-        </span>
       </div>
 
       <h3 className="line-clamp-2 min-h-[46px] text-[15px] font-bold leading-[1.45] text-gray-900">
