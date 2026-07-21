@@ -1,4 +1,10 @@
-const FOOTER_LINKS = ["이용약관", "개인정보처리방침", "고객센터"];
+import Link from "next/link";
+
+const FOOTER_LINKS: { label: string; href: string }[] = [
+  { label: "이용약관", href: "/terms" },
+  { label: "개인정보처리방침", href: "#" },
+  { label: "고객센터", href: "#" },
+];
 
 export function SiteFooter() {
   return (
@@ -9,10 +15,10 @@ export function SiteFooter() {
           © 2026 BidMate · 나라장터 공공입찰 공고 추천 서비스
         </span>
         <div className="flex gap-5 text-[11.5px] text-slate-400">
-          {FOOTER_LINKS.map((label) => (
-            <a key={label} href="#" className="transition-colors hover:text-slate-200">
+          {FOOTER_LINKS.map(({ label, href }) => (
+            <Link key={label} href={href} className="transition-colors hover:text-slate-200">
               {label}
-            </a>
+            </Link>
           ))}
         </div>
       </div>
