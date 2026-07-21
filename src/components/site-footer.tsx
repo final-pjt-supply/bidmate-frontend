@@ -3,7 +3,7 @@ import Link from "next/link";
 const FOOTER_LINKS: { label: string; href: string }[] = [
   { label: "이용약관", href: "/terms" },
   { label: "개인정보처리방침", href: "/privacy" },
-  { label: "고객센터", href: "#" },
+  { label: "고객센터", href: "/support" },
 ];
 
 export function SiteFooter() {
