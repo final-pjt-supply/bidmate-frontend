@@ -201,13 +201,14 @@ export default function SignupPage() {
               </div>
             </Field>
 
-            {/* 약관 동의 — 직접 체크 불가. '보기'로 약관을 끝까지 확인하고 동의하면 체크됨 */}
-            <button
-              type="button"
-              onClick={() => setTermsOpen(true)}
-              className="flex w-full items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
+            {/* 약관 동의 — 체크는 '보기'로 약관 확인 후에만, 해제는 체크박스 클릭으로 직접 */}
+            <div className="flex w-full items-center justify-between">
+              <button
+                type="button"
+                onClick={() => (agree ? setAgree(false) : setTermsOpen(true))}
+                aria-pressed={agree}
+                className="flex items-center gap-2"
+              >
                 <span
                   aria-hidden
                   className={`flex size-[18px] items-center justify-center rounded-[5px] border ${
@@ -219,12 +220,16 @@ export default function SignupPage() {
                 <span className="text-[13px] text-slate-600">
                   (필수) 이용약관 · 개인정보 수집·이용 동의
                 </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-0.5 text-[13px] text-slate-400">
+              </button>
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+                className="flex shrink-0 items-center gap-0.5 text-[13px] text-slate-400 transition-colors hover:text-slate-600"
+              >
                 보기
                 <ChevronRight className="size-3.5" strokeWidth={2} />
-              </span>
-            </button>
+              </button>
+            </div>
 
             {error && <p className="text-[13px] text-red-600">{error}</p>}
 
