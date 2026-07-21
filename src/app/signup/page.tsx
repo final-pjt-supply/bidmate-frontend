@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Check } from "lucide-react";
+import { Eye, EyeOff, Check, ChevronRight } from "lucide-react";
 import { useAuth, isEmailTaken } from "@/lib/auth";
 import { AuthCardLayout, AuthCard, Field, inputClass } from "@/components/auth-card";
 import { TermsModal } from "@/components/terms-modal";
@@ -201,30 +201,30 @@ export default function SignupPage() {
               </div>
             </Field>
 
-            {/* 약관 동의 */}
-            <div className="flex items-center justify-between">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={agree}
-                  onChange={(e) => setAgree(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <span className="flex size-[18px] items-center justify-center rounded-[5px] border border-gray-300 bg-white peer-checked:border-indigo-700 peer-checked:bg-indigo-700">
+            {/* 약관 동의 — 직접 체크 불가. '보기'로 약관을 끝까지 확인하고 동의하면 체크됨 */}
+            <button
+              type="button"
+              onClick={() => setTermsOpen(true)}
+              className="flex w-full items-center justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={`flex size-[18px] items-center justify-center rounded-[5px] border ${
+                    agree ? "border-indigo-700 bg-indigo-700" : "border-gray-300 bg-white"
+                  }`}
+                >
                   {agree && <Check className="size-3 text-white" strokeWidth={3} />}
                 </span>
                 <span className="text-[13px] text-slate-600">
                   (필수) 이용약관 · 개인정보 수집·이용 동의
                 </span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setTermsOpen(true)}
-                className="shrink-0 text-[13px] text-slate-400 hover:underline"
-              >
+              </span>
+              <span className="flex shrink-0 items-center gap-0.5 text-[13px] text-slate-400">
                 보기
-              </button>
-            </div>
+                <ChevronRight className="size-3.5" strokeWidth={2} />
+              </span>
+            </button>
 
             {error && <p className="text-[13px] text-red-600">{error}</p>}
 
