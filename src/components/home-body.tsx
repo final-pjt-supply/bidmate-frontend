@@ -5,6 +5,43 @@ import { RefreshCw, Info, ChevronRight } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
 
+/** 목록 동기화 안내 툴팁 (info 아이콘 hover/focus 시 노출) */
+function SyncTooltip() {
+  const [open, setOpen] = useState(false);
+  return (
+    <span
+      className="relative flex items-center"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-label="데이터 수집·표시 안내"
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        className={`flex cursor-pointer items-center rounded-full p-1 transition-colors ${
+          open ? "bg-slate-200 text-indigo-600" : "text-gray-400 hover:bg-slate-100 hover:text-indigo-600"
+        }`}
+      >
+        <Info className="size-[13px]" strokeWidth={2} />
+      </button>
+      <span
+        role="tooltip"
+        className={`pointer-events-none absolute right-0 top-full z-10 mt-2 w-[340px] rounded-md bg-slate-400 px-[13px] py-[7px] text-[12px] font-medium leading-[1.4] text-white shadow-[0px_4px_10px_rgba(30,41,59,0.25)] transition-all duration-150 ${
+          open ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
+        }`}
+      >
+        {/* 아이콘을 가리키는 caret */}
+        <span
+          aria-hidden
+          className="absolute -top-1 right-1.5 size-2 rotate-45 rounded-[1px] bg-slate-400"
+        />
+        나라장터 공고를 5분마다 수집하고, 첨부문서의 자격요건은 AI 분석을 거쳐 제공돼요. 게시 후 표시까지 시간이 걸릴 수 있어요.
+      </span>
+    </span>
+  );
+}
+
 /** 섹션 헤더 우측 더보기 링크 (숨겨진 공고가 있을 때만 노출) */
 function MoreLink({ href }: { href: string }) {
   return (
@@ -52,10 +89,10 @@ export function HomeBody({ recommendedBids, recentBids }: HomeBodyProps) {
               key={value}
               type="button"
               onClick={() => setFilter(value)}
-              className={`rounded-full px-[18px] py-2 text-[15px] font-bold transition-colors ${
+              className={`rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
                 active
-                  ? "bg-indigo-700 text-white"
-                  : "border border-gray-300 bg-white text-slate-600 hover:bg-slate-50"
+                  ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                  : "border-transparent bg-slate-100 text-slate-500 hover:bg-slate-200"
               }`}
             >
               {label}
@@ -73,7 +110,7 @@ export function HomeBody({ recommendedBids, recentBids }: HomeBodyProps) {
         <div className="flex items-center gap-[5px] text-gray-500">
           <RefreshCw className="size-3.5" strokeWidth={2} />
           <span className="text-[11.5px]">목록 동기화 3분 전</span>
-          <Info className="size-[13px]" strokeWidth={2} />
+          <SyncTooltip />
         </div>
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">

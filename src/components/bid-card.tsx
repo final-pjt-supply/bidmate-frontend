@@ -27,7 +27,7 @@ export function BidCard({ bid, showMatch = false, className = "" }: BidCardProps
     >
       <div className="flex items-center gap-2">
         {showMatch && (
-          <span className="rounded-lg bg-indigo-700 px-[11px] py-[5px] text-xs font-bold text-white">
+          <span className="rounded-md bg-indigo-50 px-[11px] py-[5px] text-xs font-bold text-indigo-700">
             {bid.match_score == null ? "매칭 —" : `매칭 ${bid.match_score}점`}
           </span>
         )}

@@ -44,7 +44,7 @@ export function HomeHero({ companyName, newCount, urgentCount, scrapCount }: Hom
         <form className="flex w-full max-w-[800px] items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 pl-4 pr-1.5">
           <input
             type="text"
-            placeholder="어떤 공고를 찾으세요? 예: 서울 지역 IT 유지보수 용역"
+            placeholder="공고명을 입력하세요"
             className="min-w-0 flex-1 text-[17px] text-gray-900 outline-none placeholder:text-slate-400"
           />
           <button
