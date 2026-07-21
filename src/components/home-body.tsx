@@ -1,9 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, Info } from "lucide-react";
+import { RefreshCw, Info, ChevronRight } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
+
+/** 섹션 헤더 우측 더보기 링크 (숨겨진 공고가 있을 때만 노출) */
+function MoreLink({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-indigo-700 transition-colors hover:text-indigo-800"
+    >
+      더보기
+      <ChevronRight className="size-4" strokeWidth={2} />
+    </a>
+  );
+}
 
 const FILTERS: { label: string; value: BidCategory | "all" }[] = [
   { label: "전체", value: "all" },
@@ -23,11 +36,13 @@ export function HomeBody({ recommendedBids, recentBids }: HomeBodyProps) {
 
   const MAX_CARDS = 6;
   const byFilter = (bid: Bid) => filter === "all" || bid.bid_category === filter;
-  const recommended = recommendedBids.filter(byFilter).slice(0, MAX_CARDS);
-  const recent = recentBids.filter(byFilter).slice(0, MAX_CARDS);
+  const recommendedAll = recommendedBids.filter(byFilter);
+  const recentAll = recentBids.filter(byFilter);
+  const recommended = recommendedAll.slice(0, MAX_CARDS);
+  const recent = recentAll.slice(0, MAX_CARDS);
 
   return (
-    <div className="flex w-full flex-col gap-6 px-10 pb-16 pt-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
       {/* 업종 필터 */}
       <div className="flex gap-2.5">
         {FILTERS.map(({ label, value }) => {
@@ -66,6 +81,11 @@ export function HomeBody({ recommendedBids, recentBids }: HomeBodyProps) {
           <BidCard key={bid.bid_id} bid={bid} showMatch />
         ))}
       </div>
+      {recommendedAll.length > MAX_CARDS && (
+        <div className="flex justify-end">
+          <MoreLink href="#" />
+        </div>
+      )}
 
       {/* 최신 공고 */}
       <div className="flex flex-col gap-0.5">
@@ -77,6 +97,11 @@ export function HomeBody({ recommendedBids, recentBids }: HomeBodyProps) {
           <BidCard key={bid.bid_id} bid={bid} />
         ))}
       </div>
+      {recentAll.length > MAX_CARDS && (
+        <div className="flex justify-end">
+          <MoreLink href="#" />
+        </div>
+      )}
     </div>
   );
 }

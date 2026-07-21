@@ -15,7 +15,7 @@ export function HomeHero({ companyName, newCount, urgentCount, scrapCount }: Hom
   ];
 
   return (
-    <section className="relative flex w-full flex-col items-center gap-8 overflow-hidden bg-gradient-to-r from-indigo-800 via-indigo-600 to-violet-700 px-10 py-[72px]">
+    <section className="relative w-full overflow-hidden bg-gradient-to-r from-indigo-800 via-indigo-600 to-violet-700 px-4 py-[72px] sm:px-6 lg:px-10">
       {/* 40px 그리드 오버레이 */}
       <div
         aria-hidden
@@ -26,6 +26,7 @@ export function HomeHero({ companyName, newCount, urgentCount, scrapCount }: Hom
         }}
       />
 
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center gap-8">
       <span className="relative rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-xs font-bold text-indigo-100">
         MY · 맞춤 공고 대시보드
       </span>
@@ -76,6 +77,7 @@ export function HomeHero({ companyName, newCount, urgentCount, scrapCount }: Hom
             </div>
           </div>
         ))}
+      </div>
       </div>
     </section>
   );

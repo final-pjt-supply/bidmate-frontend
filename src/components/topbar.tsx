@@ -4,7 +4,8 @@ const NAV_ITEMS = ["공고 검색", "맞춤 추천", "비드봇", "이용안내"
 
 export function Topbar() {
   return (
-    <header className="relative flex w-full items-center justify-between border-b border-slate-200 bg-white px-10 py-4">
+    <header className="w-full border-b border-slate-200 bg-white">
+      <div className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
       {/* 브랜드 */}
       <div className="flex items-center">
         <span className="text-2xl font-bold text-indigo-700">비드메이트</span>
@@ -41,6 +42,7 @@ export function Topbar() {
           <span className="text-[15px] font-bold text-gray-900">(주)비드메이트</span>
           <ChevronDown className="size-3.5 text-gray-700" strokeWidth={2} />
         </button>
+      </div>
       </div>
     </header>
   );
