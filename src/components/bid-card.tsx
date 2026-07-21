@@ -1,69 +1,66 @@
-"use client";
-
-import { useState } from "react";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, shortMethod, formatAmount, computeDday } from "@/lib/format";
 
 const DDAY_STYLE: Record<string, string> = {
-  urgent: "bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400",
-  normal: "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
-  always: "bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400",
-  closed: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
-  unknown: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+  urgent: "bg-rose-50 text-orange-700",
+  normal: "bg-slate-200 text-slate-500",
+  always: "bg-orange-100 text-yellow-700",
+  closed: "bg-slate-200 text-slate-500",
+  unknown: "bg-slate-200 text-slate-500",
 };
 
-export function BidCard({ bid, className = "" }: { bid: Bid; className?: string }) {
-  const [scrapped, setScrapped] = useState(false);
+type BidCardProps = {
+  bid: Bid;
+  /** 추천 섹션에서만 매칭 배지 표시 (점수는 에이전트가 채우기 전까지 null → "매칭 —") */
+  showMatch?: boolean;
+  className?: string;
+};
+
+export function BidCard({ bid, showMatch = false, className = "" }: BidCardProps) {
   const dday = computeDday(bid.bid_clse_dt);
   const amount = formatAmount(bid);
+  const method = shortMethod(bid.sucsfbid_mthd_nm);
 
   return (
     <div
-      className={`flex h-full flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 ${className}`}
+      className={`flex h-64 flex-col gap-3.5 rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-md ${className}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${DDAY_STYLE[dday.kind]}`}
-        >
+      <div className="flex items-center gap-2">
+        {showMatch && (
+          <span className="rounded-lg bg-indigo-700 px-[11px] py-[5px] text-xs font-bold text-white">
+            {bid.match_score == null ? "매칭 —" : `매칭 ${bid.match_score}점`}
+          </span>
+        )}
+        <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${DDAY_STYLE[dday.kind]}`}>
           {dday.text}
         </span>
-        <button
-          type="button"
-          onClick={() => setScrapped((v) => !v)}
-          aria-pressed={scrapped}
-          aria-label={scrapped ? "스크랩 해제" : "스크랩"}
-          className={`text-lg leading-none transition-colors ${
-            scrapped
-              ? "text-amber-400"
-              : "text-zinc-300 hover:text-zinc-400 dark:text-zinc-600 dark:hover:text-zinc-500"
-          }`}
-        >
-          {scrapped ? "★" : "☆"}
-        </button>
       </div>
 
-      <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
+      <h3 className="line-clamp-2 min-h-[46px] text-[15px] font-bold leading-[1.45] text-gray-900">
         {bid.bid_ntce_nm}
       </h3>
 
-      <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{bid.dminstt_nm}</p>
+      <p className="truncate text-sm text-gray-500">{bid.dminstt_nm}</p>
 
-      <div className="flex flex-wrap gap-1.5">
-        <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+      <div className="flex gap-1.5">
+        <span className="rounded-md bg-indigo-50 px-[9px] py-[3px] text-xs font-bold text-indigo-800">
           {categoryLabel(bid.bid_category)}
         </span>
-        <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-          {shortMethod(bid.sucsfbid_mthd_nm)}
-        </span>
+        {method && (
+          <span className="rounded-md bg-slate-100 px-[9px] py-[3px] text-xs font-bold text-slate-600">
+            {method}
+          </span>
+        )}
       </div>
 
-      <div className="mt-auto flex items-center justify-between pt-1 text-xs">
-        <span className="font-medium text-zinc-600 dark:text-zinc-300">
-          {amount || "금액 미정"}
-        </span>
-        <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-medium text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
-          {bid.match_score == null ? "매칭 —" : `매칭 ${bid.match_score}`}
-        </span>
+      <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3">
+        <span className="text-sm font-bold text-gray-500">{amount || "금액 미정"}</span>
+        <button
+          type="button"
+          className="flex h-8 items-center rounded-md bg-slate-100 px-3 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-200"
+        >
+          상세보기
+        </button>
       </div>
     </div>
   );
