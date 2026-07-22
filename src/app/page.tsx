@@ -1,24 +1,30 @@
-import bidsData from "@/lib/data/bids.json";
-import type { Bid } from "@/lib/types";
 import { computeDday } from "@/lib/format";
+import { getBids } from "@/lib/api/bids";
 import { Topbar } from "@/components/topbar";
 import { HomeView } from "@/components/home-view";
 import { SiteFooter } from "@/components/site-footer";
+import type { Bid } from "@/lib/types";
 
-const bids = (bidsData as { bids: Bid[] }).bids;
+export default async function Home() {
+  // 추천: 매칭 점수순(sort=score, 점수 준비 전엔 마감순 폴백) · 최신: 오늘 수집된 공고(today)
+  let recommendedBids: Bid[] = [];
+  let recentBids: Bid[] = [];
+  let totalCount = 0;
+  try {
+    const [recommended, latest] = await Promise.all([
+      getBids({ sort: "score", page: 1 }),
+      getBids({ today: true, page: 1 }),
+    ]);
+    recommendedBids = recommended.items;
+    recentBids = latest.items;
+    totalCount = recommended.total;
+  } catch (err) {
+    console.error("공고 목록 로드 실패:", err);
+  }
 
-// 추천: 매칭 점수순 (점수는 에이전트가 채우기 전까지 null → 원래 순서 유지)
-const recommendedBids = [...bids].sort(
-  (a, b) => (b.match_score ?? -1) - (a.match_score ?? -1)
-);
-
-// 최신: 공고 등록일 내림차순
-const recentBids = [...bids].sort(
-  (a, b) => new Date(b.bid_ntce_dt).getTime() - new Date(a.bid_ntce_dt).getTime()
-);
-
-export default function Home() {
-  const urgentCount = bids.filter((bid) => computeDday(bid.bid_clse_dt).kind === "urgent").length;
+  const urgentCount = recommendedBids.filter(
+    (bid) => computeDday(bid.bid_clse_dt).kind === "urgent"
+  ).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -28,7 +34,7 @@ export default function Home() {
           recommendedBids={recommendedBids}
           recentBids={recentBids}
           urgentCount={urgentCount}
-          totalCount={bids.length}
+          totalCount={totalCount}
         />
       </main>
       <SiteFooter />
