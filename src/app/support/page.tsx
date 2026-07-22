@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "고객센터 · 비드메이트",
-  description: "비드메이트 고객센터는 준비 중입니다. 급한 문의는 support@bidmate.co.kr 로 보내주세요.",
+  description: "비드메이트 고객센터는 준비 중입니다. 급한 문의는 bidmatefinal@gmail.com 로 보내주세요.",
 };
 
 export default function SupportPage() {
@@ -20,10 +20,10 @@ export default function SupportPage() {
         <p className="text-sm leading-relaxed text-gray-500">
           더 나은 문의 경험을 준비하고 있어요. 급한 문의는{" "}
           <a
-            href="mailto:support@bidmate.co.kr"
+            href="mailto:bidmatefinal@gmail.com"
             className="font-medium text-indigo-700 transition-colors hover:text-indigo-800"
           >
-            support@bidmate.co.kr
+            bidmatefinal@gmail.com
           </a>{" "}
           로 보내주세요.
         </p>
