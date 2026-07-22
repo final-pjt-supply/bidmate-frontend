@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { useAuth, MOCK_ACCOUNT } from "@/lib/auth";
 import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 import { Field, inputClass } from "@/components/auth-card";
@@ -19,8 +19,23 @@ type CompanyProfile = {
 };
 
 const PROFILE_KEY = "bidmate_company";
+/** 프로필은 계정별로 분리 저장 (전역 공유 방지) */
+const profileKey = (email: string) => `${PROFILE_KEY}:${email.toLowerCase()}`;
 
-const DEFAULT_PROFILE: CompanyProfile = {
+/** 신규 가입자의 기본값 — 아무것도 등록되지 않은 빈 프로필 */
+const EMPTY_PROFILE: CompanyProfile = {
+  name: "",
+  bizNo: "",
+  region: "",
+  size: "",
+  licenses: "",
+  certs: "",
+  revenue: "",
+  employees: "",
+};
+
+/** 데모/테스트 계정에서만 보여줄 예시 회사 정보 */
+const DEMO_PROFILE: CompanyProfile = {
   name: "(주)비드메이트",
   bizNo: "123-45-67890",
   region: "서울특별시",
@@ -33,12 +48,15 @@ const DEFAULT_PROFILE: CompanyProfile = {
 
 const SIDE_MENU = ["회사 정보", "스크랩한 공고", "맞춤 알림 설정", "계정 설정"];
 
-/** 조회 모드 한 칸 (라벨 + 값 + 밑줄) */
+/** 조회 모드 한 칸 (라벨 + 값 + 밑줄). 값이 비면 미등록 표시 */
 function ViewField({ label, value }: { label: string; value: string }) {
+  const empty = value.trim() === "";
   return (
     <div className="flex flex-1 flex-col gap-1 border-b border-slate-200 pb-3">
       <span className="text-xs font-medium text-gray-400">{label}</span>
-      <span className="text-[15px] font-bold text-gray-900">{value}</span>
+      <span className={`text-[15px] font-bold ${empty ? "text-slate-300" : "text-gray-900"}`}>
+        {empty ? "미등록" : value}
+      </span>
     </div>
   );
 }
@@ -48,8 +66,8 @@ export default function MyPage() {
   const { user, ready, logout } = useAuth();
 
   const [editing, setEditing] = useState(false);
-  const [profile, setProfile] = useState<CompanyProfile>(DEFAULT_PROFILE);
-  const [draft, setDraft] = useState<CompanyProfile>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState<CompanyProfile>(EMPTY_PROFILE);
+  const [draft, setDraft] = useState<CompanyProfile>(EMPTY_PROFILE);
 
   // 회원 전용 가드
   useEffect(() => {
@@ -61,16 +79,20 @@ export default function MyPage() {
     if (new URLSearchParams(window.location.search).get("edit") === "1") setEditing(true);
   }, []);
 
-  // 저장된 프로필 로드 (없으면 기본값 + 로그인 회사명)
+  // 저장된 프로필 로드
+  //  - 저장값 있으면 그대로
+  //  - 데모/테스트 계정은 예시 프로필
+  //  - 그 외 신규 가입자는 빈 프로필(회사명만 가입값)
   useEffect(() => {
     if (!user) return;
-    let loaded = DEFAULT_PROFILE;
+    let loaded: CompanyProfile;
     try {
-      const raw = localStorage.getItem(PROFILE_KEY);
-      if (raw) loaded = { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
-      else loaded = { ...DEFAULT_PROFILE, name: user.company };
+      const raw = localStorage.getItem(profileKey(user.email));
+      if (raw) loaded = { ...EMPTY_PROFILE, ...JSON.parse(raw) };
+      else if (user.email.toLowerCase() === MOCK_ACCOUNT.email) loaded = DEMO_PROFILE;
+      else loaded = { ...EMPTY_PROFILE, name: user.company };
     } catch {
-      loaded = { ...DEFAULT_PROFILE, name: user.company };
+      loaded = { ...EMPTY_PROFILE, name: user.company };
     }
     setProfile(loaded);
     setDraft(loaded);
@@ -89,7 +111,7 @@ export default function MyPage() {
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     setProfile(draft);
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(draft));
+    localStorage.setItem(profileKey(user.email), JSON.stringify(draft));
     setEditing(false);
   };
   const setField = (key: keyof CompanyProfile, value: string) =>
@@ -209,8 +231,8 @@ export default function MyPage() {
               <ViewField label="업종·보유 면허" value={profile.licenses} />
               <ViewField label="보유 인증" value={profile.certs} />
               <div className="flex gap-[34px]">
-                <ViewField label="최근 3년 실적" value={`${profile.revenue}억`} />
-                <ViewField label="상시근로자 수" value={`${profile.employees}명`} />
+                <ViewField label="최근 3년 실적" value={profile.revenue.trim() ? `${profile.revenue}억` : ""} />
+                <ViewField label="상시근로자 수" value={profile.employees.trim() ? `${profile.employees}명` : ""} />
               </div>
               <div className="flex justify-end pt-1.5">
                 <button
