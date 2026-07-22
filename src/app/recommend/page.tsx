@@ -14,7 +14,7 @@ const bids = (bidsData as { bids: Bid[] }).bids;
 
 export default function RecommendPage() {
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <RecoView bids={bids} />
       <SiteFooter />

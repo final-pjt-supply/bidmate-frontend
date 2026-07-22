@@ -38,7 +38,7 @@ export default async function BidDetailPage({
   if (!bid) notFound();
 
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
         <BidDetailView bid={bid} />

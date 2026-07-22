@@ -5,7 +5,7 @@ import { Topbar } from "@/components/topbar";
 /** 로그인·회원가입 공용 레이아웃 (Topbar + 가운데 카드) */
 export function AuthCardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 items-center justify-center px-4 py-12">{children}</main>
     </div>

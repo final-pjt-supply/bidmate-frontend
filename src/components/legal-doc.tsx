@@ -40,7 +40,7 @@ function Paragraphs({ lines }: { lines?: string[] }) {
 /** 이용약관·개인정보처리방침 등 법적 문서 공용 레이아웃 (Figma doc-wrap) */
 export function LegalDoc({ title, effectiveDate, intro, sections }: LegalDocProps) {
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="w-full flex-1 bg-white">
         <div className="mx-auto flex w-full max-w-[800px] flex-col px-4 pb-[72px] pt-14 sm:px-6">

@@ -24,7 +24,7 @@ export default async function SearchPage({
   const { q, cat } = await searchParams;
 
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
         <SearchView bids={bids} initialQuery={q ?? ""} initialCategory={toCategory(cat)} />
