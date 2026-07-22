@@ -67,7 +67,7 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
             <User className="size-4 text-slate-500" strokeWidth={2} />
             마이페이지
           </Link>
-          <Link href="#" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+          <Link href="/mypage/scraps" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             <Bookmark className="size-4 text-slate-500" strokeWidth={2} />
             스크랩한 공고
           </Link>
