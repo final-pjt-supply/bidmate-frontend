@@ -10,13 +10,13 @@ import { SyncIndicator } from "@/components/sync-indicator";
 /** 섹션 헤더 우측 더보기 링크 (숨겨진 공고가 있을 때만 노출) */
 function MoreLink({ href }: { href: string }) {
   return (
-    <a
+    <Link
       href={href}
       className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-indigo-700 transition-colors hover:text-indigo-800"
     >
       더보기
       <ChevronRight className="size-4" strokeWidth={2} />
-    </a>
+    </Link>
   );
 }
 
@@ -95,7 +95,7 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
           </div>
           {recommendedAll.length > MAX_CARDS && (
             <div className="flex justify-end">
-              <MoreLink href="#" />
+              <MoreLink href="/recommend" />
             </div>
           )}
         </>
@@ -117,7 +117,7 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
       </div>
       {recentAll.length > MAX_CARDS && (
         <div className="flex justify-end">
-          <MoreLink href="#" />
+          <MoreLink href="/search" />
         </div>
       )}
     </div>
