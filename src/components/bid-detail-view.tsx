@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bookmark, ChevronRight, ExternalLink, Lock, MessageCircleQuestion } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
+import { isScrapped, toggleScrap } from "@/lib/scraps";
 import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
 
 const DDAY_STYLE: Record<string, string> = {
@@ -73,6 +74,21 @@ export function BidDetailView({ bid }: { bid: Bid }) {
 
   const askBidbot = () => (isMember ? setBotMode("popover") : router.push("/login"));
 
+  // 스크랩(북마크) — 초기값은 저장소에서 파생, 토글 후에는 override로 반영
+  const initialScrapped = useMemo(
+    () => isMember && !!user && isScrapped(user.email, bid.bid_id),
+    [isMember, user, bid.bid_id]
+  );
+  const [scrapOverride, setScrapOverride] = useState<boolean | null>(null);
+  const scrapped = scrapOverride ?? initialScrapped;
+  const toggleBookmark = () => {
+    if (!isMember || !user) {
+      router.push("/login");
+      return;
+    }
+    setScrapOverride(toggleScrap(user.email, bid.bid_id));
+  };
+
   const dday = computeDday(bid.bid_clse_dt);
   const q = bid.qualification;
 
@@ -132,10 +148,14 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           </div>
           <button
             type="button"
-            aria-label="스크랩"
-            className="text-slate-300 transition-colors hover:text-indigo-600"
+            onClick={toggleBookmark}
+            aria-label={scrapped ? "스크랩 해제" : "스크랩"}
+            aria-pressed={scrapped}
+            className={`transition-colors ${
+              scrapped ? "text-indigo-600" : "text-slate-300 hover:text-indigo-600"
+            }`}
           >
-            <Bookmark className="size-5" strokeWidth={2} />
+            <Bookmark className={`size-5 ${scrapped ? "fill-current" : ""}`} strokeWidth={2} />
           </button>
         </div>
 

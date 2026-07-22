@@ -47,6 +47,13 @@ export function isEmailTaken(email: string): boolean {
   return readAccounts().some((a) => a.email.toLowerCase() === e);
 }
 
+/** 가입 계정 삭제(회원 탈퇴용). 클라이언트에서만 호출. */
+export function removeAccount(email: string) {
+  const e = email.trim().toLowerCase();
+  const next = readAccounts().filter((a) => a.email.toLowerCase() !== e);
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next));
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
