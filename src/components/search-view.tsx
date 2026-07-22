@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
@@ -131,12 +131,142 @@ function CheckRow({
   );
 }
 
-/** 필터 그룹 (제목 + 컨트롤) */
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+/** 토글 칩 (선택형 필터 항목) */
+function Chip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
-    <div className="flex flex-col gap-2.5">
-      <p className="text-xs font-bold text-gray-900">{title}</p>
-      {children}
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={active}
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
+        active
+          ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** 필터 한 행: 라벨(좌) + 컨트롤(우) */
+function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      <p className="shrink-0 text-xs font-bold text-gray-900 sm:w-[68px]">{label}</p>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+/** 지역 선택 콤보박스: 입력하면 아래 리스트가 필터되고 선택하는 검색형 드롭다운 */
+function RegionCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [highlight, setHighlight] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const results = REGIONS.filter((r) => r.includes(query.trim()));
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const choose = (r: string) => {
+    onChange(r);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setOpen(true);
+      setHighlight((h) => Math.min(h + 1, results.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (open && results[highlight]) choose(results[highlight]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setQuery("");
+    }
+  };
+
+  return (
+    <div className="relative w-full sm:w-[200px]" ref={ref}>
+      <input
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls="region-combobox-list"
+        value={open ? query : value}
+        placeholder="지역 검색"
+        onFocus={() => {
+          setOpen(true);
+          setQuery("");
+          setHighlight(0);
+        }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+          setHighlight(0);
+        }}
+        onKeyDown={onKeyDown}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-1 pr-9 text-sm text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+      />
+      <ChevronDown
+        className="pointer-events-none absolute right-3 top-1/2 size-[18px] -translate-y-1/2 text-slate-400"
+        strokeWidth={2}
+      />
+      {open && (
+        <ul
+          id="region-combobox-list"
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
+        >
+          {results.length === 0 ? (
+            <li className="px-3 py-1.5 text-sm text-slate-400">결과 없음</li>
+          ) : (
+            results.map((r, i) => (
+              <li key={r}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={r === value}
+                  onMouseEnter={() => setHighlight(i)}
+                  onClick={() => choose(r)}
+                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors ${
+                    i === highlight ? "bg-slate-100" : ""
+                  } ${r === value ? "font-bold text-indigo-700" : "text-slate-600"}`}
+                >
+                  {r}
+                  {r === value && <Check className="size-3.5 text-indigo-600" strokeWidth={2.5} />}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
     </div>
   );
 }
@@ -257,60 +387,44 @@ export function SearchView({
         </button>
 
         {advancedOpen && (
-          <div className="flex flex-col gap-5 rounded-xl border border-slate-200 bg-white px-6 py-5">
-            <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-              {/* 업무구분 */}
-              <FilterGroup title="업무구분">
-                <CheckRow
-                  checked={draft.cats.length === 0}
-                  onChange={() => patch({ cats: [] })}
-                  label="전체"
-                />
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5">
+            {/* 업무구분 */}
+            <FilterRow label="업무구분">
+              <div className="flex flex-wrap gap-1.5">
+                <Chip active={draft.cats.length === 0} onClick={() => patch({ cats: [] })} label="전체" />
                 {CATEGORIES.map((c) => (
-                  <CheckRow
+                  <Chip
                     key={c.value}
-                    checked={draft.cats.includes(c.value)}
-                    onChange={() => patch({ cats: toggle(draft.cats, c.value) })}
+                    active={draft.cats.includes(c.value)}
+                    onClick={() => patch({ cats: toggle(draft.cats, c.value) })}
                     label={c.label}
                   />
                 ))}
-              </FilterGroup>
+              </div>
+            </FilterRow>
 
-              {/* 지역 */}
-              <FilterGroup title="지역">
-                <div className="relative">
-                  <select
-                    value={draft.region}
-                    onChange={(e) => patch({ region: e.target.value })}
-                    className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3.5 py-3 pr-9 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none"
-                  >
-                    {REGIONS.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 size-[18px] -translate-y-1/2 text-slate-400"
-                    strokeWidth={2}
-                  />
-                </div>
-              </FilterGroup>
-
-              {/* 낙찰방법 */}
-              <FilterGroup title="낙찰방법">
+            {/* 낙찰방법 */}
+            <FilterRow label="낙찰방법">
+              <div className="flex flex-wrap gap-1.5">
                 {METHODS.map((m) => (
-                  <CheckRow
+                  <Chip
                     key={m.key}
-                    checked={draft.methods.includes(m.key)}
-                    onChange={() => patch({ methods: toggle(draft.methods, m.key) })}
+                    active={draft.methods.includes(m.key)}
+                    onClick={() => patch({ methods: toggle(draft.methods, m.key) })}
                     label={m.label}
                   />
                 ))}
-              </FilterGroup>
+              </div>
+            </FilterRow>
 
-              {/* 추정금액 (억원) */}
-              <FilterGroup title="추정금액 (억원)">
+            {/* 지역 + 추정금액 (한 행) */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
+              <div className="flex items-center gap-4">
+                <p className="w-[68px] shrink-0 text-xs font-bold text-gray-900 sm:w-auto">지역</p>
+                <RegionCombobox value={draft.region} onChange={(r) => patch({ region: r })} />
+              </div>
+              <div className="flex items-center gap-4">
+                <p className="w-[68px] shrink-0 text-xs font-bold text-gray-900 sm:w-auto">추정금액</p>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -319,7 +433,7 @@ export function SearchView({
                     value={draft.min}
                     onChange={(e) => patch({ min: e.target.value })}
                     placeholder="최소"
-                    className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+                    className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
                   />
                   <span className="text-[13px] text-slate-400">~</span>
                   <input
@@ -329,43 +443,42 @@ export function SearchView({
                     value={draft.max}
                     onChange={(e) => patch({ max: e.target.value })}
                     placeholder="최대"
-                    className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+                    className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
                   />
+                  <span className="text-[13px] text-slate-400">억원</span>
                 </div>
-              </FilterGroup>
+              </div>
+            </div>
 
-              {/* 기업규모 */}
-              <FilterGroup title="기업규모">
+            {/* 기타 조건 */}
+            <FilterRow label="기타">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                 <CheckRow
                   checked={draft.sme}
                   onChange={() => patch({ sme: !draft.sme })}
                   label="중소기업 참여가능만"
                 />
-              </FilterGroup>
-
-              {/* 마감 여부 */}
-              <FilterGroup title="마감 여부">
                 <CheckRow
                   checked={draft.includeClosed}
                   onChange={() => patch({ includeClosed: !draft.includeClosed })}
                   label="마감된 공고 포함"
                 />
-              </FilterGroup>
-            </div>
+              </div>
+            </FilterRow>
 
             {/* 적용 / 초기화 */}
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={resetFilters}
-                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
               >
                 초기화
               </button>
               <button
                 type="button"
                 onClick={applyFilters}
-                className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
+                className="rounded-md bg-indigo-700 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
               >
                 조건 적용
               </button>
