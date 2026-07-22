@@ -63,6 +63,10 @@ export function saveProfile(email: string, profile: CompanyProfile) {
   localStorage.setItem(profileKey(email), JSON.stringify(profile));
 }
 
+export function clearProfile(email: string) {
+  localStorage.removeItem(profileKey(email));
+}
+
 /** 회사 정보가 입력돼 있는지 — 회사명 외 핵심 항목이 하나라도 채워졌는지로 판정 */
 export function hasCompanyProfile(email: string): boolean {
   const p = loadProfile(email);
