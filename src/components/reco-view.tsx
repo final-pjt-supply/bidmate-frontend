@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Building2, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import type { Bid } from "@/lib/types";
@@ -9,20 +9,22 @@ import { hasCompanyProfile } from "@/lib/company";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 
-type SortKey = "match" | "deadline" | "recent";
+type SortKey = "score" | "deadline";
 
 const SORTS: { key: SortKey; label: string }[] = [
-  { key: "match", label: "매칭 점수순" },
+  { key: "score", label: "매칭 점수순" },
   { key: "deadline", label: "마감 임박순" },
-  { key: "recent", label: "최신 등록순" },
 ];
 
-const PAGE_SIZE = 6;
+/** 페이지네이션에 노출할 페이지 번호(많으면 말줄임) */
+function buildPages(total: number, current: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total];
+  if (current >= total - 3)
+    return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
+}
 
-const deadlineValue = (b: Bid) =>
-  b.bid_clse_dt ? new Date(b.bid_clse_dt).getTime() : Number.POSITIVE_INFINITY;
-
-/** 페이지 컨테이너 (제목 + 내용) */
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex-1">
@@ -34,42 +36,27 @@ function PageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function RecoView({ bids }: { bids: Bid[] }) {
+export function RecoView({
+  items,
+  total,
+  page,
+  pageSize,
+  sort,
+}: {
+  items: Bid[];
+  total: number;
+  page: number;
+  pageSize: number;
+  sort: SortKey;
+}) {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
-
-  const [queryInput, setQueryInput] = useState("");
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortKey>("match");
-  const [page, setPage] = useState(1);
 
   // 회원의 회사 정보 입력 여부 (SSR·비회원 시 isMember=false로 localStorage 미접근)
   const companyMissing = useMemo(
     () => isMember && !!user && !hasCompanyProfile(user.email),
     [isMember, user]
   );
-
-  const list = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = bids.filter(
-      (b) => !q || b.bid_ntce_nm.toLowerCase().includes(q) || b.dminstt_nm.toLowerCase().includes(q)
-    );
-    return [...filtered].sort((a, b) => {
-      if (sort === "match") return (b.match_score ?? -1) - (a.match_score ?? -1);
-      if (sort === "deadline") return deadlineValue(a) - deadlineValue(b);
-      return new Date(b.bid_ntce_dt).getTime() - new Date(a.bid_ntce_dt).getTime();
-    });
-  }, [bids, query, sort]);
-
-  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageItems = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  const submitSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setQuery(queryInput);
-    setPage(1);
-  };
 
   // 비회원(또는 로딩 중): 로그인 안내 카드
   if (!isMember) {
@@ -126,45 +113,24 @@ export function RecoView({ bids }: { bids: Bid[] }) {
     );
   }
 
-  // 회원 + 회사 정보 있음: 매칭 리스트
+  // 회원 + 회사 정보 있음: 매칭 리스트 (서버 페이징)
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const hrefFor = (p: number, s: SortKey = sort) => `/recommend?sort=${s}&page=${p}`;
+
   return (
     <PageShell>
-      {/* 검색바 */}
-      <form
-        onSubmit={submitSearch}
-        className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white py-1.5 pl-[18px] pr-1.5"
-      >
-        <input
-          type="text"
-          value={queryInput}
-          onChange={(e) => setQueryInput(e.target.value)}
-          placeholder="맞춤 공고에서 검색"
-          className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 placeholder:text-slate-400 focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="shrink-0 rounded-lg bg-indigo-700 px-6 py-2.5 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800"
-        >
-          검색
-        </button>
-      </form>
-
       {/* 헤더: 매칭 공고 N건 + 동기화 + 정렬 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[15px] font-bold text-gray-900">매칭 공고 {list.length}건</p>
+        <p className="text-[15px] font-bold text-gray-900">매칭 공고 {total}건</p>
         <div className="flex flex-wrap items-center gap-4">
           <SyncIndicator />
           <div className="flex items-center gap-2">
             {SORTS.map(({ key, label }) => {
               const active = sort === key;
               return (
-                <button
+                <Link
                   key={key}
-                  type="button"
-                  onClick={() => {
-                    setSort(key);
-                    setPage(1);
-                  }}
+                  href={hrefFor(1, key)}
                   className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
                     active
                       ? "bg-indigo-50 text-indigo-700"
@@ -172,63 +138,72 @@ export function RecoView({ bids }: { bids: Bid[] }) {
                   }`}
                 >
                   {label}
-                </button>
+                </Link>
               );
             })}
           </div>
         </div>
       </div>
 
-      {/* 카드 그리드 (매칭 배지 표시) */}
-      {pageItems.length > 0 ? (
+      {/* 카드 그리드 */}
+      {items.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {pageItems.map((bid) => (
+          {items.map((bid) => (
             <BidCard key={bid.bid_id} bid={bid} showMatch />
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-20 text-center">
-          <p className="text-[15px] font-bold text-gray-900">조건에 맞는 공고가 없어요</p>
-          <p className="text-sm text-slate-500">다른 검색어로 다시 찾아보세요.</p>
+          <p className="text-[15px] font-bold text-gray-900">표시할 공고가 없어요</p>
+          <p className="text-sm text-slate-500">잠시 후 다시 시도해 주세요.</p>
         </div>
       )}
 
-      {/* 페이지네이션 */}
-      {list.length > PAGE_SIZE && (
+      {/* 페이지네이션 (서버) */}
+      {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1.5 pt-3">
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
+          <Link
+            href={hrefFor(Math.max(1, page - 1))}
+            aria-disabled={page === 1}
+            className={`flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 ${
+              page === 1 ? "pointer-events-none opacity-40" : ""
+            }`}
             aria-label="이전 페이지"
-            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
           >
             <ChevronLeft className="size-4" strokeWidth={2} />
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPage(p)}
-              aria-current={p === currentPage ? "page" : undefined}
-              className={`flex size-9 items-center justify-center rounded-lg text-sm transition-colors ${
-                p === currentPage
-                  ? "font-bold text-indigo-700"
-                  : "font-medium text-slate-500 hover:bg-slate-100"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
+          </Link>
+
+          {buildPages(totalPages, page).map((p, i) =>
+            p === "ellipsis" ? (
+              <span key={`e${i}`} className="px-1 text-xs text-slate-400">
+                …
+              </span>
+            ) : (
+              <Link
+                key={p}
+                href={hrefFor(p)}
+                aria-current={p === page ? "page" : undefined}
+                className={`flex size-9 items-center justify-center rounded-lg text-sm transition-colors ${
+                  p === page
+                    ? "font-bold text-indigo-700"
+                    : "font-medium text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {p}
+              </Link>
+            )
+          )}
+
+          <Link
+            href={hrefFor(Math.min(totalPages, page + 1))}
+            aria-disabled={page === totalPages}
+            className={`flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 ${
+              page === totalPages ? "pointer-events-none opacity-40" : ""
+            }`}
             aria-label="다음 페이지"
-            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
           >
             <ChevronRight className="size-4" strokeWidth={2} />
-          </button>
+          </Link>
         </div>
       )}
     </PageShell>
