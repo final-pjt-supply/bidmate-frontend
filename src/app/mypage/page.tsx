@@ -2,49 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, MOCK_ACCOUNT } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 import { Field, inputClass } from "@/components/auth-card";
-
-type CompanyProfile = {
-  name: string;
-  bizNo: string;
-  region: string;
-  size: string;
-  licenses: string;
-  certs: string;
-  revenue: string; // 억원
-  employees: string;
-};
-
-const PROFILE_KEY = "bidmate_company";
-/** 프로필은 계정별로 분리 저장 (전역 공유 방지) */
-const profileKey = (email: string) => `${PROFILE_KEY}:${email.toLowerCase()}`;
-
-/** 신규 가입자의 기본값 — 아무것도 등록되지 않은 빈 프로필 */
-const EMPTY_PROFILE: CompanyProfile = {
-  name: "",
-  bizNo: "",
-  region: "",
-  size: "",
-  licenses: "",
-  certs: "",
-  revenue: "",
-  employees: "",
-};
-
-/** 데모/테스트 계정에서만 보여줄 예시 회사 정보 */
-const DEMO_PROFILE: CompanyProfile = {
-  name: "(주)비드메이트",
-  bizNo: "123-45-67890",
-  region: "서울특별시",
-  size: "중소기업",
-  licenses: "소프트웨어사업자, 정보통신공사업",
-  certs: "CC인증, ISO 27001, GS인증",
-  revenue: "5.0",
-  employees: "42",
-};
+import { type CompanyProfile, EMPTY_PROFILE, loadProfile, saveProfile } from "@/lib/company";
 
 const SIDE_MENU = ["회사 정보", "스크랩한 공고", "맞춤 알림 설정", "계정 설정"];
 
@@ -79,21 +41,10 @@ export default function MyPage() {
     if (new URLSearchParams(window.location.search).get("edit") === "1") setEditing(true);
   }, []);
 
-  // 저장된 프로필 로드
-  //  - 저장값 있으면 그대로
-  //  - 데모/테스트 계정은 예시 프로필
-  //  - 그 외 신규 가입자는 빈 프로필(회사명만 가입값)
+  // 저장된 프로필 로드 (공용 loadProfile 사용)
   useEffect(() => {
     if (!user) return;
-    let loaded: CompanyProfile;
-    try {
-      const raw = localStorage.getItem(profileKey(user.email));
-      if (raw) loaded = { ...EMPTY_PROFILE, ...JSON.parse(raw) };
-      else if (user.email.toLowerCase() === MOCK_ACCOUNT.email) loaded = DEMO_PROFILE;
-      else loaded = { ...EMPTY_PROFILE, name: user.company };
-    } catch {
-      loaded = { ...EMPTY_PROFILE, name: user.company };
-    }
+    const loaded = loadProfile(user.email, user.company);
     setProfile(loaded);
     setDraft(loaded);
   }, [user]);
@@ -111,7 +62,7 @@ export default function MyPage() {
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     setProfile(draft);
-    localStorage.setItem(profileKey(user.email), JSON.stringify(draft));
+    saveProfile(user.email, draft);
     setEditing(false);
   };
   const setField = (key: keyof CompanyProfile, value: string) =>
