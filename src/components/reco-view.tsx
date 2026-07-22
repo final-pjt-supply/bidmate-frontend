@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Bid } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
+import { hasCompanyProfile } from "@/lib/company";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { LoginModal } from "@/components/login-modal";
@@ -32,6 +34,12 @@ export function RecoView({ bids }: { bids: Bid[] }) {
   const [sort, setSort] = useState<SortKey>("match");
   const [page, setPage] = useState(1);
 
+  // 회원의 회사 정보 입력 여부 (SSR·비회원 시 isMember=false로 localStorage 미접근)
+  const companyMissing = useMemo(
+    () => isMember && !!user && !hasCompanyProfile(user.email),
+    [isMember, user]
+  );
+
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = bids.filter(
@@ -57,6 +65,33 @@ export function RecoView({ bids }: { bids: Bid[] }) {
     setQuery(queryInput);
     setPage(1);
   };
+
+  // 회원이지만 회사 정보가 없으면 매칭 대신 회사 정보 입력을 먼저 안내
+  if (isMember && companyMissing) {
+    return (
+      <main className="flex-1">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+          <h1 className="text-2xl font-bold text-gray-900">맞춤 추천</h1>
+          <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+            <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
+              <Building2 className="size-[22px] text-indigo-600" strokeWidth={2} />
+            </span>
+            <p className="text-lg font-bold text-gray-900">먼저 회사 정보를 입력해 주세요</p>
+            <p className="max-w-md text-sm text-gray-500">
+              등록하신 회사 정보로 공고 적합도를 계산해 맞춤 공고를 추천해드려요. 회사 정보를 입력하면
+              매칭 결과를 볼 수 있어요.
+            </p>
+            <Link
+              href="/mypage?edit=1"
+              className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            >
+              회사 정보 입력하기
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex-1">
