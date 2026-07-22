@@ -141,18 +141,32 @@ function FilterGroup({ title, children }: { title: string; children: React.React
   );
 }
 
-export function SearchView({ bids, initialQuery = "" }: { bids: Bid[]; initialQuery?: string }) {
+export function SearchView({
+  bids,
+  initialQuery = "",
+  initialCategory,
+}: {
+  bids: Bid[];
+  initialQuery?: string;
+  initialCategory?: BidCategory;
+}) {
   const [queryInput, setQueryInput] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState<SortKey>("deadline");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  // 업종을 지정해 진입하면 상세 검색 패널을 펼친 상태로 시작
+  const [advancedOpen, setAdvancedOpen] = useState(!!initialCategory);
   const [page, setPage] = useState(1);
   // 마감 임박순/마감 판정 기준 시각: 마운트 시점으로 한 번만 고정.
   const [nowMs] = useState(() => Date.now());
 
-  // 패널 입력값(draft) — "조건 적용" 클릭 시에만 실제 필터(filters)에 반영
-  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS);
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  // 패널 입력값(draft) — "조건 적용" 클릭 시에만 실제 필터(filters)에 반영.
+  // 업종 지정 진입 시 해당 업종을 선택·적용한 상태로 시작.
+  const initialFilters: Filters = {
+    ...EMPTY_FILTERS,
+    cats: initialCategory ? [initialCategory] : [],
+  };
+  const [draft, setDraft] = useState<Filters>(initialFilters);
+  const [filters, setFilters] = useState<Filters>(initialFilters);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
