@@ -1,9 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export type HeroStat = { value: string; label: string };
+
+// 업종 바로가기 칩 — 클릭 시 상세 검색이 열린 검색 결과로 이동
+const HERO_CHIPS: { label: string; cat: string }[] = [
+  { label: "공사", cat: "cnstwk" },
+  { label: "용역", cat: "servc" },
+  { label: "물품", cat: "thng" },
+  { label: "외자", cat: "frgcpt" },
+];
 
 type HomeHeroProps = {
   badge: string;
@@ -45,24 +54,37 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
           <p className="text-[17px] text-indigo-200">{subtitle}</p>
         </div>
 
-        <form
-          onSubmit={submit}
-          className="flex w-full max-w-[800px] items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 pl-4 pr-1.5"
-        >
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="공고명을 입력하세요"
-            className="min-w-0 flex-1 text-[17px] text-gray-900 outline-none placeholder:text-slate-400"
-          />
-          <button
-            type="submit"
-            className="shrink-0 rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
+        <div className="flex w-full flex-col items-center gap-3.5">
+          <form
+            onSubmit={submit}
+            className="flex w-full max-w-[800px] items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 pl-4 pr-1.5"
           >
-            공고 검색
-          </button>
-        </form>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="공고명을 입력하세요"
+              className="min-w-0 flex-1 text-[17px] text-gray-900 outline-none placeholder:text-slate-400"
+            />
+            <button
+              type="submit"
+              className="shrink-0 rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
+            >
+              공고 검색
+            </button>
+          </form>
+          <div className="flex items-center gap-2">
+            {HERO_CHIPS.map(({ label, cat }) => (
+              <Link
+                key={cat}
+                href={`/search?cat=${cat}`}
+                className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-medium text-indigo-100 transition-colors hover:bg-white/20"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {stats && stats.length > 0 && (
           <div className="flex items-center justify-center">
