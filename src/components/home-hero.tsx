@@ -1,4 +1,7 @@
-const HERO_CHIPS = ["IT 유지보수", "건설 공사", "환경 용역", "물품 구매"];
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export type HeroStat = { value: string; label: string };
 
@@ -11,6 +14,15 @@ type HomeHeroProps = {
 };
 
 export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+  };
+
   return (
     <section className="relative w-full overflow-hidden bg-gradient-to-r from-indigo-800 via-indigo-600 to-violet-700 px-4 py-[72px] sm:px-6 lg:px-10">
       {/* 40px 그리드 오버레이 */}
@@ -33,32 +45,24 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
           <p className="text-[17px] text-indigo-200">{subtitle}</p>
         </div>
 
-        <div className="flex w-full flex-col items-center gap-3.5">
-          <form className="flex w-full max-w-[800px] items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 pl-4 pr-1.5">
-            <input
-              type="text"
-              placeholder="공고명을 입력하세요"
-              className="min-w-0 flex-1 text-[17px] text-gray-900 outline-none placeholder:text-slate-400"
-            />
-            <button
-              type="submit"
-              className="shrink-0 rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
-            >
-              공고 검색
-            </button>
-          </form>
-          <div className="flex items-center gap-2">
-            {HERO_CHIPS.map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-medium text-indigo-100 transition-colors hover:bg-white/20"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <form
+          onSubmit={submit}
+          className="flex w-full max-w-[800px] items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 pl-4 pr-1.5"
+        >
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="공고명을 입력하세요"
+            className="min-w-0 flex-1 text-[17px] text-gray-900 outline-none placeholder:text-slate-400"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
+          >
+            공고 검색
+          </button>
+        </form>
 
         {stats && stats.length > 0 && (
           <div className="flex items-center justify-center">

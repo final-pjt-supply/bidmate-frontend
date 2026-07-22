@@ -141,9 +141,9 @@ function FilterGroup({ title, children }: { title: string; children: React.React
   );
 }
 
-export function SearchView({ bids }: { bids: Bid[] }) {
-  const [queryInput, setQueryInput] = useState("");
-  const [query, setQuery] = useState("");
+export function SearchView({ bids, initialQuery = "" }: { bids: Bid[]; initialQuery?: string }) {
+  const [queryInput, setQueryInput] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState<SortKey>("deadline");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [page, setPage] = useState(1);
