@@ -49,7 +49,7 @@ const FAQS = [
 
 export default function GuidePage() {
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center px-4 sm:px-6 lg:px-10">
         {/* hero */}

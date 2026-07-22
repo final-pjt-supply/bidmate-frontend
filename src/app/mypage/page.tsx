@@ -69,7 +69,7 @@ export default function MyPage() {
     setDraft((d) => ({ ...d, [key]: value }));
 
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
         {/* 사이드바 */}
