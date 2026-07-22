@@ -45,5 +45,6 @@ export function computeDday(bid_clse_dt: string | null, now: Date = new Date()):
   const days = Math.ceil((clse.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   if (days > 365) return { kind: "always", text: "상시" };
   if (days < 0) return { kind: "closed", text: "마감" };
+  if (days === 0) return { kind: "urgent", text: "D-Day" };
   return { kind: days <= 3 ? "urgent" : "normal", text: `D-${days}` };
 }

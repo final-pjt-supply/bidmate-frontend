@@ -7,7 +7,7 @@ import { Bell, ChevronDown, User, Bookmark, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const NAV_ITEMS: { label: string; href: string }[] = [
-  { label: "공고 검색", href: "#" },
+  { label: "공고 검색", href: "/search" },
   { label: "맞춤 추천", href: "#" },
   { label: "비드봇", href: "#" },
   { label: "이용안내", href: "/guide" },
