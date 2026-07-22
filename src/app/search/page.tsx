@@ -12,12 +12,18 @@ export const metadata: Metadata = {
 
 const bids = (bidsData as { bids: Bid[] }).bids;
 
-export default function SearchPage() {
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+
   return (
     <div className="flex min-h-full flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
-        <SearchView bids={bids} />
+        <SearchView bids={bids} initialQuery={q ?? ""} />
       </main>
       <SiteFooter />
     </div>
