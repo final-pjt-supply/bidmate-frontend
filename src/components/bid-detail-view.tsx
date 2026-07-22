@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bookmark, ChevronRight, ExternalLink, Lock, MessageCircleQuestion } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
+import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
 
 const DDAY_STYLE: Record<string, string> = {
   urgent: "bg-rose-50 text-orange-700",
@@ -64,7 +67,11 @@ function Field({ label, value }: { label: string; value: string }) {
 
 export function BidDetailView({ bid }: { bid: Bid }) {
   const { user, ready } = useAuth();
+  const router = useRouter();
   const isMember = ready && !!user;
+  const [botMode, setBotMode] = useState<BotMode>("closed");
+
+  const askBidbot = () => (isMember ? setBotMode("popover") : router.push("/login"));
 
   const dday = computeDday(bid.bid_clse_dt);
   const q = bid.qualification;
@@ -152,6 +159,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={askBidbot}
             className="flex items-center gap-1.5 rounded-md bg-indigo-700 px-3.5 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
           >
             <MessageCircleQuestion className="size-4" strokeWidth={2} />이 공고에 대해 질문하기
@@ -272,6 +280,9 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           <Field label="개찰일시" value={formatDate(bid.openg_dt, true)} />
         </div>
       </Section>
+
+      {/* 플로팅 비드봇 (회원) */}
+      <BidbotDock bidName={bid.bid_ntce_nm} mode={botMode} onMode={setBotMode} />
     </div>
   );
 }
