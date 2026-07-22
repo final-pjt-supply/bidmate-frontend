@@ -104,8 +104,10 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <Link href="/search" className="transition-colors hover:text-slate-600">
           공고
         </Link>
-        <ChevronRight className="size-3" strokeWidth={2} />
-        <span className="text-slate-500">공고 상세</span>
+        <ChevronRight className="size-3 shrink-0" strokeWidth={2} />
+        <span className="max-w-[420px] truncate text-slate-600" title={bid.bid_ntce_nm}>
+          {bid.bid_ntce_nm}
+        </span>
       </nav>
 
       {/* 헤더 카드 */}
