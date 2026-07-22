@@ -1,5 +1,6 @@
+import Link from "next/link";
 import type { Bid } from "@/lib/types";
-import { categoryLabel, shortMethod, formatAmount, computeDday } from "@/lib/format";
+import { categoryLabel, shortMethod, computeDday } from "@/lib/format";
 
 const DDAY_STYLE: Record<string, string> = {
   urgent: "bg-rose-50 text-orange-700",
@@ -18,12 +19,12 @@ type BidCardProps = {
 
 export function BidCard({ bid, showMatch = false, className = "" }: BidCardProps) {
   const dday = computeDday(bid.bid_clse_dt);
-  const amount = formatAmount(bid);
   const method = shortMethod(bid.sucsfbid_mthd_nm);
 
   return (
-    <div
-      className={`flex h-64 flex-col gap-3.5 rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-md ${className}`}
+    <Link
+      href={`/bids/${bid.bid_id}`}
+      className={`flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:border-indigo-200 hover:shadow-md ${className}`}
     >
       <div className="flex items-center justify-between">
         {/* D-day: 좌측 상단 고정 */}
@@ -54,16 +55,6 @@ export function BidCard({ bid, showMatch = false, className = "" }: BidCardProps
           </span>
         )}
       </div>
-
-      <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3">
-        <span className="text-sm font-bold text-gray-500">{amount || "금액 미정"}</span>
-        <button
-          type="button"
-          className="flex h-8 items-center rounded-md bg-slate-100 px-3 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-200"
-        >
-          상세보기
-        </button>
-      </div>
-    </div>
+    </Link>
   );
 }
