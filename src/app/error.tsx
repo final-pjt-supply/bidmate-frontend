@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
 import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 
@@ -15,6 +16,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("페이지 렌더 오류:", error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
