@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Field, inputClass } from "@/components/auth-card";
 import {
   type CompanyProfile,
+  type RegionRef,
   EMPTY_PROFILE,
   hasCompanyProfile,
   loadProfile,
@@ -12,6 +13,10 @@ import {
 } from "@/lib/company";
 import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
+import { RegionSelect } from "@/components/region-select";
+
+// 자유텍스트(문자열) 필드 키 — hqRegion(객체)은 별도 핸들러로 처리
+type StringField = "name" | "bizNo" | "size" | "licenses" | "certs" | "revenue" | "employees";
 
 /** 조회 모드 한 칸 (라벨 + 값 + 밑줄). 값이 비면 미등록 표시 */
 function ViewField({ label, value }: { label: string; value: string }) {
@@ -63,8 +68,9 @@ export default function MyPage() {
     setEditing(false);
     logEvent(wasFilled ? "profile_updated" : "company_profile_submitted");
   };
-  const setField = (key: keyof CompanyProfile, value: string) =>
+  const setField = (key: StringField, value: string) =>
     setDraft((d) => ({ ...d, [key]: value }));
+  const setHqRegion = (v: RegionRef | null) => setDraft((d) => ({ ...d, hqRegion: v }));
 
   const description = editing
     ? "회사 정보를 수정한 뒤 저장하세요. 이 정보로 공고 적합도를 계산해요."
@@ -87,7 +93,7 @@ export default function MyPage() {
           </div>
           <div className="flex gap-4">
             <Field label="소재지 (지역)">
-              <input value={draft.region} onChange={(e) => setField("region", e.target.value)} className={inputClass} />
+              <RegionSelect value={draft.hqRegion} onChange={setHqRegion} />
             </Field>
             <Field label="기업규모">
               <input value={draft.size} onChange={(e) => setField("size", e.target.value)} className={inputClass} />
@@ -130,7 +136,7 @@ export default function MyPage() {
             <ViewField label="사업자등록번호" value={profile.bizNo} />
           </div>
           <div className="flex gap-[34px]">
-            <ViewField label="소재지 (지역)" value={profile.region} />
+            <ViewField label="소재지 (지역)" value={profile.hqRegion?.name ?? ""} />
             <ViewField label="기업규모" value={profile.size} />
           </div>
           <ViewField label="업종·보유 면허" value={profile.licenses} />
