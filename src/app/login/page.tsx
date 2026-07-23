@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, MOCK_ACCOUNT } from "@/lib/auth";
+import { logEvent } from "@/lib/analytics/track";
 import { AuthCardLayout, AuthCard, Field, inputClass } from "@/components/auth-card";
 
 export default function LoginPage() {
@@ -21,8 +22,10 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const result = login(email, password);
-    if (result.ok) router.push("/");
-    else setError(result.error);
+    if (result.ok) {
+      logEvent("login_completed");
+      router.push("/");
+    } else setError(result.error);
   };
 
   const fillTestAccount = () => {

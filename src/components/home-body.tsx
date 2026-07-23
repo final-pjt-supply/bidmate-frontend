@@ -6,6 +6,7 @@ import { ChevronRight, Lock } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
+import { logEvent } from "@/lib/analytics/track";
 
 /** 섹션 헤더 우측 더보기 링크 (숨겨진 공고가 있을 때만 노출) */
 function MoreLink({ href }: { href: string }) {
@@ -89,8 +90,8 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
       ) : (
         <>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {recommended.map((bid) => (
-              <BidCard key={bid.bid_id} bid={bid} showMatch />
+            {recommended.map((bid, i) => (
+              <BidCard key={bid.bid_id} bid={bid} showMatch position={i + 1} sort="score" list="reco" />
             ))}
           </div>
           {recommendedAll.length > MAX_CARDS && (
@@ -111,8 +112,8 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
         <p className="text-[13px] text-slate-400">최근 자동 수집된 공고예요.</p>
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {recent.map((bid) => (
-          <BidCard key={bid.bid_id} bid={bid} />
+        {recent.map((bid, i) => (
+          <BidCard key={bid.bid_id} bid={bid} position={i + 1} sort="recent" list="latest" />
         ))}
       </div>
       {recentAll.length > MAX_CARDS && (
@@ -136,7 +137,10 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
             <button
               key={value}
               type="button"
-              onClick={() => setFilter(value)}
+              onClick={() => {
+                setFilter(value);
+                logEvent("bid_list_filtered", { page: "home", properties: { category: value } });
+              }}
               className={`rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
                 active
                   ? "border-indigo-200 bg-indigo-50 text-indigo-700"

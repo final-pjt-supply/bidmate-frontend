@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bookmark, ChevronRight, ExternalLink, Lock, MessageCircleQuestion } from "lucide-react";
@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
 import { isScrapped, toggleScrap } from "@/lib/scraps";
+import { logEvent } from "@/lib/analytics/track";
 import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
 
 const DDAY_STYLE: Record<string, string> = {
@@ -72,7 +73,19 @@ export function BidDetailView({ bid }: { bid: Bid }) {
   const isMember = ready && !!user;
   const [botMode, setBotMode] = useState<BotMode>("closed");
 
-  const askBidbot = () => (isMember ? setBotMode("popover") : router.push("/login"));
+  useEffect(() => {
+    logEvent("bid_detail_viewed", { bid_id: bid.bid_id });
+  }, [bid.bid_id]);
+
+  const askBidbot = () => {
+    logEvent("bid_question_clicked", { bid_id: bid.bid_id });
+    if (isMember) {
+      logEvent("chatbot_opened", { properties: { referrer_page: "bid_detail" } });
+      setBotMode("popover");
+    } else {
+      router.push("/login");
+    }
+  };
 
   // 스크랩(북마크) — 초기값은 저장소에서 파생, 토글 후에는 override로 반영
   const initialScrapped = useMemo(
@@ -86,7 +99,9 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       router.push("/login");
       return;
     }
-    setScrapOverride(toggleScrap(user.email, bid.bid_id));
+    const next = toggleScrap(user.email, bid.bid_id);
+    setScrapOverride(next);
+    logEvent("bid_bookmarked", { bid_id: bid.bid_id, properties: { on: next } });
   };
 
   const dday = computeDday(bid.bid_clse_dt);
@@ -189,6 +204,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               href={bid.bid_ntce_dtl_url}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => logEvent("bid_external_link_clicked", { bid_id: bid.bid_id })}
               className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
             >
               <ExternalLink className="size-4" strokeWidth={2} />

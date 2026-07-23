@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, shortMethod, computeDday } from "@/lib/format";
+import { logEvent } from "@/lib/analytics/track";
 
 const DDAY_STYLE: Record<string, string> = {
   urgent: "bg-rose-50 text-orange-700",
@@ -15,15 +16,27 @@ type BidCardProps = {
   /** 추천 섹션에서만 매칭 배지 표시 (점수는 에이전트가 채우기 전까지 null → "매칭 —") */
   showMatch?: boolean;
   className?: string;
+  /** 로그용: 목록 내 전역 순위(1-based) */
+  position?: number;
+  /** 로그용: 현재 정렬 */
+  sort?: string;
+  /** 로그용: 어느 목록인지 (reco/latest/search/scraps) */
+  list?: string;
 };
 
-export function BidCard({ bid, showMatch = false, className = "" }: BidCardProps) {
+export function BidCard({ bid, showMatch = false, className = "", position, sort, list }: BidCardProps) {
   const dday = computeDday(bid.bid_clse_dt);
   const method = shortMethod(bid.sucsfbid_mthd_nm);
 
   return (
     <Link
       href={`/bids/${bid.bid_id}`}
+      onClick={() =>
+        logEvent("bid_card_clicked", {
+          bid_id: bid.bid_id,
+          properties: { position, sort, list },
+        })
+      }
       className={`flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:border-indigo-200 hover:shadow-md ${className}`}
     >
       <div className="flex items-center justify-between">

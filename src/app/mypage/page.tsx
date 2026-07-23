@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Field, inputClass } from "@/components/auth-card";
-import { type CompanyProfile, EMPTY_PROFILE, loadProfile, saveProfile } from "@/lib/company";
+import {
+  type CompanyProfile,
+  EMPTY_PROFILE,
+  hasCompanyProfile,
+  loadProfile,
+  saveProfile,
+} from "@/lib/company";
+import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
 
 /** 조회 모드 한 칸 (라벨 + 값 + 밑줄). 값이 비면 미등록 표시 */
@@ -50,9 +57,11 @@ export default function MyPage() {
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    const wasFilled = hasCompanyProfile(user.email); // 저장 전 상태로 최초/수정 판별
     setProfile(draft);
     saveProfile(user.email, draft);
     setEditing(false);
+    logEvent(wasFilled ? "profile_updated" : "company_profile_submitted");
   };
   const setField = (key: keyof CompanyProfile, value: string) =>
     setDraft((d) => ({ ...d, [key]: value }));
