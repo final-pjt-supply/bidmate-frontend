@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, shortMethod, computeDday } from "@/lib/format";
@@ -27,9 +30,37 @@ type BidCardProps = {
 export function BidCard({ bid, showMatch = false, className = "", position, sort, list }: BidCardProps) {
   const dday = computeDday(bid.bid_clse_dt);
   const method = shortMethod(bid.sucsfbid_mthd_nm);
+  const cardRef = useRef<HTMLAnchorElement>(null);
+
+  // 노출(impression): 목록 맥락(list)이 있을 때, 카드가 실제로 보이면 뷰당 1회 기록.
+  // "보였는데 클릭 안 함"을 알 수 있어야 CTR·비선호 학습이 가능하다.
+  useEffect(() => {
+    if (!list) return;
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    let fired = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !fired) {
+            fired = true;
+            logEvent("bid_impression", {
+              bid_id: bid.bid_id,
+              properties: { position, sort, list },
+            });
+            io.disconnect();
+          }
+        }
+      },
+      { threshold: 0.5 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [bid.bid_id, position, sort, list]);
 
   return (
     <Link
+      ref={cardRef}
       href={`/bids/${bid.bid_id}`}
       onClick={() =>
         logEvent("bid_card_clicked", {

@@ -73,8 +73,23 @@ export function BidDetailView({ bid }: { bid: Bid }) {
   const isMember = ready && !!user;
   const [botMode, setBotMode] = useState<BotMode>("closed");
 
+  // 상세 조회 + 체류시간(dwell): 진입 시점이 아니라 "이탈 시점"에 한 번 발사해
+  // 얼마나 오래 봤는지(properties.dwell_ms)를 함께 기록한다. 관심도 강신호.
   useEffect(() => {
-    logEvent("bid_detail_viewed", { bid_id: bid.bid_id });
+    const start = performance.now();
+    let fired = false;
+    const fire = () => {
+      if (fired) return;
+      fired = true;
+      const dwell_ms = Math.round(performance.now() - start);
+      logEvent("bid_detail_viewed", { bid_id: bid.bid_id, properties: { dwell_ms } });
+    };
+    // 탭 닫힘/새로고침(pagehide) + SPA 이동/언마운트(cleanup) 모두 커버, 중복 방지
+    window.addEventListener("pagehide", fire);
+    return () => {
+      window.removeEventListener("pagehide", fire);
+      fire();
+    };
   }, [bid.bid_id]);
 
   const askBidbot = () => {

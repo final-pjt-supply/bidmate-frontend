@@ -12,6 +12,7 @@ export type EventName =
   | "mypage_viewed"
   | "login_completed"
   | "bid_list_filtered"
+  | "bid_impression"
   | "bid_card_clicked"
   | "bid_detail_viewed"
   | "bid_question_clicked"
