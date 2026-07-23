@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Claude Code local tooling
 .claude/
+
+# 마스터 테이블 원본 CSV 덤프(중간 재료) — 변환본은 src/lib/data/*-master.json에 커밋됨
+/data/
