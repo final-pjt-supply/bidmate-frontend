@@ -26,8 +26,8 @@ export default function ScrapsPage() {
     <MypageShell title="스크랩한 공고" description="공고 상세에서 북마크한 공고를 모아봤어요.">
       {scrapped.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {scrapped.map((bid) => (
-            <BidCard key={bid.bid_id} bid={bid} />
+          {scrapped.map((bid, i) => (
+            <BidCard key={bid.bid_id} bid={bid} position={i + 1} list="scraps" />
           ))}
         </div>
       ) : (

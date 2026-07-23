@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { logEvent } from "@/lib/analytics/track";
 import { HomeHero, type HeroStat } from "@/components/home-hero";
 import { HomeBody } from "@/components/home-body";
 import type { Bid } from "@/lib/types";
@@ -15,6 +17,10 @@ type HomeViewProps = {
 export function HomeView({ recommendedBids, recentBids, urgentCount, totalCount }: HomeViewProps) {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
+
+  useEffect(() => {
+    logEvent("home_viewed", { page: "home" });
+  }, []);
 
   if (isMember) {
     const stats: HeroStat[] = [

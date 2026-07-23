@@ -37,6 +37,11 @@ function uuid(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+/** 새 id 발급 (예: chat_session_id). */
+export function newId(prefix = ""): string {
+  return `${prefix}${uuid()}`;
+}
+
 /** 영구 익명 id — 없으면 발급해 저장 */
 function getAnonymousId(): string {
   try {

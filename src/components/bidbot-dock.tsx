@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Bot, Maximize2, Minimize2, Minus, X } from "lucide-react";
+import { logEvent, newId } from "@/lib/analytics/track";
 import { type ChatMessage, BOT_DISCLAIMER, BOT_PLACEHOLDER } from "@/components/bidbot-view";
 
 export type BotMode = "closed" | "min" | "popover" | "expanded";
@@ -19,6 +20,7 @@ export function BidbotDock({
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [chatSessionId] = useState(() => newId("c_"));
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const send = (text: string) => {
@@ -26,6 +28,7 @@ export function BidbotDock({
     if (!t) return;
     setMessages((m) => [...m, { role: "user", text: t }, { role: "bot", text: BOT_PLACEHOLDER }]);
     setInput("");
+    logEvent("chatbot_message_sent", { properties: { chat_session_id: chatSessionId } });
     requestAnimationFrame(() => {
       const el = scrollRef.current;
       if (el) el.scrollTop = el.scrollHeight;

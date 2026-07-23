@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Check, ChevronRight } from "lucide-react";
 import { useAuth, isEmailTaken } from "@/lib/auth";
+import { logEvent } from "@/lib/analytics/track";
 import { AuthCardLayout, AuthCard, Field, inputClass } from "@/components/auth-card";
 import { TermsModal } from "@/components/terms-modal";
 
@@ -68,8 +69,10 @@ export default function SignupPage() {
       return;
     }
     const result = signup(company, email, password);
-    if (result.ok) setDone(true);
-    else setError(result.error);
+    if (result.ok) {
+      logEvent("signup_completed");
+      setDone(true);
+    } else setError(result.error);
   };
 
   const canSubmit =

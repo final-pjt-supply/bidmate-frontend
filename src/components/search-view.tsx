@@ -6,6 +6,7 @@ import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { computeDday, shortMethod } from "@/lib/format";
+import { logEvent } from "@/lib/analytics/track";
 
 type SortKey = "deadline" | "recent";
 
@@ -332,6 +333,8 @@ export function SearchView({
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    const q = queryInput.trim();
+    if (q) logEvent("search_submitted", { properties: { query_len: q.length } });
     setQuery(queryInput);
     setPage(1);
   };
@@ -339,6 +342,10 @@ export function SearchView({
   const applyFilters = () => {
     setFilters(draft);
     setPage(1);
+    logEvent("bid_list_filtered", {
+      page: "search",
+      properties: { category: draft.cats, sort },
+    });
   };
 
   const resetFilters = () => {
@@ -505,6 +512,7 @@ export function SearchView({
                   onClick={() => {
                     setSort(key);
                     setPage(1);
+                    logEvent("bid_list_filtered", { page: "search", properties: { sort: key } });
                   }}
                   className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
                     active
@@ -523,8 +531,14 @@ export function SearchView({
       {/* 카드 그리드 / 빈 상태 */}
       {pageItems.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {pageItems.map((bid) => (
-            <BidCard key={bid.bid_id} bid={bid} />
+          {pageItems.map((bid, i) => (
+            <BidCard
+              key={bid.bid_id}
+              bid={bid}
+              position={(currentPage - 1) * PAGE_SIZE + i + 1}
+              sort={sort}
+              list="search"
+            />
           ))}
         </div>
       ) : (

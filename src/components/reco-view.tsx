@@ -6,6 +6,7 @@ import { Building2, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import type { Bid } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { hasCompanyProfile } from "@/lib/company";
+import { logEvent } from "@/lib/analytics/track";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 
@@ -131,6 +132,7 @@ export function RecoView({
                 <Link
                   key={key}
                   href={hrefFor(1, key)}
+                  onClick={() => logEvent("bid_list_filtered", { page: "recommend", properties: { sort: key } })}
                   className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
                     active
                       ? "bg-indigo-50 text-indigo-700"
@@ -148,8 +150,15 @@ export function RecoView({
       {/* 카드 그리드 */}
       {items.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((bid) => (
-            <BidCard key={bid.bid_id} bid={bid} showMatch />
+          {items.map((bid, i) => (
+            <BidCard
+              key={bid.bid_id}
+              bid={bid}
+              showMatch
+              position={(page - 1) * pageSize + i + 1}
+              sort={sort}
+              list="reco"
+            />
           ))}
         </div>
       ) : (

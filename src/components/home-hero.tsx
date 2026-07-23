@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { logEvent } from "@/lib/analytics/track";
 
 export type HeroStat = { value: string; label: string };
 
@@ -29,6 +30,7 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();
+    if (q) logEvent("search_submitted", { properties: { query_len: q.length } });
     router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
   };
 

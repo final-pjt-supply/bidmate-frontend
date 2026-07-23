@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { logEvent } from "@/lib/analytics/track";
 import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 
@@ -34,6 +35,10 @@ export function MypageShell({
   useEffect(() => {
     if (ready && !user) router.replace("/login");
   }, [ready, user, router]);
+
+  useEffect(() => {
+    logEvent("mypage_viewed", { page: "mypage" });
+  }, []);
 
   if (!ready || !user) return null;
 

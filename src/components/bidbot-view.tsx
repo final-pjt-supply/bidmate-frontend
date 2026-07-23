@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bot, Lock, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { logEvent, newId } from "@/lib/analytics/track";
 
 export type ChatMessage = { role: "user" | "bot"; text: string };
 
@@ -125,13 +126,25 @@ export function BidbotView() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [chatSessionId, setChatSessionId] = useState(() => newId("c_"));
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    logEvent("chatbot_opened", { properties: { referrer_page: "bidbot_page" } });
+  }, []);
+
+  const newChat = () => {
+    setMessages([]);
+    setChatSessionId(newId("c_"));
+    logEvent("chatbot_opened", { properties: { referrer_page: "new_chat" } });
+  };
 
   const send = (text: string) => {
     const t = text.trim();
     if (!t) return;
     setMessages((m) => [...m, { role: "user", text: t }, { role: "bot", text: BOT_PLACEHOLDER }]);
     setInput("");
+    logEvent("chatbot_message_sent", { properties: { chat_session_id: chatSessionId } });
     // 다음 페인트에서 하단으로 스크롤
     requestAnimationFrame(() => {
       const el = scrollRef.current;
@@ -146,7 +159,7 @@ export function BidbotView() {
         <aside className="hidden w-[260px] shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-4 md:flex">
         <button
           type="button"
-          onClick={() => setMessages([])}
+          onClick={newChat}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-50"
         >
           <Plus className="size-4" strokeWidth={2} />새 대화
