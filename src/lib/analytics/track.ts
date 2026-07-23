@@ -56,21 +56,59 @@ function getAnonymousId(): string {
   }
 }
 
-/** 방문 세션 id — 30분 무활동이면 새로 발급, 활동 시각 갱신 */
+/** UUID 형식인지(백엔드 visit_id는 format:uuid 요구) */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** 방문 세션 id — 30분 무활동이면 새로 발급, 활동 시각 갱신.
+ *  백엔드 스키마가 UUID를 요구하므로 접두사 없는 순수 UUID로 저장한다. */
 function getVisitId(): string {
   try {
     const now = Date.now();
     const raw = localStorage.getItem(VISIT_KEY);
     let visit = raw ? (JSON.parse(raw) as { id: string; last: number }) : null;
-    if (!visit || now - visit.last > VISIT_TTL_MS) {
-      visit = { id: `v_${uuid()}`, last: now };
+    // 만료됐거나, 예전 형식(v_ 접두사 등 비UUID)이면 재발급
+    if (!visit || now - visit.last > VISIT_TTL_MS || !UUID_RE.test(visit.id)) {
+      visit = { id: uuid(), last: now };
     } else {
       visit.last = now;
     }
     localStorage.setItem(VISIT_KEY, JSON.stringify(visit));
     return visit.id;
   } catch {
-    return "v_unknown";
+    return "00000000-0000-4000-8000-000000000000";
+  }
+}
+
+/** 경로 → 짧은 page 키(백엔드 page ≤40). bid_id는 별도 필드로 나가므로 상세는 패턴키로. */
+function pageKey(pathname: string): string {
+  if (pathname === "/") return "home";
+  if (pathname.startsWith("/bids/")) return "bid_detail";
+  if (pathname.startsWith("/mypage/scraps")) return "scraps";
+  if (pathname.startsWith("/mypage/account")) return "account";
+  if (pathname.startsWith("/mypage")) return "mypage";
+  const known = [
+    "search",
+    "recommend",
+    "bidbot",
+    "login",
+    "signup",
+    "guide",
+    "support",
+    "privacy",
+    "terms",
+  ];
+  const seg = pathname.split("/")[1] ?? "";
+  if (known.includes(seg)) return seg;
+  return pathname.slice(0, 40);
+}
+
+/** 대략적 디바이스 구분(백엔드 device_type ≤20) */
+function deviceType(): string {
+  try {
+    return window.innerWidth < 768 ? "mobile" : "desktop";
+  } catch {
+    return "unknown";
   }
 }
 
@@ -84,15 +122,16 @@ function getVisitId(): string {
 export function logEvent(event: EventName, payload: EventPayload = {}): void {
   if (!isClient()) return;
   try {
+    // 백엔드 EventIn 스키마에 맞춘 봉투(additionalProperties:false → 정의된 필드만).
+    // 시각(created_at)·id·company_id 는 서버가 채운다.
     const body = JSON.stringify({
-      event,
-      ts: new Date().toISOString(),
+      event_name: event,
       anonymous_id: getAnonymousId(),
       visit_id: getVisitId(),
-      path: window.location.pathname,
+      page: payload.page ?? pageKey(window.location.pathname),
       bid_id: payload.bid_id,
-      page: payload.page,
       properties: payload.properties ?? {},
+      device_type: deviceType(),
     });
 
     // 페이지 이탈 중이어도 유실 없이 보내도록 sendBeacon 우선, 실패 시 fetch(keepalive)
