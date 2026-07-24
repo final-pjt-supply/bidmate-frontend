@@ -22,13 +22,10 @@ import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
 import { RegionSelect } from "@/components/region-select";
 import { LicenseSelect } from "@/components/license-select";
+import { SelectMenu } from "@/components/select-menu";
 
 // 자유텍스트(문자열) 필드 키 — 코드/객체 필드는 별도 핸들러로 처리
 type StringField = "name" | "licenses" | "certs" | "revenue" | "employees";
-
-/** 셀렉트 공통 스타일 (inputClass와 높이·테두리 맞춤) */
-const selectClass =
-  "h-[42px] w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-400";
 
 /** 조회 모드 한 칸 (라벨 + 값 + 밑줄). 값이 비면 미등록 표시 */
 function ViewField({ label, value }: { label: string; value: string }) {
@@ -147,18 +144,12 @@ export default function MyPage() {
               <RegionSelect value={draft.hqRegion} onChange={setHqRegion} />
             </Field>
             <Field label="기업규모">
-              <select
+              <SelectMenu
+                ariaLabel="기업규모"
                 value={draft.size}
-                onChange={(e) => setDraft((d) => ({ ...d, size: e.target.value as CompanySize | "" }))}
-                className={selectClass}
-              >
-                <option value="">선택하세요</option>
-                {SIZE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setDraft((d) => ({ ...d, size: v as CompanySize | "" }))}
+                options={SIZE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              />
               <p className="mt-1 text-xs text-slate-400">
                 업종별 매출액 기준 소기업에 해당하면 “소기업”을 선택하세요.
               </p>
@@ -195,18 +186,12 @@ export default function MyPage() {
 
           <div className="flex gap-4">
             <Field label="신용등급 (선택)">
-              <select
+              <SelectMenu
+                ariaLabel="신용등급"
                 value={draft.creditRating}
-                onChange={(e) => setDraft((d) => ({ ...d, creditRating: e.target.value }))}
-                className={selectClass}
-              >
-                <option value="">선택하세요</option>
-                {CREDIT_RATINGS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setDraft((d) => ({ ...d, creditRating: v }))}
+                options={CREDIT_RATINGS.map((g) => ({ value: g, label: g }))}
+              />
             </Field>
             <div className="flex-1" />
           </div>
