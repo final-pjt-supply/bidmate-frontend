@@ -3,27 +3,33 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { removeAccount, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { clearProfile } from "@/lib/company";
 import { clearScraps } from "@/lib/scraps";
 import { MypageShell } from "@/components/mypage-shell";
 
 export default function AccountPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const doLogout = () => {
     logout();
     router.push("/");
   };
 
-  const withdraw = () => {
+  const withdraw = async () => {
     if (!user) return;
-    removeAccount(user.email);
+    setError(null);
+    // Cognito 계정 삭제가 성공해야 로컬 데이터도 지운다(실패 시 상태 불일치 방지)
+    const result = await deleteAccount();
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
     clearProfile(user.email);
     clearScraps(user.email);
-    logout();
     router.push("/");
   };
 
@@ -67,6 +73,7 @@ export default function AccountPage() {
             <span className="text-[13px] text-slate-500">
               계정과 등록한 회사 정보·스크랩이 모두 삭제되며 되돌릴 수 없어요.
             </span>
+            {error && <span className="mt-1 text-[13px] text-red-600">{error}</span>}
           </div>
           {confirming ? (
             <div className="flex items-center gap-2">
