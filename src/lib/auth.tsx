@@ -58,9 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 
+  // localStorage는 서버 렌더 시점에 존재하지 않으므로, 마운트 후 읽어 state에 반영한다.
+  // (렌더 중 읽으면 SSR에서 터짐) — 의도된 패턴이라 규칙 예외 처리
   useEffect(() => {
     try {
       const raw = localStorage.getItem(USER_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setUser(JSON.parse(raw));
     } catch {
       // ignore
