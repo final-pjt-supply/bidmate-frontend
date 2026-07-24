@@ -2,7 +2,15 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
+import { SearchForm } from "@/components/search-form";
 import { SyncIndicator } from "@/components/sync-indicator";
+
+type SortKey = "deadline" | "recent";
+
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "deadline", label: "마감 임박순" },
+  { key: "recent", label: "최신 등록순" },
+];
 
 const CATEGORIES: { label: string; value: BidCategory | "all" }[] = [
   { label: "전체", value: "all" },
@@ -22,13 +30,14 @@ function buildPages(total: number, current: number): (number | "ellipsis")[] {
 }
 
 /**
- * 공고 검색 — 서버 페이징 목록.
+ * 공고 검색 — 서버 검색·페이징 목록.
  *
- * 백엔드 GET /bids가 받는 건 category·sort·page뿐이라 지금은 업무구분 필터와 페이징만
- * 서버로 넘긴다. 마감된 공고는 서버가 이미 제외한다.
- * 공고명 검색·지역·추정금액·낙찰방법 필터는 백엔드에 파라미터가 생기면 붙인다
- * (기존 클라이언트 필터 UI는 20건 단위 페이지 안에서만 걸려 잘못된 결과를 주므로 걷어냈다.
- *  마크업이 필요하면 커밋 3f2506a 이전 버전에서 되살릴 것).
+ * 검색어·업무구분·정렬·페이징을 모두 URL 파라미터로 두고 서버(GET /bids/search)가
+ * 처리한다. 클라이언트에서 필터링하면 한 페이지 20건 안에서만 걸려 잘못된 결과가 된다.
+ * 마감된 공고는 서버가 이미 제외한다.
+ *
+ * 지역·추정금액·낙찰방법·중소기업 필터는 백엔드에 파라미터가 생기면 붙인다
+ * (기존 클라이언트 필터 마크업은 커밋 3f2506a 이전 버전에서 되살릴 것).
  */
 export function SearchView({
   items,
@@ -36,44 +45,38 @@ export function SearchView({
   page,
   pageSize,
   category,
+  sort,
+  query,
 }: {
   items: Bid[];
   total: number;
   page: number;
   pageSize: number;
   category?: BidCategory;
+  sort: SortKey;
+  query: string;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hrefFor = (p: number, cat?: BidCategory | "all") => {
+  /** 하나만 바꾸고 나머지 조건은 유지하는 링크 생성기. */
+  const hrefFor = (p: number, cat?: BidCategory | "all", s?: SortKey) => {
     const c = cat === undefined ? category : cat === "all" ? undefined : cat;
+    const sortKey = s ?? sort;
     const qs = new URLSearchParams();
+    if (query) qs.set("q", query);
     if (c) qs.set("cat", c);
+    if (sortKey !== "deadline") qs.set("sort", sortKey);
     if (p > 1) qs.set("page", String(p));
-    const s = qs.toString();
-    return s ? `/search?${s}` : "/search";
+    const str = qs.toString();
+    return str ? `/search?${str}` : "/search";
   };
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-7 sm:px-6 lg:px-10">
-      {/* 검색바 — 백엔드에 공고명 검색 파라미터가 없어 아직 비활성 */}
+      {/* 검색바 */}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2 rounded-xl border border-gray-300 bg-slate-50 py-1.5 pl-[18px] pr-1.5">
-          <input
-            type="text"
-            disabled
-            placeholder="공고명 또는 발주기관으로 검색해 보세요"
-            className="min-w-0 flex-1 cursor-not-allowed bg-transparent text-sm text-gray-900 placeholder:text-slate-400 focus:outline-none"
-          />
-          <button
-            type="button"
-            disabled
-            className="shrink-0 cursor-not-allowed rounded-lg bg-slate-300 px-6 py-2.5 text-[15px] font-bold text-white"
-          >
-            검색
-          </button>
-        </div>
+        <SearchForm initialQuery={query} category={category} sort={sort} />
         <p className="text-[13px] text-slate-400">
-          공고명 검색과 상세 검색(지역·추정금액·낙찰방법)은 준비 중이에요. 지금은 업무구분으로 좁혀볼 수 있어요.
+          상세 검색(지역·추정금액·낙찰방법)은 준비 중이에요.
         </p>
       </div>
 
@@ -97,13 +100,34 @@ export function SearchView({
         })}
       </div>
 
-      {/* 결과 헤더: 건수 + 동기화 */}
+      {/* 결과 헤더: 건수 + 동기화 + 정렬 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-baseline gap-2">
-          <h1 className="text-lg font-bold text-gray-900">공고 목록</h1>
-          <span className="text-sm text-slate-400">총 {total}건 · 마감 임박순</span>
+          <h1 className="text-lg font-bold text-gray-900">{query ? "검색 결과" : "공고 목록"}</h1>
+          <span className="text-sm text-slate-400">총 {total}건</span>
         </div>
-        <SyncIndicator />
+        <div className="flex flex-wrap items-center gap-4">
+          <SyncIndicator />
+          <div className="flex items-center gap-2">
+            {SORTS.map(({ key, label }) => {
+              const active = sort === key;
+              return (
+                <Link
+                  key={key}
+                  href={hrefFor(1, undefined, key)}
+                  aria-current={active ? "true" : undefined}
+                  className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
+                    active
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "border border-slate-200 bg-white font-medium text-slate-400 hover:bg-slate-50"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* 카드 그리드 / 빈 상태 */}
@@ -114,15 +138,19 @@ export function SearchView({
               key={bid.bid_id}
               bid={bid}
               position={(page - 1) * pageSize + i + 1}
-              sort="deadline"
+              sort={sort}
               list="search"
             />
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-20 text-center">
-          <p className="text-[15px] font-bold text-gray-900">표시할 공고가 없어요</p>
-          <p className="text-sm text-slate-500">다른 업무구분으로 다시 찾아보세요.</p>
+          <p className="text-[15px] font-bold text-gray-900">
+            {query ? "검색 결과가 없어요" : "표시할 공고가 없어요"}
+          </p>
+          <p className="text-sm text-slate-500">
+            {query ? "다른 검색어나 업무구분으로 다시 찾아보세요." : "다른 업무구분으로 다시 찾아보세요."}
+          </p>
         </div>
       )}
 

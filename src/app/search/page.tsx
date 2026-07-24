@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getBids } from "@/lib/api/bids";
+import { searchBids } from "@/lib/api/bids";
 import type { Bid, BidCategory } from "@/lib/types";
 import { Topbar } from "@/components/topbar";
 import { SearchView } from "@/components/search-view";
@@ -9,9 +9,12 @@ const CATEGORIES: BidCategory[] = ["cnstwk", "servc", "thng", "frgcpt"];
 const toCategory = (v?: string): BidCategory | undefined =>
   v && (CATEGORIES as string[]).includes(v) ? (v as BidCategory) : undefined;
 
+export type SearchSort = "deadline" | "recent";
+const toSort = (v?: string): SearchSort => (v === "recent" ? "recent" : "deadline");
+
 export const metadata: Metadata = {
   title: "공고 검색 · 비드메이트",
-  description: "나라장터 공공입찰 공고를 업무구분으로 좁혀 마감 임박순으로 확인하세요.",
+  description: "나라장터 공공입찰 공고를 공고명·발주기관으로 검색하고 마감·등록순으로 확인하세요.",
 };
 
 // 백엔드는 프라이빗 서브넷이라 빌드 환경에서 닿을 수 없다(홈과 동일 이유).
@@ -20,30 +23,40 @@ export const dynamic = "force-dynamic";
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; cat?: string }>;
+  searchParams: Promise<{ page?: string; cat?: string; q?: string; sort?: string }>;
 }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const category = toCategory(sp.cat);
+  const sort = toSort(sp.sort);
+  const q = sp.q ?? "";
 
-  // 마감 지난 공고는 서버가 제외한다. 정렬은 마감 임박순(백엔드 기본).
+  // 마감 지난 공고는 서버가 제외한다. 검색어·업종·정렬 모두 서버가 처리.
   let items: Bid[] = [];
   let total = 0;
   let pageSize = 20;
   try {
-    const data = await getBids({ page, category, sort: "deadline" });
+    const data = await searchBids({ page, category, sort, q });
     items = data.items;
     total = data.total;
     pageSize = data.page_size;
   } catch (err) {
-    console.error("공고 목록 로드 실패:", err);
+    console.error("공고 검색 실패:", err);
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
-        <SearchView items={items} total={total} page={page} pageSize={pageSize} category={category} />
+        <SearchView
+          items={items}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          category={category}
+          sort={sort}
+          query={q}
+        />
       </main>
       <SiteFooter />
     </div>

@@ -30,6 +30,34 @@ export async function getBids(query: BidsQuery = {}): Promise<BidListResponse> {
   return res.json() as Promise<BidListResponse>;
 }
 
+export type SearchQuery = {
+  page?: number;
+  category?: BidCategory;
+  /** 마감 임박순 | 최신 등록순. 백엔드는 score를 받지 않는다(422). */
+  sort?: "deadline" | "recent";
+  /** 공고명·수요기관·공고기관 부분일치. 공백만 주면 서버가 미적용 처리. */
+  q?: string;
+};
+
+/**
+ * GET /bids/search — 검색 목록(페이징).
+ *
+ * 홈·추천이 쓰는 GET /bids와 다른 경로다. 검색 전용 필터가 계속 붙는 자리라
+ * 백엔드에서 경로를 분리했다(bidmate-backend #25). 마감 지난 공고는 서버가 제외.
+ */
+export async function searchBids(query: SearchQuery = {}): Promise<BidListResponse> {
+  const qs = new URLSearchParams();
+  if (query.page) qs.set("page", String(query.page));
+  if (query.category) qs.set("category", query.category);
+  if (query.sort) qs.set("sort", query.sort);
+  if (query.q?.trim()) qs.set("q", query.q.trim());
+  const suffix = qs.toString() ? `?${qs}` : "";
+
+  const res = await fetch(`${API_BASE}/bids/search${suffix}`, { next: { revalidate: 60 } });
+  if (!res.ok) throw new Error(`GET /bids/search 실패: ${res.status}`);
+  return res.json() as Promise<BidListResponse>;
+}
+
 /** GET /bids/{id} — 공고 상세. 없으면 null. */
 export async function getBid(bidId: string): Promise<Bid | null> {
   const res = await fetch(`${API_BASE}/bids/${encodeURIComponent(bidId)}`, {
