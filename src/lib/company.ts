@@ -6,11 +6,36 @@ import { MOCK_ACCOUNT } from "@/lib/auth";
 /** 마스터 참조 값 — 저장/매칭은 code, 표시는 name (region_master 등) */
 export type RegionRef = { code: string; name: string };
 
+/** 기업규모 — 닫힌 enum(스펙 §3⑧). 공고의 규모 제한 4종을 이 4분류로 전부 판정한다. */
+export type CompanySize = "small" | "medium" | "mid_large" | "conglomerate";
+
+/** ⚠️ "중소기업"은 소기업을 포함하는 상위개념이라 medium 라벨로 쓰면 small_only 공고에서 오분류된다.
+ *  그래서 라벨을 "중기업(소기업 제외)"로 둔다. */
+export const SIZE_OPTIONS: { value: CompanySize; label: string; hint?: string }[] = [
+  { value: "small", label: "소기업", hint: "업종별 매출액 기준 소기업에 해당하면 선택" },
+  { value: "medium", label: "중기업(소기업 제외)" },
+  { value: "mid_large", label: "중견기업" },
+  { value: "conglomerate", label: "대기업" },
+];
+
+export const SIZE_LABEL: Record<CompanySize, string> = Object.fromEntries(
+  SIZE_OPTIONS.map((o) => [o.value, o.label])
+) as Record<CompanySize, string>;
+
+/** 신용등급 — 표준 등급 select(스펙 §3⑨). 향후 "등급 하한" 매칭 확장 시 정렬·비교가 쉬워진다. */
+export const CREDIT_RATINGS = [
+  "AAA", "AA+", "AA", "AA-", "A+", "A", "A-",
+  "BBB+", "BBB", "BBB-", "BB+", "BB", "BB-",
+  "B+", "B", "B-", "CCC", "CC", "C", "D",
+] as const;
+
 export type CompanyProfile = {
   name: string;
-  bizNo: string;
+  bizNo: string; // 하이픈 없는 숫자 10자리로 저장(표시할 때만 3-2-5)
   hqRegion: RegionRef | null; // 본점 소재지 (region_master 코드 저장)
-  size: string;
+  branchRegions: RegionRef[]; // 지사 소재지 다중 (region_type=branch)
+  size: CompanySize | ""; // 닫힌 enum
+  creditRating: string; // 신용등급(선택)
   licenses: string;
   certs: string;
   revenue: string; // 억원
@@ -36,6 +61,32 @@ const SIDO_BY_NAME: Record<string, string> = {
   전북특별자치도: "52",
 };
 
+/* ── 사업자등록번호: 숫자 10자리 저장, 하이픈은 표시용 ───────────── */
+
+/** 숫자만 남긴 10자리 (저장 형태) */
+export function normalizeBizNo(v: string): string {
+  return v.replace(/\D/g, "").slice(0, 10);
+}
+
+/** 표시용 3-2-5 하이픈 (입력 중 부분 입력도 자연스럽게) */
+export function formatBizNo(v: string): string {
+  const d = normalizeBizNo(v);
+  if (d.length <= 3) return d;
+  if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+}
+
+/** 국세청 사업자등록번호 체크섬 검증 (가중치 1,3,7,1,3,7,1,3,5) */
+export function isValidBizNo(v: string): boolean {
+  const d = normalizeBizNo(v);
+  if (d.length !== 10) return false;
+  const weights = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += Number(d[i]) * weights[i];
+  sum += Math.floor((Number(d[8]) * 5) / 10);
+  return (10 - (sum % 10)) % 10 === Number(d[9]);
+}
+
 const PROFILE_KEY = "bidmate_company";
 /** 프로필은 계정별로 분리 저장 (전역 공유 방지) */
 export const profileKey = (email: string) => `${PROFILE_KEY}:${email.toLowerCase()}`;
@@ -45,7 +96,9 @@ export const EMPTY_PROFILE: CompanyProfile = {
   name: "",
   bizNo: "",
   hqRegion: null,
+  branchRegions: [],
   size: "",
+  creditRating: "",
   licenses: "",
   certs: "",
   revenue: "",
@@ -55,9 +108,11 @@ export const EMPTY_PROFILE: CompanyProfile = {
 /** 데모/테스트 계정에서만 보여줄 예시 회사 정보 */
 export const DEMO_PROFILE: CompanyProfile = {
   name: "(주)비드메이트",
-  bizNo: "123-45-67890",
+  bizNo: "1234567891", // 체크섬 유효값 (표시는 123-45-67891)
   hqRegion: { code: "11", name: "서울특별시" },
-  size: "중소기업",
+  branchRegions: [{ code: "26", name: "부산광역시" }],
+  size: "medium",
+  creditRating: "A",
   licenses: "소프트웨어사업자, 정보통신공사업",
   certs: "CC인증, ISO 27001, GS인증",
   revenue: "5.0",
@@ -74,8 +129,8 @@ export function loadProfile(email: string, company = ""): CompanyProfile {
   try {
     const raw = localStorage.getItem(profileKey(email));
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<CompanyProfile> & { region?: string };
-      return { ...EMPTY_PROFILE, ...migrateRegion(parsed) };
+      const parsed = JSON.parse(raw) as StoredProfile;
+      return { ...EMPTY_PROFILE, ...migrate(parsed) };
     }
   } catch {
     // ignore
@@ -84,17 +139,49 @@ export function loadProfile(email: string, company = ""): CompanyProfile {
   return { ...EMPTY_PROFILE, name: company };
 }
 
-/** 구 평면 프로필의 자유텍스트 region → hqRegion(코드) 변환. 시도 완전일치만 매핑, 나머지는 미등록. */
-function migrateRegion(
-  p: Partial<CompanyProfile> & { region?: string }
-): Partial<CompanyProfile> {
-  if (p.hqRegion !== undefined || typeof p.region !== "string") return p;
-  const name = p.region.trim();
-  const code = SIDO_BY_NAME[name];
-  // region 키를 빼고 나머지만 남긴다(구 스키마 → 신 스키마 이관)
-  const { region, ...rest } = p;
-  void region;
-  return { ...rest, hqRegion: code ? { code, name } : null };
+/** 저장소에 남아있을 수 있는 구 스키마까지 포용하는 타입 */
+type StoredProfile = Omit<Partial<CompanyProfile>, "size"> & {
+  region?: string; // 구: 자유텍스트 소재지
+  size?: string; // 구: 자유텍스트 기업규모
+};
+
+/** 구 자유텍스트 기업규모 → enum.
+ *  "중소기업"은 소기업을 포함하는 상위개념이라 어느 쪽인지 확정할 수 없다.
+ *  잘못 넣으면 매칭이 틀리므로, 모호한 값은 비워서 사용자가 다시 고르게 한다. */
+const SIZE_BY_LEGACY: Record<string, CompanySize> = {
+  소기업: "small",
+  중기업: "medium",
+  중견기업: "mid_large",
+  대기업: "conglomerate",
+};
+
+function migrateSize(v: string | undefined): CompanySize | "" {
+  if (!v) return "";
+  const t = v.trim();
+  if (SIZE_OPTIONS.some((o) => o.value === t)) return t as CompanySize; // 이미 enum
+  return SIZE_BY_LEGACY[t] ?? ""; // "중소기업" 등 모호값 → 재선택 유도
+}
+
+/** 구 스키마 → 현재 스키마 이관 (소재지·기업규모·사업자번호) */
+function migrate(p: StoredProfile): Partial<CompanyProfile> {
+  const { region, size, ...rest } = p;
+
+  // 소재지: 구 자유텍스트 → 시도 코드(완전일치만), 나머지는 미등록
+  let hqRegion = rest.hqRegion;
+  if (hqRegion === undefined && typeof region === "string") {
+    const name = region.trim();
+    const code = SIDO_BY_NAME[name];
+    hqRegion = code ? { code, name } : null;
+  }
+
+  return {
+    ...rest,
+    hqRegion: hqRegion ?? null,
+    branchRegions: rest.branchRegions ?? [],
+    size: migrateSize(size),
+    // 하이픈 포함 저장분 → 숫자 10자리로 정규화
+    bizNo: rest.bizNo != null ? normalizeBizNo(rest.bizNo) : "",
+  };
 }
 
 export function saveProfile(email: string, profile: CompanyProfile) {
@@ -108,8 +195,14 @@ export function clearProfile(email: string) {
 /** 회사 정보가 입력돼 있는지 — 회사명 외 핵심 항목이 하나라도 채워졌는지로 판정 */
 export function hasCompanyProfile(email: string): boolean {
   const p = loadProfile(email);
-  const filledText = [p.bizNo, p.size, p.licenses, p.certs, p.revenue, p.employees].some(
-    (v) => v.trim() !== ""
-  );
-  return filledText || p.hqRegion != null;
+  const filledText = [
+    p.bizNo,
+    p.size,
+    p.creditRating,
+    p.licenses,
+    p.certs,
+    p.revenue,
+    p.employees,
+  ].some((v) => v.trim() !== "");
+  return filledText || p.hqRegion != null || p.branchRegions.length > 0;
 }
