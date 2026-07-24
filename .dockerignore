@@ -1,0 +1,26 @@
+# 이미지 빌드 컨텍스트에서 제외 (전송량↓, 빌드↑, 시크릿 유출 방지)
+node_modules
+.next
+out
+build
+
+.git
+.github
+.vscode
+.idea
+
+# 시크릿·키 (절대 이미지에 들어가면 안 됨)
+.env
+.env.*
+!.env.example
+*.pem
+
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+coverage
+
+Dockerfile
+.dockerignore
+docker-compose.yml
+README.md
