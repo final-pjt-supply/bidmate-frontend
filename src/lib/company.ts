@@ -2,6 +2,7 @@
 // 마이페이지와 맞춤 추천이 동일 기준을 쓰도록 한곳에 모은다. 클라이언트에서만 호출.
 
 import { MOCK_ACCOUNT } from "@/lib/auth";
+import type { MasterRef } from "@/lib/data/masters";
 
 /** 마스터 참조 값 — 저장/매칭은 code, 표시는 name (region_master 등) */
 export type RegionRef = { code: string; name: string };
@@ -36,7 +37,8 @@ export type CompanyProfile = {
   branchRegions: RegionRef[]; // 지사 소재지 다중 (region_type=branch)
   size: CompanySize | ""; // 닫힌 enum
   creditRating: string; // 신용등급(선택)
-  licenses: string;
+  licenseRefs: MasterRef[]; // 면허·업종 (license_master 코드) — 매칭 정본
+  licenses: string; // (레거시) 구 자유텍스트 면허. licenseRefs 이전 값 보존용
   certs: string;
   revenue: string; // 억원
   employees: string;
@@ -99,6 +101,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
   branchRegions: [],
   size: "",
   creditRating: "",
+  licenseRefs: [],
   licenses: "",
   certs: "",
   revenue: "",
@@ -113,7 +116,11 @@ export const DEMO_PROFILE: CompanyProfile = {
   branchRegions: [{ code: "26", name: "부산광역시" }],
   size: "medium",
   creditRating: "A",
-  licenses: "소프트웨어사업자, 정보통신공사업",
+  licenseRefs: [
+    { code: "0036", name: "정보통신공사업" },
+    { code: "1468", name: "소프트웨어사업자(컴퓨터관련서비스사업)" },
+  ],
+  licenses: "",
   certs: "CC인증, ISO 27001, GS인증",
   revenue: "5.0",
   employees: "42",
@@ -178,6 +185,7 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     ...rest,
     hqRegion: hqRegion ?? null,
     branchRegions: rest.branchRegions ?? [],
+    licenseRefs: rest.licenseRefs ?? [],
     size: migrateSize(size),
     // 하이픈 포함 저장분 → 숫자 10자리로 정규화
     bizNo: rest.bizNo != null ? normalizeBizNo(rest.bizNo) : "",
@@ -204,5 +212,10 @@ export function hasCompanyProfile(email: string): boolean {
     p.revenue,
     p.employees,
   ].some((v) => v.trim() !== "");
-  return filledText || p.hqRegion != null || p.branchRegions.length > 0;
+  return (
+    filledText ||
+    p.hqRegion != null ||
+    p.branchRegions.length > 0 ||
+    p.licenseRefs.length > 0
+  );
 }

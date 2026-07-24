@@ -21,6 +21,7 @@ import {
 import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
 import { RegionSelect } from "@/components/region-select";
+import { LicenseSelect } from "@/components/license-select";
 
 // 자유텍스트(문자열) 필드 키 — 코드/객체 필드는 별도 핸들러로 처리
 type StringField = "name" | "licenses" | "certs" | "revenue" | "employees";
@@ -210,7 +211,15 @@ export default function MyPage() {
             <div className="flex-1" />
           </div>
           <Field label="업종·보유 면허">
-            <input value={draft.licenses} onChange={(e) => setField("licenses", e.target.value)} className={inputClass} />
+            <LicenseSelect
+              value={draft.licenseRefs}
+              onChange={(v) => setDraft((d) => ({ ...d, licenseRefs: v }))}
+            />
+            {draft.licenses.trim() && draft.licenseRefs.length === 0 && (
+              <p className="mt-1 text-xs text-slate-400">
+                이전 입력값: {draft.licenses} — 위에서 다시 선택해 주세요.
+              </p>
+            )}
           </Field>
           <Field label="보유 인증">
             <input value={draft.certs} onChange={(e) => setField("certs", e.target.value)} className={inputClass} />
@@ -257,7 +266,14 @@ export default function MyPage() {
             />
             <ViewField label="신용등급" value={profile.creditRating} />
           </div>
-          <ViewField label="업종·보유 면허" value={profile.licenses} />
+          <ViewField
+            label="업종·보유 면허"
+            value={
+              profile.licenseRefs.length > 0
+                ? profile.licenseRefs.map((l) => l.name).join(", ")
+                : profile.licenses
+            }
+          />
           <ViewField label="보유 인증" value={profile.certs} />
           <div className="flex gap-[34px]">
             <ViewField label="최근 3년 실적" value={profile.revenue.trim() ? `${profile.revenue}억` : ""} />
