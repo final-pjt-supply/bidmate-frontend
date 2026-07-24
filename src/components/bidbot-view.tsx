@@ -2,15 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bot, Lock, Plus } from "lucide-react";
+import { ArrowRight, Bot, Lock, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { logEvent, newId } from "@/lib/analytics/track";
+import { logEvent } from "@/lib/analytics/track";
+import { useBidbotChat, type ChatMessage } from "@/lib/bidbot";
 
-export type ChatMessage = { role: "user" | "bot"; text: string };
-
-/** 봇 응답은 백엔드/에이전트 연결 전이라 안내용 목업으로 처리 */
-export const BOT_PLACEHOLDER =
-  "비드봇 답변 기능은 곧 제공될 예정이에요. 지금은 미리보기 화면이라 실제 답변은 아직 연결되어 있지 않아요.";
+export type { ChatMessage };
 
 export const BOT_DISCLAIMER =
   "비드봇의 답변은 AI 분석 기반 참고용이에요. 입찰 전 나라장터 원문에서 꼭 확인해 주세요.";
@@ -37,8 +34,67 @@ function BotAvatar({ className = "size-7" }: { className?: string }) {
   );
 }
 
+/** 봇 말풍선 — 답변/되묻기/목록이동/에러를 종류에 맞게 그린다. */
+export function BotBubble({ message, compact = false }: { message: ChatMessage; compact?: boolean }) {
+  const isError = message.kind === "error";
+  const size = compact ? "px-3.5 py-2 text-[13px]" : "px-4 py-2.5 text-sm";
+  return (
+    <div className="flex max-w-[85%] flex-col gap-1.5">
+      <p
+        className={`whitespace-pre-wrap rounded-2xl rounded-tl-sm leading-relaxed ${size} ${
+          isError ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-gray-800"
+        }`}
+      >
+        {message.text}
+      </p>
+
+      {/* 목록 이동 — 에이전트가 "목록으로 보여줄 질문"이라고 판단한 경우.
+          이때 answer는 비어 오므로 말풍선만 그리면 빈 칸이 된다. */}
+      {message.kind === "redirect" && message.href && (
+        <Link
+          href={message.href}
+          className="flex w-fit items-center gap-1 rounded-md bg-indigo-700 px-3 py-1.5 text-[13px] font-bold text-white transition-colors hover:bg-indigo-800"
+        >
+          목록에서 보기
+          <ArrowRight className="size-3.5" strokeWidth={2} />
+        </Link>
+      )}
+
+      {/* 근거 인용 — 답변의 출처 공고로 이동 */}
+      {message.citations && message.citations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {message.citations.slice(0, 3).map((c, i) => (
+            <Link
+              key={`${c.bid_id}-${c.chunk_idx}-${i}`}
+              href={`/bids/${c.bid_id}`}
+              title={c.text}
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11.5px] text-slate-500 transition-colors hover:bg-slate-50"
+            >
+              근거 {i + 1}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 답변 대기 표시 — 에이전트 응답은 수 초 걸린다(실측 2~9초). */
+export function PendingBubble({ compact = false }: { compact?: boolean }) {
+  return (
+    <p
+      className={`w-fit rounded-2xl rounded-tl-sm bg-slate-100 text-slate-400 ${
+        compact ? "px-3.5 py-2 text-[13px]" : "px-4 py-2.5 text-sm"
+      }`}
+      aria-live="polite"
+    >
+      비드봇이 답변을 찾고 있어요…
+    </p>
+  );
+}
+
 /** 사용자/봇 말풍선 목록 + disclaimer */
-function MessageList({ messages }: { messages: ChatMessage[] }) {
+function MessageList({ messages, pending }: { messages: ChatMessage[]; pending: boolean }) {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
       {messages.map((m, i) =>
@@ -51,11 +107,15 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
         ) : (
           <div key={i} className="flex items-start gap-2.5">
             <BotAvatar />
-            <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm leading-relaxed text-gray-800">
-              {m.text}
-            </p>
+            <BotBubble message={m} />
           </div>
         )
+      )}
+      {pending && (
+        <div className="flex items-start gap-2.5">
+          <BotAvatar />
+          <PendingBubble />
+        </div>
       )}
       <p className="pl-9 text-[11.5px] text-slate-400">{BOT_DISCLAIMER}</p>
     </div>
@@ -124,27 +184,23 @@ export function BidbotView() {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [chatSessionId, setChatSessionId] = useState(() => newId("c_"));
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { messages, pending, send: ask, reset } = useBidbotChat({ companyId: user?.companyId });
 
   useEffect(() => {
     logEvent("chatbot_opened", { properties: { referrer_page: "bidbot_page" } });
   }, []);
 
   const newChat = () => {
-    setMessages([]);
-    setChatSessionId(newId("c_"));
+    reset();
     logEvent("chatbot_opened", { properties: { referrer_page: "new_chat" } });
   };
 
   const send = (text: string) => {
-    const t = text.trim();
-    if (!t) return;
-    setMessages((m) => [...m, { role: "user", text: t }, { role: "bot", text: BOT_PLACEHOLDER }]);
+    if (!text.trim() || pending) return;
     setInput("");
-    logEvent("chatbot_message_sent", { properties: { chat_session_id: chatSessionId } });
+    void ask(text);
     // 다음 페인트에서 하단으로 스크롤
     requestAnimationFrame(() => {
       const el = scrollRef.current;
@@ -188,7 +244,7 @@ export function BidbotView() {
               {messages.length === 0 ? (
                 <EmptyState onPick={send} />
               ) : (
-                <MessageList messages={messages} />
+                <MessageList messages={messages} pending={pending} />
               )}
             </div>
             <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-4">
@@ -208,7 +264,7 @@ export function BidbotView() {
                 />
                 <button
                   type="submit"
-                  disabled={input.trim() === ""}
+                  disabled={input.trim() === "" || pending}
                   className="shrink-0 rounded-lg bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                 >
                   전송

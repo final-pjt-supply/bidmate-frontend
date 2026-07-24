@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react";
 import { Bot, Maximize2, Minimize2, Minus, X } from "lucide-react";
-import { logEvent, newId } from "@/lib/analytics/track";
-import { type ChatMessage, BOT_DISCLAIMER, BOT_PLACEHOLDER } from "@/components/bidbot-view";
+import { useAuth } from "@/lib/auth";
+import { useBidbotChat } from "@/lib/bidbot";
+import { BOT_DISCLAIMER, BotBubble, PendingBubble } from "@/components/bidbot-view";
 
 export type BotMode = "closed" | "min" | "popover" | "expanded";
 
@@ -11,24 +12,28 @@ const DOCK_SUGGESTIONS = ["참여 자격이 뭐야?", "마감 일정이 어떻�
 
 export function BidbotDock({
   bidName,
+  bidId,
   mode,
   onMode,
 }: {
   bidName: string;
+  /** 이 공고를 문맥으로 에이전트에 넘긴다. */
+  bidId: string;
   mode: BotMode;
   onMode: (m: BotMode) => void;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { user } = useAuth();
   const [input, setInput] = useState("");
-  const [chatSessionId] = useState(() => newId("c_"));
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { messages, pending, send: ask } = useBidbotChat({
+    companyId: user?.companyId,
+    entryBidId: bidId,
+  });
 
   const send = (text: string) => {
-    const t = text.trim();
-    if (!t) return;
-    setMessages((m) => [...m, { role: "user", text: t }, { role: "bot", text: BOT_PLACEHOLDER }]);
+    if (!text.trim() || pending) return;
     setInput("");
-    logEvent("chatbot_message_sent", { properties: { chat_session_id: chatSessionId } });
+    void ask(text);
     requestAnimationFrame(() => {
       const el = scrollRef.current;
       if (el) el.scrollTop = el.scrollHeight;
@@ -145,11 +150,18 @@ export function BidbotDock({
               <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-indigo-50">
                 <Bot className="size-3.5 text-indigo-600" strokeWidth={2} />
               </span>
-              <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-slate-100 px-3.5 py-2 text-[13px] leading-relaxed text-gray-800">
-                {m.text}
-              </p>
+              <BotBubble message={m} compact />
             </div>
           )
+        )}
+
+        {pending && (
+          <div className="flex items-start gap-2">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-indigo-50">
+              <Bot className="size-3.5 text-indigo-600" strokeWidth={2} />
+            </span>
+            <PendingBubble compact />
+          </div>
         )}
 
         {messages.length > 0 && (
@@ -174,7 +186,7 @@ export function BidbotDock({
         />
         <button
           type="submit"
-          disabled={input.trim() === ""}
+          disabled={input.trim() === "" || pending}
           className="shrink-0 rounded-lg bg-indigo-700 px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
         >
           전송
