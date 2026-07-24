@@ -4,8 +4,9 @@ import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
 import { SearchForm } from "@/components/search-form";
 import { SyncIndicator } from "@/components/sync-indicator";
+import { buildSearchHref, type SearchConditions, type SearchSort } from "@/lib/search-params";
 
-type SortKey = "deadline" | "recent";
+type SortKey = SearchSort;
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "deadline", label: "마감 임박순" },
@@ -42,47 +43,24 @@ function buildPages(total: number, current: number): (number | "ellipsis")[] {
 export function SearchView({
   items,
   total,
-  page,
   pageSize,
-  category,
-  sort,
-  query,
-  includeClosed,
+  conditions,
 }: {
   items: Bid[];
   total: number;
-  page: number;
   pageSize: number;
-  category?: BidCategory;
-  sort: SortKey;
-  query: string;
-  includeClosed: boolean;
+  conditions: SearchConditions;
 }) {
+  const { category, sort, query, includeClosed, page } = conditions;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  /** 하나만 바꾸고 나머지 조건은 유지하는 링크 생성기. */
-  const hrefFor = (
-    p: number,
-    cat?: BidCategory | "all",
-    s?: SortKey,
-    closed?: boolean
-  ) => {
-    const c = cat === undefined ? category : cat === "all" ? undefined : cat;
-    const sortKey = s ?? sort;
-    const withClosed = closed ?? includeClosed;
-    const qs = new URLSearchParams();
-    if (query) qs.set("q", query);
-    if (c) qs.set("cat", c);
-    if (sortKey !== "deadline") qs.set("sort", sortKey);
-    if (withClosed) qs.set("closed", "1");
-    if (p > 1) qs.set("page", String(p));
-    const str = qs.toString();
-    return str ? `/search?${str}` : "/search";
-  };
+  /** 조건 일부만 바꾼 링크. 변환 규칙은 buildSearchHref 한 곳에만 있다(#66). */
+  const hrefFor = (changes: Partial<SearchConditions>) =>
+    buildSearchHref(conditions, changes);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-7 sm:px-6 lg:px-10">
       {/* 검색바 */}
-      <SearchForm initialQuery={query} category={category} sort={sort} />
+      <SearchForm conditions={conditions} />
 
       {/* 상세 검색 — 서버가 지원하는 조건만 노출한다. 백엔드에 필터가 추가될 때마다
           여기에 하나씩 늘린다(동작하지 않는 컨트롤은 두지 않는다). */}
@@ -95,7 +73,7 @@ export function SearchView({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
             <p className="shrink-0 text-xs font-bold text-gray-900 sm:w-[68px]">기타</p>
             <Link
-              href={hrefFor(1, undefined, undefined, !includeClosed)}
+              href={hrefFor({ includeClosed: !includeClosed })}
               role="checkbox"
               aria-checked={includeClosed}
               className="flex w-fit items-center gap-2 text-left"
@@ -123,7 +101,7 @@ export function SearchView({
           return (
             <Link
               key={value}
-              href={hrefFor(1, value)}
+              href={hrefFor({ category: value === "all" ? undefined : value })}
               className={`rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
                 active
                   ? "border-indigo-200 bg-indigo-50 text-indigo-700"
@@ -150,7 +128,7 @@ export function SearchView({
               return (
                 <Link
                   key={key}
-                  href={hrefFor(1, undefined, key)}
+                  href={hrefFor({ sort: key })}
                   aria-current={active ? "true" : undefined}
                   className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
                     active
@@ -195,7 +173,7 @@ export function SearchView({
         <div className="flex items-center justify-center gap-1.5 pt-3">
           {page > 1 ? (
             <Link
-              href={hrefFor(page - 1)}
+              href={hrefFor({ page: page - 1 })}
               aria-label="이전 페이지"
               className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100"
             >
@@ -215,7 +193,7 @@ export function SearchView({
             ) : (
               <Link
                 key={p}
-                href={hrefFor(p)}
+                href={hrefFor({ page: p })}
                 aria-current={p === page ? "page" : undefined}
                 className={`flex size-9 items-center justify-center rounded-lg text-sm transition-colors ${
                   p === page
@@ -230,7 +208,7 @@ export function SearchView({
 
           {page < totalPages ? (
             <Link
-              href={hrefFor(page + 1)}
+              href={hrefFor({ page: page + 1 })}
               aria-label="다음 페이지"
               className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100"
             >
