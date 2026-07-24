@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { authErrorMessage, changePassword } from "@/lib/cognito";
 import { clearProfile } from "@/lib/company";
 import { clearScraps } from "@/lib/scraps";
 import { MypageShell } from "@/components/mypage-shell";
@@ -15,6 +16,38 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // 비밀번호 변경(로그인 상태) — 재설정(/forgot-password)과 다른 경로다.
+  // 현재 비밀번호를 아는 사용자가 바꾸는 것이라 이메일 인증이 필요 없다.
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNext, setPwNext] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwDone, setPwDone] = useState(false);
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+
+  const submitPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwNext !== pwConfirm) {
+      setPwError("새 비밀번호가 서로 달라요.");
+      return;
+    }
+    setPwError(null);
+    setPwSubmitting(true);
+    try {
+      await changePassword(pwCurrent, pwNext);
+      setPwDone(true);
+      setPwOpen(false);
+      setPwCurrent("");
+      setPwNext("");
+      setPwConfirm("");
+    } catch (err) {
+      setPwError(authErrorMessage(err));
+    } finally {
+      setPwSubmitting(false);
+    }
+  };
 
   const doLogout = () => {
     logout();
@@ -52,9 +85,69 @@ export default function AccountPage() {
           <span className="text-xs font-medium text-gray-400">이메일</span>
           <span className="text-[15px] font-bold text-gray-900">{user?.email}</span>
         </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-gray-400">비밀번호</span>
-          <span className="text-sm text-slate-400">비밀번호 변경 기능은 준비 중이에요.</span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-400">비밀번호</span>
+              <span className="text-[15px] font-bold text-gray-900">••••••••</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPwOpen((v) => !v);
+                setPwError(null);
+                setPwDone(false);
+              }}
+              className="shrink-0 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              {pwOpen ? "취소" : "변경"}
+            </button>
+          </div>
+
+          {pwDone && <p className="text-[13px] text-indigo-700">비밀번호가 변경됐어요.</p>}
+
+          {pwOpen && (
+            <form onSubmit={submitPassword} className="flex flex-col gap-2.5 pt-1">
+              <input
+                type="password"
+                value={pwCurrent}
+                onChange={(e) => setPwCurrent(e.target.value)}
+                placeholder="현재 비밀번호"
+                autoComplete="current-password"
+                required
+                className="h-[42px] w-full rounded-lg border border-gray-300 px-3.5 text-sm text-gray-900 outline-none focus:border-indigo-500"
+              />
+              <input
+                type="password"
+                value={pwNext}
+                onChange={(e) => setPwNext(e.target.value)}
+                placeholder="새 비밀번호"
+                autoComplete="new-password"
+                required
+                className="h-[42px] w-full rounded-lg border border-gray-300 px-3.5 text-sm text-gray-900 outline-none focus:border-indigo-500"
+              />
+              <input
+                type="password"
+                value={pwConfirm}
+                onChange={(e) => setPwConfirm(e.target.value)}
+                placeholder="새 비밀번호 확인"
+                autoComplete="new-password"
+                required
+                className="h-[42px] w-full rounded-lg border border-gray-300 px-3.5 text-sm text-gray-900 outline-none focus:border-indigo-500"
+              />
+              <p className="text-[12px] text-slate-400">
+                대문자·소문자·숫자·특수문자를 포함해 8자 이상이어야 해요.
+              </p>
+              {pwError && <p className="text-[13px] text-rose-600">{pwError}</p>}
+              <button
+                type="submit"
+                disabled={pwSubmitting || !pwCurrent || !pwNext}
+                className="w-fit rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                {pwSubmitting ? "변경 중…" : "비밀번호 변경"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
 
