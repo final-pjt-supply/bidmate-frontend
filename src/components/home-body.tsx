@@ -107,9 +107,14 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
   // 최신 공고 섹션 (회원·비회원 모두 공개)
   const latestSection = (
     <div className="flex flex-col gap-6" key="latest">
-      <div className="flex flex-col gap-0.5">
-        <h2 className="text-lg font-bold text-gray-900">최신 공고</h2>
-        <p className="text-[13px] text-slate-400">최근 자동 수집된 공고예요.</p>
+      {/* 새로고침은 여기에도 둔다 — 추천 섹션 헤더에만 있으면 그 섹션이 잠긴 비회원은
+          홈에서 갱신할 방법이 없다. 비회원이 실제로 보는 목록이 이 섹션이다. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-lg font-bold text-gray-900">최신 공고</h2>
+          <p className="text-[13px] text-slate-400">최근 자동 수집된 공고예요.</p>
+        </div>
+        {gated && <SyncIndicator />}
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {recent.map((bid, i) => (

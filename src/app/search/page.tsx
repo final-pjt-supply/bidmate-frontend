@@ -58,12 +58,8 @@ export default async function SearchPage({
         <SearchView
           items={items}
           total={total}
-          page={page}
           pageSize={pageSize}
-          category={category}
-          sort={sort}
-          query={q}
-          includeClosed={includeClosed}
+          conditions={{ query: q, category, sort, includeClosed, page }}
         />
       </main>
       <SiteFooter />

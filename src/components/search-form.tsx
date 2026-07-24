@@ -3,43 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
-import type { BidCategory } from "@/lib/types";
 import { logEvent } from "@/lib/analytics/track";
+import { buildSearchHref, type SearchConditions } from "@/lib/search-params";
 
 /**
  * 검색 입력창. 제출하면 URL(/search?q=)로 이동해 서버가 다시 렌더한다.
  *
  * 클라이언트 컴포넌트인 이유는 입력 상태와 search_submitted 이벤트 기록 때문이고,
- * 결과 목록 자체는 서버에서 온다(한 페이지 20건 안에서만 필터되는 문제를 피하려면
+ * 결과 목록 자체는 서버에서 온다(한 페이지 안에서만 필터되는 문제를 피하려면
  * 검색은 반드시 서버가 해야 한다).
+ *
+ * 링크는 buildSearchHref로만 만든다 — 여기서 조건을 따로 조립하다가 검색할 때마다
+ * '마감된 공고 포함'이 사라지는 버그가 났다(#66).
  */
-export function SearchForm({
-  initialQuery,
-  category,
-  sort,
-}: {
-  initialQuery: string;
-  category?: BidCategory;
-  sort: "deadline" | "recent";
-}) {
-  const [value, setValue] = useState(initialQuery);
+export function SearchForm({ conditions }: { conditions: SearchConditions }) {
+  const [value, setValue] = useState(conditions.query);
   const router = useRouter();
-
-  /** 검색어만 바꾸고 업종·정렬은 유지. 페이지는 1로 되돌린다. */
-  const hrefFor = (q: string) => {
-    const qs = new URLSearchParams();
-    if (q) qs.set("q", q);
-    if (category) qs.set("cat", category);
-    if (sort !== "deadline") qs.set("sort", sort);
-    const s = qs.toString();
-    return s ? `/search?${s}` : "/search";
-  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = value.trim();
     if (q) logEvent("search_submitted", { properties: { query_len: q.length } });
-    router.push(hrefFor(q));
+    router.push(buildSearchHref(conditions, { query: q }));
   };
 
   return (
@@ -61,7 +46,7 @@ export function SearchForm({
           type="button"
           onClick={() => {
             setValue("");
-            router.push(hrefFor(""));
+            router.push(buildSearchHref(conditions, { query: "" }));
           }}
           aria-label="검색어 지우기"
           className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
