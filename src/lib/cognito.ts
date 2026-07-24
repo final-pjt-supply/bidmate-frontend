@@ -41,7 +41,7 @@ export function authErrorMessage(err: unknown): string {
     case "UsernameExistsException":
       return "이미 가입된 이메일이에요.";
     case "InvalidPasswordException":
-      return "비밀번호가 정책에 맞지 않아요(8자 이상, 대소문자·숫자 포함).";
+      return "비밀번호가 정책에 맞지 않아요. 대문자·소문자·숫자·특수문자를 포함해 8자 이상이어야 해요.";
     case "CodeMismatchException":
       return "인증코드가 올바르지 않아요.";
     case "ExpiredCodeException":
