@@ -1,5 +1,5 @@
 import { computeDday } from "@/lib/format";
-import { getBids } from "@/lib/api/bids";
+import { getBids, searchBids } from "@/lib/api/bids";
 import { Topbar } from "@/components/topbar";
 import { HomeView } from "@/components/home-view";
 import { SiteFooter } from "@/components/site-footer";
@@ -10,11 +10,13 @@ import type { Bid } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // 추천: 매칭 점수순(sort=score, 점수 준비 전엔 마감순 폴백) · 최신: 오늘 수집된 공고(today)
+  // 추천: 매칭 점수순(sort=score, 점수 준비 전엔 마감순 폴백)
+  // 최신: 등록이 최근인 순. today=true(오늘 등록분)로 두면 신규 유입이 없는 저녁·주말에
+  //       섹션이 비거나 몇 건만 떴다 — 실측상 신규는 KST 업무시간에 몰린다.
   // allSettled: 한쪽이 실패해도 나머지 섹션은 살린다(all이면 둘 다 빈 화면이 된다).
   const [recommended, latest] = await Promise.allSettled([
     getBids({ sort: "score", page: 1 }),
-    getBids({ today: true, page: 1 }),
+    searchBids({ sort: "recent", page: 1 }),
   ]);
 
   if (recommended.status === "rejected") console.error("추천 공고 로드 실패:", recommended.reason);
