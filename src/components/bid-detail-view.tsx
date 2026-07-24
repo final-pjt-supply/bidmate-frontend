@@ -331,7 +331,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       </Section>
 
       {/* 플로팅 비드봇 (회원) */}
-      <BidbotDock bidName={bid.bid_ntce_nm} mode={botMode} onMode={setBotMode} />
+      <BidbotDock bidName={bid.bid_ntce_nm} bidId={bid.bid_id} mode={botMode} onMode={setBotMode} />
     </div>
   );
 }
