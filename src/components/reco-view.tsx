@@ -6,16 +6,8 @@ import { Building2, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import type { Bid } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { hasCompanyProfile } from "@/lib/company";
-import { logEvent } from "@/lib/analytics/track";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
-
-type SortKey = "score" | "deadline";
-
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: "score", label: "매칭 점수순" },
-  { key: "deadline", label: "마감 임박순" },
-];
 
 /** 페이지네이션에 노출할 페이지 번호(많으면 말줄임) */
 function buildPages(total: number, current: number): (number | "ellipsis")[] {
@@ -42,13 +34,11 @@ export function RecoView({
   total,
   page,
   pageSize,
-  sort,
 }: {
   items: Bid[];
   total: number;
   page: number;
   pageSize: number;
-  sort: SortKey;
 }) {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
@@ -69,7 +59,7 @@ export function RecoView({
           </span>
           <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 맞춤 공고를 추천해드려요</p>
           <p className="max-w-md text-sm text-gray-500">
-            회사 정보를 등록하면 이 공고가 우리 회사와 얼마나 맞는지 매칭 점수순으로 추천 공고를 볼 수 있어요.
+            회사 정보를 등록하면 우리 회사 조건에 맞는 공고를 모아서 볼 수 있어요.
           </p>
           <div className="mt-1 flex gap-2">
             <Link
@@ -114,37 +104,19 @@ export function RecoView({
     );
   }
 
-  // 회원 + 회사 정보 있음: 매칭 리스트 (서버 페이징)
+  // 회원 + 회사 정보 있음: 추천 리스트 (서버 페이징)
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hrefFor = (p: number, s: SortKey = sort) => `/recommend?sort=${s}&page=${p}`;
+  const hrefFor = (p: number) => (p > 1 ? `/recommend?page=${p}` : "/recommend");
 
   return (
     <PageShell>
-      {/* 헤더: 매칭 공고 N건 + 동기화 + 정렬 */}
+      {/* 헤더: 건수 + 동기화.
+          정렬 탭(매칭 점수순/마감 임박순)은 제거했다 — 백엔드 match_results가 점수가 아닌
+          판정(verdict) 구조라 점수순이 성립하지 않고, sort=score는 마감순으로 폴백되어
+          눌러도 순서가 바뀌지 않는 죽은 UI였다. 판정 연동 시 그에 맞는 이름으로 새로 만든다. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[15px] font-bold text-gray-900">매칭 공고 {total}건</p>
-        <div className="flex flex-wrap items-center gap-4">
-          <SyncIndicator />
-          <div className="flex items-center gap-2">
-            {SORTS.map(({ key, label }) => {
-              const active = sort === key;
-              return (
-                <Link
-                  key={key}
-                  href={hrefFor(1, key)}
-                  onClick={() => logEvent("bid_list_filtered", { page: "recommend", properties: { sort: key } })}
-                  className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
-                    active
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "border border-slate-200 bg-white font-medium text-slate-400 hover:bg-slate-50"
-                  }`}
-                >
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        <p className="text-[15px] font-bold text-gray-900">추천 공고 {total}건</p>
+        <SyncIndicator />
       </div>
 
       {/* 카드 그리드 */}
@@ -154,9 +126,7 @@ export function RecoView({
             <BidCard
               key={bid.bid_id}
               bid={bid}
-              showMatch
               position={(page - 1) * pageSize + i + 1}
-              sort={sort}
               list="reco"
             />
           ))}
