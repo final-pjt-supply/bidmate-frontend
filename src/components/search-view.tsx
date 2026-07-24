@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
 import { SearchForm } from "@/components/search-form";
@@ -32,12 +32,12 @@ function buildPages(total: number, current: number): (number | "ellipsis")[] {
 /**
  * 공고 검색 — 서버 검색·페이징 목록.
  *
- * 검색어·업무구분·정렬·페이징을 모두 URL 파라미터로 두고 서버(GET /bids/search)가
- * 처리한다. 클라이언트에서 필터링하면 한 페이지 20건 안에서만 걸려 잘못된 결과가 된다.
- * 마감된 공고는 서버가 이미 제외한다.
+ * 검색어·업무구분·정렬·마감 포함 여부·페이징을 모두 URL 파라미터로 두고
+ * 서버(GET /bids/search)가 처리한다. 클라이언트에서 필터링하면 한 페이지 안에서만
+ * 걸려 잘못된 결과가 된다.
  *
- * 지역·추정금액·낙찰방법·중소기업 필터는 백엔드에 파라미터가 생기면 붙인다
- * (기존 클라이언트 필터 마크업은 커밋 3f2506a 이전 버전에서 되살릴 것).
+ * 상세 검색 패널에는 **서버가 지원하는 조건만** 넣는다. 지역·추정금액·낙찰방법·
+ * 중소기업은 백엔드에 파라미터가 생길 때 하나씩 추가한다.
  */
 export function SearchView({
   items,
@@ -47,6 +47,7 @@ export function SearchView({
   category,
   sort,
   query,
+  includeClosed,
 }: {
   items: Bid[];
   total: number;
@@ -55,16 +56,24 @@ export function SearchView({
   category?: BidCategory;
   sort: SortKey;
   query: string;
+  includeClosed: boolean;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   /** 하나만 바꾸고 나머지 조건은 유지하는 링크 생성기. */
-  const hrefFor = (p: number, cat?: BidCategory | "all", s?: SortKey) => {
+  const hrefFor = (
+    p: number,
+    cat?: BidCategory | "all",
+    s?: SortKey,
+    closed?: boolean
+  ) => {
     const c = cat === undefined ? category : cat === "all" ? undefined : cat;
     const sortKey = s ?? sort;
+    const withClosed = closed ?? includeClosed;
     const qs = new URLSearchParams();
     if (query) qs.set("q", query);
     if (c) qs.set("cat", c);
     if (sortKey !== "deadline") qs.set("sort", sortKey);
+    if (withClosed) qs.set("closed", "1");
     if (p > 1) qs.set("page", String(p));
     const str = qs.toString();
     return str ? `/search?${str}` : "/search";
@@ -73,12 +82,39 @@ export function SearchView({
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-7 sm:px-6 lg:px-10">
       {/* 검색바 */}
-      <div className="flex flex-col gap-1.5">
-        <SearchForm initialQuery={query} category={category} sort={sort} />
-        <p className="text-[13px] text-slate-400">
-          상세 검색(지역·추정금액·낙찰방법)은 준비 중이에요.
-        </p>
-      </div>
+      <SearchForm initialQuery={query} category={category} sort={sort} />
+
+      {/* 상세 검색 — 서버가 지원하는 조건만 노출한다. 백엔드에 필터가 추가될 때마다
+          여기에 하나씩 늘린다(동작하지 않는 컨트롤은 두지 않는다). */}
+      <details className="group" open={includeClosed}>
+        <summary className="flex h-8 w-fit cursor-pointer list-none items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50">
+          상세 검색
+          <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" strokeWidth={2} />
+        </summary>
+        <div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <p className="shrink-0 text-xs font-bold text-gray-900 sm:w-[68px]">기타</p>
+            <Link
+              href={hrefFor(1, undefined, undefined, !includeClosed)}
+              role="checkbox"
+              aria-checked={includeClosed}
+              className="flex w-fit items-center gap-2 text-left"
+            >
+              <span
+                className={`flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
+                  includeClosed ? "border-indigo-700 bg-indigo-700" : "border-slate-200 bg-white"
+                }`}
+              >
+                {includeClosed && <Check className="size-3 text-white" strokeWidth={3} />}
+              </span>
+              <span className="text-sm text-slate-600">마감된 공고 포함</span>
+            </Link>
+          </div>
+          <p className="text-[12px] text-slate-400">
+            지역·추정금액·낙찰방법 조건은 준비 중이에요.
+          </p>
+        </div>
+      </details>
 
       {/* 업무구분 필터 (서버 필터) */}
       <div className="flex flex-wrap gap-2.5">

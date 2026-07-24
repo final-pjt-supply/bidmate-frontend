@@ -37,6 +37,8 @@ export type SearchQuery = {
   sort?: "deadline" | "recent";
   /** 공고명·수요기관·공고기관 부분일치. 공백만 주면 서버가 미적용 처리. */
   q?: string;
+  /** 마감 지난 공고도 포함. 켜도 서버 정렬상 활성 공고가 앞에 온다. */
+  includeClosed?: boolean;
 };
 
 /**
@@ -51,6 +53,7 @@ export async function searchBids(query: SearchQuery = {}): Promise<BidListRespon
   if (query.category) qs.set("category", query.category);
   if (query.sort) qs.set("sort", query.sort);
   if (query.q?.trim()) qs.set("q", query.q.trim());
+  if (query.includeClosed) qs.set("include_closed", "true");
   const suffix = qs.toString() ? `?${qs}` : "";
 
   const res = await fetch(`${API_BASE}/bids/search${suffix}`, { next: { revalidate: 60 } });
