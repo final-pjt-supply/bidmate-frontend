@@ -29,7 +29,7 @@ function LoginGate() {
         <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
       </span>
       <p className="text-lg font-bold text-gray-900">우리 회사 맞춤 추천이 준비돼 있어요</p>
-      <p className="text-sm text-gray-500">무료로 가입하면 매칭 점수순으로 추천 공고를 볼 수 있어요.</p>
+      <p className="text-sm text-gray-500">무료로 가입하면 회사 조건에 맞는 추천 공고를 볼 수 있어요.</p>
       <Link
         href="/signup"
         className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
@@ -72,7 +72,7 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-bold text-gray-900">내 조건 맞춤 추천</h2>
           <p className="text-sm text-slate-500">
-            {gated ? "로그인하면 매칭 점수순으로 볼 수 있어요." : "매칭 점수가 높은 순으로 보여드려요."}
+            {gated ? "로그인하면 회사 조건에 맞는 공고를 볼 수 있어요." : "회사 조건에 맞는 공고를 모아드려요."}
           </p>
         </div>
         {!gated && <SyncIndicator />}
@@ -82,7 +82,7 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
         <div className="relative">
           <div className="pointer-events-none grid select-none grid-cols-1 gap-5 blur-[6px] md:grid-cols-2 xl:grid-cols-3">
             {recommended.map((bid) => (
-              <BidCard key={bid.bid_id} bid={bid} showMatch />
+              <BidCard key={bid.bid_id} bid={bid} />
             ))}
           </div>
           <LoginGate />
@@ -91,7 +91,7 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
         <>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {recommended.map((bid, i) => (
-              <BidCard key={bid.bid_id} bid={bid} showMatch position={i + 1} sort="score" list="reco" />
+              <BidCard key={bid.bid_id} bid={bid} position={i + 1} list="reco" />
             ))}
           </div>
           {recommendedAll.length > MAX_CARDS && (

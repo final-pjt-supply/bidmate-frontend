@@ -21,9 +21,35 @@ export function toggleScrap(email: string, bidId: string): boolean {
   const has = ids.includes(bidId);
   const next = has ? ids.filter((id) => id !== bidId) : [bidId, ...ids];
   localStorage.setItem(scrapKey(email), JSON.stringify(next));
+  emit();
   return !has;
 }
 
 export function clearScraps(email: string) {
   localStorage.removeItem(scrapKey(email));
+  emit();
+}
+
+// ── 구독 ──────────────────────────────────────────────────────────
+// 한 화면에 같은 공고 카드와 상세 북마크가 함께 떠 있을 수 있다. 저장소가 바뀌면
+// 구독 중인 컴포넌트가 전부 다시 읽게 해서 아이콘 상태가 어긋나지 않게 한다.
+// (React의 useSyncExternalStore와 짝을 이룬다 — effect에서 setState 하지 않아도 된다.)
+
+const listeners = new Set<() => void>();
+
+function emit() {
+  for (const fn of listeners) fn();
+}
+
+export function subscribeScraps(listener: () => void): () => void {
+  listeners.add(listener);
+  // 다른 탭에서 바뀐 경우도 반영한다(localStorage의 storage 이벤트는 타 탭에서만 발생).
+  const onStorage = (e: StorageEvent) => {
+    if (e.key?.startsWith("bidmate_scraps:")) listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
 }

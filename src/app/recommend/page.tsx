@@ -13,17 +13,18 @@ export const metadata: Metadata = {
 export default async function RecommendPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; sort?: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
-  const sort: "score" | "deadline" = sp.sort === "deadline" ? "deadline" : "score";
 
+  // 정렬은 마감 임박순 하나뿐이다. 점수순은 백엔드가 점수가 아닌 판정(verdict) 구조라
+  // 성립하지 않아 제거했다(reco-view 주석 참고).
   let items: Bid[] = [];
   let total = 0;
   let pageSize = 20;
   try {
-    const data = await getBids({ sort, page });
+    const data = await getBids({ sort: "deadline", page });
     items = data.items;
     total = data.total;
     pageSize = data.page_size;
@@ -34,7 +35,7 @@ export default async function RecommendPage({
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
-      <RecoView items={items} total={total} page={page} pageSize={pageSize} sort={sort} />
+      <RecoView items={items} total={total} page={page} pageSize={pageSize} />
       <SiteFooter />
     </div>
   );

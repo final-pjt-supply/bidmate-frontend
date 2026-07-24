@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { Bookmark } from "lucide-react";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, shortMethod, computeDday } from "@/lib/format";
 import { logEvent } from "@/lib/analytics/track";
+import { useAuth } from "@/lib/auth";
+import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 
 const DDAY_STYLE: Record<string, string> = {
   urgent: "bg-rose-50 text-orange-700",
@@ -16,8 +19,6 @@ const DDAY_STYLE: Record<string, string> = {
 
 type BidCardProps = {
   bid: Bid;
-  /** 추천 섹션에서만 매칭 배지 표시 (점수는 에이전트가 채우기 전까지 null → "매칭 —") */
-  showMatch?: boolean;
   className?: string;
   /** 로그용: 목록 내 전역 순위(1-based) */
   position?: number;
@@ -27,10 +28,30 @@ type BidCardProps = {
   list?: string;
 };
 
-export function BidCard({ bid, showMatch = false, className = "", position, sort, list }: BidCardProps) {
+export function BidCard({ bid, className = "", position, sort, list }: BidCardProps) {
   const dday = computeDday(bid.bid_clse_dt);
   const method = shortMethod(bid.sucsfbid_mthd_nm);
   const cardRef = useRef<HTMLAnchorElement>(null);
+  const { user } = useAuth();
+
+  // 스크랩 상태는 브라우저 저장소에 있어 서버 렌더 시점에 알 수 없다. 서버 스냅샷을
+  // false로 두어 첫 렌더는 빈 아이콘으로 그리고, 마운트 후 실제 값으로 맞춘다.
+  // TODO(스크랩 서버 저장): API가 붙으면 이 자리만 서버 상태로 교체한다. UI는 그대로.
+  const email = user?.email;
+  const scrapped = useSyncExternalStore(
+    subscribeScraps,
+    useCallback(() => (email ? isScrapped(email, bid.bid_id) : false), [email, bid.bid_id]),
+    () => false
+  );
+
+  const onToggleScrap = (e: React.MouseEvent) => {
+    // 카드 전체가 링크라, 버튼 클릭이 상세 페이지 이동으로 번지지 않게 막는다.
+    e.preventDefault();
+    e.stopPropagation();
+    if (!email) return;
+    const next = toggleScrap(email, bid.bid_id);
+    logEvent("bid_bookmarked", { bid_id: bid.bid_id, properties: { on: next, list } });
+  };
 
   // 노출(impression): 목록 맥락(list)이 있을 때, 카드가 실제로 보이면 뷰당 1회 기록.
   // "보였는데 클릭 안 함"을 알 수 있어야 CTR·비선호 학습이 가능하다.
@@ -75,11 +96,19 @@ export function BidCard({ bid, showMatch = false, className = "", position, sort
         <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${DDAY_STYLE[dday.kind]}`}>
           {dday.text}
         </span>
-        {/* 매칭 점수: 우측 상단 */}
-        {showMatch && (
-          <span className="rounded-md bg-indigo-50 px-[11px] py-[5px] text-xs font-bold text-indigo-700">
-            {bid.match_score == null ? "매칭 —" : `매칭 ${bid.match_score}점`}
-          </span>
+        {/* 스크랩: 우측 상단. 비회원에겐 노출하지 않는다(담을 곳이 없다). */}
+        {user && (
+          <button
+            type="button"
+            onClick={onToggleScrap}
+            aria-label={scrapped ? "스크랩 해제" : "스크랩"}
+            aria-pressed={scrapped}
+            className={`-m-1 rounded-md p-1 transition-colors ${
+              scrapped ? "text-indigo-600" : "text-slate-300 hover:text-indigo-600"
+            }`}
+          >
+            <Bookmark className={`size-[18px] ${scrapped ? "fill-current" : ""}`} strokeWidth={2} />
+          </button>
         )}
       </div>
 

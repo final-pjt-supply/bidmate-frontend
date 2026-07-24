@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bookmark, ChevronRight, ExternalLink, Lock, MessageCircleQuestion } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
-import { isScrapped, toggleScrap } from "@/lib/scraps";
+import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 import { logEvent } from "@/lib/analytics/track";
 import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
 
@@ -102,20 +102,20 @@ export function BidDetailView({ bid }: { bid: Bid }) {
     }
   };
 
-  // 스크랩(북마크) — 초기값은 저장소에서 파생, 토글 후에는 override로 반영
-  const initialScrapped = useMemo(
-    () => isMember && !!user && isScrapped(user.email, bid.bid_id),
-    [isMember, user, bid.bid_id]
+  // 스크랩(북마크) — 저장소를 구독한다. 목록 카드의 북마크와 같은 저장소라
+  // 한쪽에서 바꾸면 다른 쪽도 즉시 따라온다.
+  const email = isMember ? user?.email : undefined;
+  const scrapped = useSyncExternalStore(
+    subscribeScraps,
+    useCallback(() => (email ? isScrapped(email, bid.bid_id) : false), [email, bid.bid_id]),
+    () => false
   );
-  const [scrapOverride, setScrapOverride] = useState<boolean | null>(null);
-  const scrapped = scrapOverride ?? initialScrapped;
   const toggleBookmark = () => {
-    if (!isMember || !user) {
+    if (!email) {
       router.push("/login");
       return;
     }
-    const next = toggleScrap(user.email, bid.bid_id);
-    setScrapOverride(next);
+    const next = toggleScrap(email, bid.bid_id);
     logEvent("bid_bookmarked", { bid_id: bid.bid_id, properties: { on: next } });
   };
 
@@ -200,10 +200,8 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             {dday.kind === "urgent" || dday.kind === "normal" ? "입찰 마감 " : ""}
             {dday.text}
           </span>
-          <div className="text-right">
-            <p className="text-xs font-bold text-slate-400">매칭 —</p>
-            <p className="text-[11px] text-slate-400">로그인하면 적합도를 계산해드려요</p>
-          </div>
+          {/* 매칭 점수 표시는 제거했다 — 백엔드는 점수가 아니라 판정(verdict) 구조다.
+              적합도 안내는 아래 적합도 블록이 담당한다. */}
         </div>
 
         <div className="flex flex-wrap gap-2">
