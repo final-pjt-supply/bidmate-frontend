@@ -1,0 +1,19 @@
+# 로컬 검증 & EC2 실행 공용.
+#  - 로컬:  docker compose up --build        (여기서 직접 빌드)
+#  - EC2 :  IMAGE=<ECR주소>:<태그> docker compose up -d   (ECR 이미지를 pull해서 실행)
+
+services:
+  web:
+    # IMAGE 가 지정되면 그걸 사용(ECR), 없으면 로컬 빌드 결과를 사용
+    image: ${IMAGE:-bidmate-frontend:local}
+    build:
+      context: .
+    # 호스트 80 → 컨테이너 3000 : http://<서버IP> 로 포트 없이 접속
+    ports:
+      - "80:3000"
+    environment:
+      NODE_ENV: production
+      # 서버사이드에서만 쓰는 백엔드 주소 (런타임 주입 → 이미지 재빌드 없이 교체 가능)
+      API_BASE_URL: ${API_BASE_URL}
+    # 서버 재부팅/크래시 시 자동 복구
+    restart: unless-stopped

@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Docker 배포용: 실행에 필요한 최소 파일만 .next/standalone 으로 추려낸다.
+  // (node_modules 통째로 복사할 필요가 없어져 이미지가 크게 작아짐)
+  output: "standalone",
 };
 
 export default withSentryConfig(nextConfig, {
