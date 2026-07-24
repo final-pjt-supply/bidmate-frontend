@@ -1,19 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { RefreshCw, Info } from "lucide-react";
+import { refreshList } from "@/app/actions";
 
 /**
- * 목록 동기화 표시 + 데이터 수집·표시 안내 툴팁.
+ * 목록 새로고침 버튼 + 데이터 수집·표시 안내 툴팁.
  * 홈(추천 섹션)과 공고 검색 결과 헤더에서 공용으로 사용.
+ *
+ * 목록은 서버 컴포넌트가 가져오므로 클라이언트에서 API를 직접 부르지 않는다.
+ * 서버 액션으로 현재 경로의 캐시를 버리면, 그 응답에 새로 렌더된 결과가 함께 실려와
+ * 페이지 깜빡임 없이 목록만 교체된다. 캐시를 안 버리면 revalidate:60 때문에 60초
+ * 안에는 같은 데이터가 돌아온다.
  */
-export function SyncIndicator({ label = "목록 동기화 3분 전" }: { label?: string }) {
+export function SyncIndicator() {
   const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const pathname = usePathname();
+
+  const refresh = () => {
+    if (pending) return;
+    // revalidatePath가 현재 경로를 무효화하면 서버 액션 응답에 새 렌더 결과가 함께
+    // 실려온다. router.refresh()를 덧붙이면 같은 데이터를 한 번 더 받아온다(실측 2회).
+    startTransition(() => refreshList(pathname));
+  };
 
   return (
     <div className="flex items-center gap-[5px] text-gray-500">
-      <RefreshCw className="size-3.5" strokeWidth={2} />
-      <span className="text-[11.5px]">{label}</span>
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={pending}
+        aria-label="목록 새로고침"
+        aria-busy={pending}
+        title="목록 새로고침"
+        className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11.5px] transition-colors hover:bg-slate-100 hover:text-indigo-600 disabled:cursor-progress"
+      >
+        <RefreshCw className={`size-3.5 ${pending ? "animate-spin" : ""}`} strokeWidth={2} />
+        {pending ? "갱신 중" : "새로고침"}
+      </button>
       <span
         className="relative flex items-center"
         onMouseEnter={() => setOpen(true)}
