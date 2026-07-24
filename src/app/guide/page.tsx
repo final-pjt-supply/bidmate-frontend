@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DownloadCloud, FileSearch, Target } from "lucide-react";
+import { GuideCta } from "@/components/guide-cta";
 import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 
@@ -110,15 +111,8 @@ export default function GuidePage() {
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="flex flex-col items-center pb-16 pt-2">
-          <button
-            type="button"
-            className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
-          >
-            무료로 시작하기
-          </button>
-        </section>
+        {/* CTA — 비회원에게만 노출(GuideCta 내부에서 판별) */}
+        <GuideCta />
       </main>
       <SiteFooter />
     </div>
