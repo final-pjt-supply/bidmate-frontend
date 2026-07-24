@@ -23,20 +23,27 @@ export const dynamic = "force-dynamic";
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; cat?: string; q?: string; sort?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    cat?: string;
+    q?: string;
+    sort?: string;
+    closed?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const category = toCategory(sp.cat);
   const sort = toSort(sp.sort);
   const q = sp.q ?? "";
+  const includeClosed = sp.closed === "1";
 
-  // 마감 지난 공고는 서버가 제외한다. 검색어·업종·정렬 모두 서버가 처리.
+  // 검색어·업종·정렬·마감 포함 여부 모두 서버가 처리한다.
   let items: Bid[] = [];
   let total = 0;
   let pageSize = 20;
   try {
-    const data = await searchBids({ page, category, sort, q });
+    const data = await searchBids({ page, category, sort, q, includeClosed });
     items = data.items;
     total = data.total;
     pageSize = data.page_size;
@@ -56,6 +63,7 @@ export default async function SearchPage({
           category={category}
           sort={sort}
           query={q}
+          includeClosed={includeClosed}
         />
       </main>
       <SiteFooter />

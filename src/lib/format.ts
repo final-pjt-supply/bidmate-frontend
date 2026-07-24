@@ -42,9 +42,12 @@ export type DdayResult = {
 export function computeDday(bid_clse_dt: string | null, now: Date = new Date()): DdayResult {
   if (!bid_clse_dt) return { kind: "unknown", text: "마감 미정" };
   const clse = new Date(bid_clse_dt);
+  // 마감 판정은 '시각' 비교다. days는 ceil이라 마감이 이미 지났어도 24시간 이내면
+  // 0이 되어 "D-Day"로 표시된다(예: 오늘 10시 마감을 19시에 보면 D-Day). 마감된
+  // 공고를 노출하는 화면이 생기면서 실제로 드러나는 문제라 시각으로 먼저 거른다.
+  if (clse.getTime() < now.getTime()) return { kind: "closed", text: "마감" };
   const days = Math.ceil((clse.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   if (days > 365) return { kind: "always", text: "상시" };
-  if (days < 0) return { kind: "closed", text: "마감" };
   if (days === 0) return { kind: "urgent", text: "D-Day" };
   return { kind: days <= 3 ? "urgent" : "normal", text: `D-${days}` };
 }
