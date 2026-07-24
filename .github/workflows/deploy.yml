@@ -14,7 +14,11 @@ env:
   EC2_INSTANCE_ID: i-054a12633e0093178
   CONTAINER_NAME: bidmate-web
   # 백엔드 주소(사설 IP). 컨테이너 실행 시 런타임 주입 → 바뀌면 여기만 수정.
-  API_BASE_URL: http://10.0.9.232:8000
+  API_BASE_URL: http://10.0.140.134:8000
+  # Cognito 식별자 — 브라우저에 노출되는 공개 값이라 비밀이 아니다(Secrets 불필요).
+  # NEXT_PUBLIC_* 는 빌드 시점에 번들로 들어가므로 docker build --build-arg 로 넘긴다.
+  NEXT_PUBLIC_COGNITO_USER_POOL_ID: ap-northeast-2_zKCsxvDzO
+  NEXT_PUBLIC_COGNITO_CLIENT_ID: 43m2oj69ak8jlkodnt3m2o485q
 
 jobs:
   # ── 검증: 타입·린트·빌드가 통과해야 배포로 넘어간다 ──────────────
@@ -67,7 +71,10 @@ jobs:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
           IMAGE="$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
-          docker build -t "$IMAGE" -t "$REGISTRY/$ECR_REPOSITORY:latest" .
+          docker build \
+            --build-arg NEXT_PUBLIC_COGNITO_USER_POOL_ID="$NEXT_PUBLIC_COGNITO_USER_POOL_ID" \
+            --build-arg NEXT_PUBLIC_COGNITO_CLIENT_ID="$NEXT_PUBLIC_COGNITO_CLIENT_ID" \
+            -t "$IMAGE" -t "$REGISTRY/$ECR_REPOSITORY:latest" .
           docker push "$IMAGE"
           docker push "$REGISTRY/$ECR_REPOSITORY:latest"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"

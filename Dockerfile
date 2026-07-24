@@ -16,7 +16,15 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-# NEXT_PUBLIC_* 는 여기서 코드에 박힌다(빌드타임).
+
+# NEXT_PUBLIC_* 는 빌드 시점에 번들에 박힌다 → 런타임 주입으로는 절대 안 들어간다.
+# 그래서 빌드 인자로 받아 ENV로 세워둔 뒤 next build를 돌린다.
+# (유저풀/클라이언트 ID는 브라우저에 노출되는 공개 식별자라 비밀값이 아니다)
+ARG NEXT_PUBLIC_COGNITO_USER_POOL_ID
+ARG NEXT_PUBLIC_COGNITO_CLIENT_ID
+ENV NEXT_PUBLIC_COGNITO_USER_POOL_ID=$NEXT_PUBLIC_COGNITO_USER_POOL_ID
+ENV NEXT_PUBLIC_COGNITO_CLIENT_ID=$NEXT_PUBLIC_COGNITO_CLIENT_ID
+
 # API_BASE_URL 은 서버에서만 쓰므로 런타임에 주입한다 → 여기 필요 없음.
 RUN npm run build
 
