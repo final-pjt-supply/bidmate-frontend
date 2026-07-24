@@ -4,7 +4,10 @@
 
 import type { Bid, BidCategory, BidListResponse } from "@/lib/types";
 
-const API_BASE = process.env.API_BASE_URL ?? "http://54.180.233.72:8000";
+// 폴백은 로컬 개발용. 배포 환경에선 API_BASE_URL을 반드시 주입한다
+// (배포 워크플로의 env.API_BASE_URL → docker run -e). 예전 폴백은 삭제된 EC2 주소라
+// 환경변수 누락이 '설정 실수'가 아니라 '타임아웃'으로 나타나 원인 파악을 늦췄다.
+const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 
 export type BidsQuery = {
   page?: number;
