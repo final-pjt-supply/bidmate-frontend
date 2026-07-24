@@ -19,9 +19,14 @@ export default function LoginPage() {
     if (ready && user) router.replace("/");
   }, [ready, user, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = login(email, password);
+    setError(null);
+    setSubmitting(true);
+    const result = await login(email, password);
+    setSubmitting(false);
     if (result.ok) {
       logEvent("login_completed");
       router.push("/");
@@ -65,7 +70,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
             className="rounded-md py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
           >
             로그인

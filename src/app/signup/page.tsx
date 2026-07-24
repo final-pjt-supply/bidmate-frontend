@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Check, ChevronRight } from "lucide-react";
-import { useAuth, isEmailTaken } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { logEvent } from "@/lib/analytics/track";
 import { AuthCardLayout, AuthCard, Field, inputClass } from "@/components/auth-card";
 import { TermsModal } from "@/components/terms-modal";
@@ -17,7 +17,7 @@ type EmailStatus = "idle" | "invalid" | "available" | "taken";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { user, ready, signup } = useAuth();
+  const { user, ready, signup, confirmSignup, resendCode } = useAuth();
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,33 +27,34 @@ export default function SignupPage() {
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [termsOpen, setTermsOpen] = useState(false);
-  const [done, setDone] = useState(false);
+  // form → confirm(이메일 코드 입력) → done
+  const [step, setStep] = useState<"form" | "confirm" | "done">("form");
   const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
+  const [submitting, setSubmitting] = useState(false);
+  const [code, setCode] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
 
   const pwValid = PW_RULE.test(password);
 
+  // Cognito는 계정 존재 여부를 미리 알려주는 API가 없다(이메일 열거 공격 방지).
+  // 그래서 여기선 형식만 검사하고, 실제 중복은 가입 시도 시 응답으로 안내한다.
   const checkEmail = () => {
-    const e = email.trim();
-    if (!EMAIL_RULE.test(e)) {
-      setEmailStatus("invalid");
-      return;
-    }
-    setEmailStatus(isEmailTaken(e) ? "taken" : "available");
+    setEmailStatus(EMAIL_RULE.test(email.trim()) ? "available" : "invalid");
   };
 
-  // 이미 로그인 상태면 홈으로 (단, 방금 가입 완료 화면은 예외)
+  // 이미 로그인 상태면 홈으로 (단, 가입 진행 중 화면은 예외)
   useEffect(() => {
-    if (ready && user && !done) router.replace("/");
-  }, [ready, user, router, done]);
+    if (ready && user && step === "form") router.replace("/");
+  }, [ready, user, router, step]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!company.trim() || !email.trim() || !password) {
       setError("모든 필드를 입력해 주세요.");
       return;
     }
     if (emailStatus !== "available") {
-      setError("이메일 중복확인을 해주세요.");
+      setError("이메일 형식을 확인해 주세요.");
       return;
     }
     if (!pwValid) {
@@ -68,11 +69,35 @@ export default function SignupPage() {
       setError("이용약관 및 개인정보 수집·이용에 동의해 주세요.");
       return;
     }
-    const result = signup(company, email, password);
+    setError(null);
+    setSubmitting(true);
+    const result = await signup(company, email, password);
+    setSubmitting(false);
     if (result.ok) {
       logEvent("signup_completed");
-      setDone(true);
-    } else setError(result.error);
+      setStep("confirm"); // 메일로 온 인증코드 확인이 남았다
+    } else {
+      setError(result.error);
+      if (result.error.includes("이미 가입")) setEmailStatus("taken");
+    }
+  };
+
+  const handleConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const result = await confirmSignup(email, code);
+    setSubmitting(false);
+    if (result.ok) setStep("done");
+    else setError(result.error);
+  };
+
+  const handleResend = async () => {
+    setError(null);
+    setNotice(null);
+    const result = await resendCode(email);
+    if (result.ok) setNotice("인증코드를 다시 보냈어요. 메일함을 확인해 주세요.");
+    else setError(result.error);
   };
 
   const canSubmit =
@@ -83,8 +108,57 @@ export default function SignupPage() {
     password === confirm &&
     agree;
 
+  // 이메일 인증코드 입력 — Cognito가 가입 시 보낸 코드를 확인해야 계정이 활성화된다
+  if (step === "confirm") {
+    return (
+      <AuthCardLayout>
+        <AuthCard title="이메일 인증">
+          <form onSubmit={handleConfirm} className="flex flex-col gap-[18px]">
+            <p className="text-sm leading-relaxed text-slate-500">
+              <span className="font-medium text-gray-900">{email}</span> 로 인증코드를 보냈어요.
+              메일함을 확인하고 코드를 입력해 주세요.
+            </p>
+            <Field label="인증코드">
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="6자리 코드"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                className={inputClass}
+              />
+            </Field>
+
+            {notice && <p className="text-[13px] text-emerald-600">{notice}</p>}
+            {error && <p className="text-[13px] text-red-600">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={code.trim() === "" || submitting}
+              className="rounded-[10px] py-3 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
+            >
+              {submitting ? "확인 중…" : "인증 완료"}
+            </button>
+          </form>
+
+          <p className="text-center text-[13px] text-slate-500">
+            코드를 못 받으셨나요?{" "}
+            <button
+              type="button"
+              onClick={handleResend}
+              className="font-medium text-indigo-700 hover:underline"
+            >
+              다시 보내기
+            </button>
+          </p>
+        </AuthCard>
+      </AuthCardLayout>
+    );
+  }
+
   // 가입 완료 화면 (Figma 137:2)
-  if (done) {
+  if (step === "done") {
     return (
       <AuthCardLayout>
         <div className="flex w-full max-w-[520px] flex-col items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-11 text-center">
@@ -93,14 +167,15 @@ export default function SignupPage() {
           </span>
           <h1 className="text-2xl font-bold text-gray-900">가입이 완료됐어요!</h1>
           <p className="text-sm leading-relaxed text-slate-500">
-            맞춤 공고 추천을 받으려면 회사 정보를 등록하세요. 업종·지역·자격요건을 입력하면 우리 회사에 맞는 공고를 자동으로 찾아드려요.
+            이제 로그인할 수 있어요. 맞춤 공고 추천을 받으려면 회사 정보를 등록하세요.
+            업종·지역·자격요건을 입력하면 우리 회사에 맞는 공고를 자동으로 찾아드려요.
           </p>
           <button
             type="button"
-            onClick={() => router.push("/mypage?edit=1")}
+            onClick={() => router.push("/login")}
             className="w-full rounded-[10px] bg-indigo-700 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800"
           >
-            회사 정보 등록하기
+            로그인하러 가기
           </button>
           <button
             type="button"
