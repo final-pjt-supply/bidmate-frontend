@@ -39,14 +39,18 @@ export default function MyPage() {
   const [draft, setDraft] = useState<CompanyProfile>(EMPTY_PROFILE);
 
   // 가입 완료 → "회사 정보 등록하기"로 진입 시 바로 수정 모드
+  // window는 서버 렌더 중엔 없으므로 마운트 후(effect)에 읽는 것이 정석 — 규칙 예외 처리
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (new URLSearchParams(window.location.search).get("edit") === "1") setEditing(true);
   }, []);
 
   // 저장된 프로필 로드
+  // localStorage도 서버에는 없어 effect에서 읽어 state에 반영한다 — 규칙 예외 처리
   useEffect(() => {
     if (!user) return;
     const loaded = loadProfile(user.email, user.company);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfile(loaded);
     setDraft(loaded);
   }, [user]);

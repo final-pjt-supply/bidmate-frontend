@@ -1,0 +1,123 @@
+name: CI & Deploy
+
+# PR      → ci 잡만 실행 (머지 전 검증)
+# main push → ci 통과 후 deploy (이미지 빌드 → ECR → EC2 배포)
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: bidmate-frontend
+  EC2_INSTANCE_ID: i-054a12633e0093178
+  CONTAINER_NAME: bidmate-web
+  # 백엔드 주소(사설 IP). 컨테이너 실행 시 런타임 주입 → 바뀌면 여기만 수정.
+  API_BASE_URL: http://10.0.9.232:8000
+
+jobs:
+  # ── 검증: 타입·린트·빌드가 통과해야 배포로 넘어간다 ──────────────
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # Dockerfile의 node:22-alpine과 맞춤
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  # ── 배포: main에 머지됐을 때만 ──────────────────────────────────
+  deploy:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # OIDC로 AWS 임시 자격증명을 받기 위해 필수. 없으면 인증 실패.
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::890608337282:role/bidmate-frontend-github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          IMAGE="$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          docker build -t "$IMAGE" -t "$REGISTRY/$ECR_REPOSITORY:latest" .
+          docker push "$IMAGE"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy to EC2 via SSM
+        run: |
+          set -e
+          # SSM으로 EC2에서 실행할 명령. set -e 라서 한 줄이라도 실패하면 전체 실패.
+          cat > /tmp/params.json <<EOF
+          {
+            "commands": [
+              "set -e",
+              "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${{ steps.ecr.outputs.registry }}",
+              "docker pull ${IMAGE}",
+              "docker rm -f ${CONTAINER_NAME} || true",
+              "docker run -d --name ${CONTAINER_NAME} -p 80:3000 -e API_BASE_URL=${API_BASE_URL} --restart unless-stopped ${IMAGE}",
+              "sleep 5",
+              "curl -fsS -o /dev/null http://localhost/",
+              "docker image prune -f"
+            ]
+          }
+          EOF
+
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "deploy ${GITHUB_SHA::7}" \
+            --parameters file:///tmp/params.json \
+            --query Command.CommandId --output text)
+          echo "SSM command: $CMD_ID"
+
+          # 완료까지 대기 (실패해도 아래에서 상태/로그를 찍기 위해 || true)
+          aws ssm wait command-executed \
+            --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" || true
+
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+            --query Status --output text)
+          echo "--- stdout ---"
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+            --query StandardOutputContent --output text
+          echo "--- stderr ---"
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+            --query StandardErrorContent --output text
+
+          echo "status: $STATUS"
+          [ "$STATUS" = "Success" ] || exit 1
+
+      - name: Summary
+        run: |
+          echo "### 배포 완료 :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- commit: \`${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- image: \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"

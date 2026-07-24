@@ -35,6 +35,9 @@ export default function GlobalError({
         <p style={{ fontSize: "14px", color: "#64748b" }}>
           일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.
         </p>
+        {/* 최상위 렌더 에러 화면이라 라우터가 깨져 있을 수 있음 →
+            next/link 대신 <a>로 하드 리로드해 확실히 복구시킨다 */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/"
           style={{

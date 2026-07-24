@@ -91,7 +91,9 @@ function migrateRegion(
   if (p.hqRegion !== undefined || typeof p.region !== "string") return p;
   const name = p.region.trim();
   const code = SIDO_BY_NAME[name];
-  const { region: _drop, ...rest } = p;
+  // region 키를 빼고 나머지만 남긴다(구 스키마 → 신 스키마 이관)
+  const { region, ...rest } = p;
+  void region;
   return { ...rest, hqRegion: code ? { code, name } : null };
 }
 
