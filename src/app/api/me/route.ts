@@ -6,7 +6,8 @@ import { NextResponse } from "next/server";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://54.180.233.72:8000";
 
-export async function GET(req: Request) {
+/** 백엔드 /me로 그대로 중계한다. GET=조회, DELETE=회원 탈퇴(소프트 삭제). */
+async function proxy(req: Request, method: "GET" | "DELETE") {
   const auth = req.headers.get("Authorization");
   if (!auth) {
     return NextResponse.json({ detail: "로그인이 필요합니다" }, { status: 401 });
@@ -14,16 +15,22 @@ export async function GET(req: Request) {
 
   try {
     const res = await fetch(`${API_BASE}/me`, {
+      method,
       headers: { Authorization: auth },
       cache: "no-store",
     });
     const body = await res.text();
+    // 탈퇴 성공은 204(본문 없음) — 빈 본문에 Content-Type을 붙이지 않는다.
+    if (!body) return new NextResponse(null, { status: res.status });
     return new NextResponse(body, {
       status: res.status,
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("/me 프록시 실패:", err);
+    console.error(`/me(${method}) 프록시 실패:`, err);
     return NextResponse.json({ detail: "서버에 연결할 수 없습니다" }, { status: 502 });
   }
 }
+
+export const GET = (req: Request) => proxy(req, "GET");
+export const DELETE = (req: Request) => proxy(req, "DELETE");

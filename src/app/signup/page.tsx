@@ -9,8 +9,10 @@ import { logEvent } from "@/lib/analytics/track";
 import { AuthCardLayout, AuthCard, Field, inputClass } from "@/components/auth-card";
 import { TermsModal } from "@/components/terms-modal";
 
-// 영어 + 숫자 포함 8자 이상
-const PW_RULE = /^(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
+// Cognito 유저풀 비밀번호 정책과 동일하게 맞춘다(느슨하면 가입 단계에서 거부당한다).
+// 정책: 8자 이상 + 대문자 + 소문자 + 숫자 + 특수문자 전부 필수.
+const PW_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const PW_HINT = "대문자·소문자·숫자·특수문자를 포함해 8자 이상 입력하세요.";
 const EMAIL_RULE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type EmailStatus = "idle" | "invalid" | "available" | "taken";
@@ -58,7 +60,7 @@ export default function SignupPage() {
       return;
     }
     if (!pwValid) {
-      setError("비밀번호는 영어와 숫자를 포함해 8자 이상이어야 해요.");
+      setError(`비밀번호는 ${PW_HINT}`);
       return;
     }
     if (password !== confirm) {
@@ -255,7 +257,7 @@ export default function SignupPage() {
                 </button>
               </div>
               <p className={`text-[11.5px] ${password && !pwValid ? "text-red-600" : "text-slate-400"}`}>
-                영어와 숫자를 포함해 8자 이상 입력하세요.
+                {PW_HINT}
               </p>
             </Field>
             <Field label="비밀번호 확인">
