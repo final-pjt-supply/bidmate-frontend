@@ -9,12 +9,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { RegionRef } from "@/lib/company";
 import { loadRegions, type RegionNode } from "@/lib/data/masters";
+import { SelectMenu } from "@/components/select-menu";
 
 // 시군구 코드(5자리)의 앞 2자리가 소속 시도 코드. 시도 코드(2자리)는 그대로.
 const sidoOf = (code: string) => (code.length > 2 ? code.slice(0, 2) : code);
-
-const selectClass =
-  "h-[46px] w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400";
 
 export function RegionSelect({
   value,
@@ -62,37 +60,35 @@ export function RegionSelect({
   };
 
   const loading = !regions;
+  const sigunguDisabled = loading || !sidoCode || sigungus.length === 0;
 
   return (
     <div className="flex gap-2">
-      <select
-        aria-label="시·도"
-        className={selectClass}
-        value={sidoCode}
-        disabled={loading}
-        onChange={(e) => onSido(e.target.value)}
-      >
-        <option value="">시·도 선택</option>
-        {sidos.map((s) => (
-          <option key={s.code} value={s.code}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="시·군·구"
-        className={selectClass}
-        value={sigunguCode}
-        disabled={loading || !sidoCode || sigungus.length === 0}
-        onChange={(e) => onSigungu(e.target.value)}
-      >
-        <option value="">{sigungus.length ? "시·군·구 (전체)" : "해당 없음"}</option>
-        {sigungus.map((s) => (
-          <option key={s.code} value={s.code}>
-            {s.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex-1">
+        <SelectMenu
+          ariaLabel="시·도"
+          value={sidoCode}
+          onChange={onSido}
+          placeholder={loading ? "불러오는 중…" : "시·도 선택"}
+          disabled={loading}
+          options={sidos.map((s) => ({ value: s.code, label: s.name }))}
+        />
+      </div>
+      <div className="flex-1">
+        <SelectMenu
+          ariaLabel="시·군·구"
+          value={sigunguCode}
+          onChange={onSigungu}
+          placeholder={sidoCode && sigungus.length ? "시·군·구 (전체)" : "해당 없음"}
+          disabled={sigunguDisabled}
+          // 맨 위 "(전체)"로 시군구 해제 가능
+          options={
+            sigungus.length
+              ? [{ value: "", label: "시·군·구 (전체)" }, ...sigungus.map((s) => ({ value: s.code, label: s.name }))]
+              : []
+          }
+        />
+      </div>
     </div>
   );
 }
