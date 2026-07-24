@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth, MOCK_ACCOUNT } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { logEvent } from "@/lib/analytics/track";
 import { AuthCardLayout, AuthCard, Field, inputClass } from "@/components/auth-card";
 
@@ -31,12 +31,6 @@ export default function LoginPage() {
       logEvent("login_completed");
       router.push("/");
     } else setError(result.error);
-  };
-
-  const fillTestAccount = () => {
-    setEmail(MOCK_ACCOUNT.email);
-    setPassword(MOCK_ACCOUNT.password);
-    setError(null);
   };
 
   const canSubmit = email.trim() !== "" && password !== "";
@@ -77,19 +71,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* 테스트 계정 힌트 */}
-        <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-[12px] text-slate-500">
-          <span>
-            테스트 계정 · {MOCK_ACCOUNT.email} / {MOCK_ACCOUNT.password}
-          </span>
-          <button
-            type="button"
-            onClick={fillTestAccount}
-            className="shrink-0 rounded-md bg-white px-2 py-1 font-medium text-indigo-700 ring-1 ring-slate-200 transition-colors hover:bg-slate-100"
-          >
-            자동 입력
-          </button>
-        </div>
+        <p className="text-center text-[13px] text-slate-500">
+          <Link href="/forgot-password" className="font-medium text-indigo-700 hover:underline">
+            비밀번호를 잊으셨나요?
+          </Link>
+        </p>
 
         <p className="text-center text-[13px] text-slate-500">
           계정이 없으신가요?{" "}

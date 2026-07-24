@@ -1,7 +1,7 @@
 // 회사 프로필(마이페이지 등록 정보) 저장/조회 유틸.
 // 마이페이지와 맞춤 추천이 동일 기준을 쓰도록 한곳에 모은다. 클라이언트에서만 호출.
 
-import { MOCK_ACCOUNT } from "@/lib/auth";
+import { DEMO_ACCOUNT_EMAIL } from "@/lib/auth";
 import type { MasterRef } from "@/lib/data/masters";
 
 /** 마스터 참조 값 — 저장/매칭은 code, 표시는 name (region_master 등) */
@@ -142,7 +142,7 @@ export function loadProfile(email: string, company = ""): CompanyProfile {
   } catch {
     // ignore
   }
-  if (email.toLowerCase() === MOCK_ACCOUNT.email) return DEMO_PROFILE;
+  if (email.toLowerCase() === DEMO_ACCOUNT_EMAIL) return DEMO_PROFILE;
   return { ...EMPTY_PROFILE, name: company };
 }
 

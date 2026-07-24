@@ -91,6 +91,51 @@ export function resendCode(email: string): Promise<void> {
   });
 }
 
+/**
+ * 비밀번호 재설정 1단계 — 등록된 이메일로 인증코드를 보낸다.
+ *
+ * 백엔드를 거치지 않는다(로그인·회원가입과 동일하게 브라우저가 Cognito를 직접 호출).
+ * 풀 설정의 계정 복구 경로가 verified_email이라 별도 설정 없이 동작한다.
+ */
+export function forgotPassword(email: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    userOf(email).forgotPassword({
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(err),
+      // 코드 발송 성공 시 inputVerificationCode가 호출된다(onSuccess가 아니라).
+      inputVerificationCode: () => resolve(),
+    });
+  });
+}
+
+/** 비밀번호 재설정 2단계 — 코드 + 새 비밀번호로 확정. */
+export function confirmPassword(
+  email: string,
+  code: string,
+  newPassword: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    userOf(email).confirmPassword(code.trim(), newPassword, {
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(err),
+    });
+  });
+}
+
+/** 비밀번호 변경 — 로그인 상태에서 현재 비밀번호를 알고 바꾼다(재설정과 다른 경로). */
+export function changePassword(current: string, next: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const user = pool().getCurrentUser();
+    if (!user) return reject(new Error("로그인 상태가 아닙니다"));
+    user.getSession((err: Error | null) => {
+      if (err) return reject(err);
+      user.changePassword(current, next, (changeErr) =>
+        changeErr ? reject(changeErr) : resolve()
+      );
+    });
+  });
+}
+
 /** 로그인(SRP). 성공 시 ID 토큰 반환 — 백엔드 호출에 쓴다. */
 export function signIn(email: string, password: string): Promise<string> {
   return new Promise((resolve, reject) => {
