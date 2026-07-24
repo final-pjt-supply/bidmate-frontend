@@ -46,7 +46,8 @@ type AuthContextValue = {
   confirmSignup: (email: string, code: string) => Promise<Result>;
   resendCode: (email: string) => Promise<Result>;
   logout: () => void;
-  deleteAccount: () => Promise<Result>;
+  /** 회원 탈퇴 — 본인 확인용 비밀번호 재입력이 필요하다 */
+  deleteAccount: (password: string) => Promise<Result>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -145,8 +146,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const deleteAccount: AuthContextValue["deleteAccount"] = async () => {
+  const deleteAccount: AuthContextValue["deleteAccount"] = async (password) => {
+    if (!user) return { ok: false, error: "로그인이 필요합니다." };
     try {
+      // 1) 본인 확인 — 자리를 비운 사이 타인이 탈퇴시키는 것을 막는다.
+      //    재인증으로 최신 토큰도 함께 확보한다.
+      const token = await cognitoSignIn(user.email, password);
+
+      // 2) 서버 데이터 먼저 정리(소프트 삭제).
+      //    Cognito를 먼저 지우면 토큰이 사라져, 이 요청이 실패했을 때 되돌릴 수 없다.
+      const res = await fetch("/api/me", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        return { ok: false, error: "회원 정보를 정리하지 못했어요. 잠시 후 다시 시도해 주세요." };
+      }
+
+      // 3) 마지막으로 로그인 계정 삭제
       await deleteCurrentUser();
       setUser(null);
       return { ok: true };
