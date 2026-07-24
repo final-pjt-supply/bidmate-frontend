@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
+import { AdvancedSearchPanel } from "@/components/advanced-search-panel";
 import { SearchForm } from "@/components/search-form";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { buildSearchHref, type SearchConditions, type SearchSort } from "@/lib/search-params";
@@ -51,7 +52,7 @@ export function SearchView({
   pageSize: number;
   conditions: SearchConditions;
 }) {
-  const { category, sort, query, includeClosed, page } = conditions;
+  const { category, sort, query, page } = conditions;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   /** 조건 일부만 바꾼 링크. 변환 규칙은 buildSearchHref 한 곳에만 있다(#66). */
   const hrefFor = (changes: Partial<SearchConditions>) =>
@@ -62,37 +63,7 @@ export function SearchView({
       {/* 검색바 */}
       <SearchForm conditions={conditions} />
 
-      {/* 상세 검색 — 서버가 지원하는 조건만 노출한다. 백엔드에 필터가 추가될 때마다
-          여기에 하나씩 늘린다(동작하지 않는 컨트롤은 두지 않는다). */}
-      <details className="group" open={includeClosed}>
-        <summary className="flex h-8 w-fit cursor-pointer list-none items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50">
-          상세 검색
-          <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" strokeWidth={2} />
-        </summary>
-        <div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-            <p className="shrink-0 text-xs font-bold text-gray-900 sm:w-[68px]">기타</p>
-            <Link
-              href={hrefFor({ includeClosed: !includeClosed })}
-              role="checkbox"
-              aria-checked={includeClosed}
-              className="flex w-fit items-center gap-2 text-left"
-            >
-              <span
-                className={`flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
-                  includeClosed ? "border-indigo-700 bg-indigo-700" : "border-slate-200 bg-white"
-                }`}
-              >
-                {includeClosed && <Check className="size-3 text-white" strokeWidth={3} />}
-              </span>
-              <span className="text-sm text-slate-600">마감된 공고 포함</span>
-            </Link>
-          </div>
-          <p className="text-[12px] text-slate-400">
-            지역·추정금액·낙찰방법 조건은 준비 중이에요.
-          </p>
-        </div>
-      </details>
+      <AdvancedSearchPanel conditions={conditions} />
 
       {/* 업무구분 필터 (서버 필터) */}
       <div className="flex flex-wrap gap-2.5">
