@@ -77,6 +77,8 @@ export default function MyPage() {
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    // 검증 실패 상태면 저장하지 않는다(엔터 제출 등 우회 경로 포함)
+    if (bizNoError) return;
     const wasFilled = hasCompanyProfile(user.email); // 저장 전 상태로 최초/수정 판별
     // 미선택 상태로 남은 지사 행은 버린다
     const cleaned: CompanyProfile = {
@@ -231,7 +233,8 @@ export default function MyPage() {
             </button>
             <button
               type="submit"
-              className="rounded-[10px] bg-indigo-700 px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800"
+              disabled={bizNoError !== ""}
+              className="rounded-[10px] bg-indigo-700 px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               변경사항 저장
             </button>
