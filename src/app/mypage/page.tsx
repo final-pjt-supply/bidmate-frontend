@@ -25,6 +25,7 @@ import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
 import { RegionSelect } from "@/components/region-select";
 import { LicenseOneSelect, LicenseSelect } from "@/components/license-select";
+import { DateField, isValidDate } from "@/components/date-field";
 import { PersonnelSelect } from "@/components/personnel-select";
 import { SelectMenu } from "@/components/select-menu";
 import type { MasterRef } from "@/lib/data/masters";
@@ -128,9 +129,11 @@ export default function MyPage() {
   /** 아무것도 안 넣은 빈 행 — 저장 시 조용히 버린다 */
   const perfBlank = (p: PerformanceRow) =>
     !p.contractName.trim() && !p.field && !p.amount && !p.endDate;
-  /** 필수 3종(계약명·금액·완료일)이 다 찼는지. 분야는 선택 */
+  /** 필수 3종(계약명·금액·완료일)이 다 찼는지. 분야는 선택.
+   *  완료일은 타이핑 중간값("2024-1")이나 2024-02-31 같은 값도 들어올 수 있어
+   *  존재하는 날짜인지까지 본다. */
   const perfComplete = (p: PerformanceRow) =>
-    p.contractName.trim() !== "" && Number(p.amount) > 0 && p.endDate !== "";
+    p.contractName.trim() !== "" && Number(p.amount) > 0 && isValidDate(p.endDate);
   // 쓰다 만 행이 하나라도 있으면 저장 차단
   const perfError = draft.performances.some((p) => !perfBlank(p) && !perfComplete(p));
 
@@ -269,39 +272,36 @@ export default function MyPage() {
             <div className="flex flex-col gap-3">
               {draft.performances.map((p, i) => {
                 const show = !perfBlank(p) && !perfComplete(p); // 쓰다 만 행만 빨갛게
-                const bad = (empty: boolean) => (show && empty ? "border-rose-400" : "");
+                const bad = (empty: boolean) => show && empty;
                 return (
                   <div key={i} className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-[2]">
-                        <input
-                          value={p.contractName}
-                          onChange={(e) => setPerformance(i, { contractName: e.target.value })}
-                          placeholder="계약명"
-                          aria-label={`실적 ${i + 1} 계약명`}
-                          maxLength={200}
-                          className={`${inputClass} ${bad(!p.contractName.trim())}`}
-                        />
-                      </div>
-                      <div className="flex-[2]">
-                        <LicenseOneSelect
-                          value={p.field}
-                          onChange={(v) => setPerformance(i, { field: v })}
-                          ariaLabel={`실적 ${i + 1} 분야`}
-                          placeholder="분야 (선택)"
-                        />
-                      </div>
+                    {/* 4칸이 2줄로 앉는다. 두 줄의 칸 폭이 정확히 맞도록 grid로 고정
+                        (flex + 눈대중 spacer는 삭제 버튼 폭이 바뀌면 어긋난다) */}
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2">
+                      <input
+                        value={p.contractName}
+                        onChange={(e) => setPerformance(i, { contractName: e.target.value })}
+                        placeholder="계약명"
+                        aria-label={`실적 ${i + 1} 계약명`}
+                        maxLength={200}
+                        className={`${inputClass} ${bad(!p.contractName.trim()) ? "border-rose-400" : ""}`}
+                      />
+                      <LicenseOneSelect
+                        value={p.field}
+                        onChange={(v) => setPerformance(i, { field: v })}
+                        ariaLabel={`실적 ${i + 1} 분야`}
+                        placeholder="분야 (선택)"
+                      />
                       <button
                         type="button"
                         onClick={() => removePerformance(i)}
                         aria-label={`실적 ${i + 1} 삭제`}
-                        className="shrink-0 rounded-md border border-slate-200 bg-white px-3 py-[11px] text-sm text-slate-500 transition-colors hover:bg-slate-50"
+                        className="h-[46px] rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-500 transition-colors hover:bg-slate-50"
                       >
                         삭제
                       </button>
-                    </div>
-                    <div className="mt-2 flex items-start gap-2">
-                      <div className="flex-[2]">
+
+                      <div>
                         <input
                           value={formatWon(p.amount)}
                           onChange={(e) =>
@@ -310,21 +310,18 @@ export default function MyPage() {
                           inputMode="numeric"
                           placeholder="계약금액 (원)"
                           aria-label={`실적 ${i + 1} 계약금액(원)`}
-                          className={`${inputClass} ${bad(!(Number(p.amount) > 0))}`}
+                          className={`${inputClass} ${bad(!(Number(p.amount) > 0)) ? "border-rose-400" : ""}`}
                         />
                         <p className="mt-1 h-4 text-xs text-slate-500">{amountHint(p.amount)}</p>
                       </div>
-                      <div className="flex-[2]">
-                        <input
-                          type="date"
-                          value={p.endDate}
-                          onChange={(e) => setPerformance(i, { endDate: e.target.value })}
-                          aria-label={`실적 ${i + 1} 완료일`}
-                          className={`${inputClass} ${bad(!p.endDate)}`}
-                        />
-                      </div>
-                      {/* 삭제 버튼 자리만큼 폭 맞춤 */}
-                      <div className="w-[57px] shrink-0" />
+                      <DateField
+                        value={p.endDate}
+                        onChange={(v) => setPerformance(i, { endDate: v })}
+                        ariaLabel={`실적 ${i + 1} 완료일`}
+                        invalid={bad(!isValidDate(p.endDate))}
+                      />
+                      {/* 3열(삭제 버튼) 자리 — grid라 폭이 자동으로 맞는다 */}
+                      <div />
                     </div>
                   </div>
                 );
