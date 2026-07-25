@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Field, inputClass } from "@/components/auth-card";
 import {
+  type CapacityRow,
   type CertRow,
   type CompanyProfile,
   type CompanySize,
@@ -17,6 +18,7 @@ import {
   formatBizNo,
   formatWon,
   hasCompanyProfile,
+  isConstructionCompany,
   isValidBizNo,
   loadProfile,
   normalizeBizNo,
@@ -84,7 +86,7 @@ export default function MyPage() {
     e.preventDefault();
     if (!user) return;
     // 검증 실패 상태면 저장하지 않는다(엔터 제출 등 우회 경로 포함)
-    if (bizNoError || perfError || certError) return;
+    if (bizNoError || perfError || certError || capError) return;
     const wasFilled = hasCompanyProfile(user.email); // 저장 전 상태로 최초/수정 판별
     // 미선택 상태로 남은 지사 행은 버린다
     const cleaned: CompanyProfile = {
@@ -95,6 +97,9 @@ export default function MyPage() {
       // 아무것도 안 넣은 빈 행만 버린다(쓰다 만 행은 위에서 저장을 막았다).
       performances: draft.performances.filter((p) => !perfBlank(p)),
       certRefs: draft.certRefs.filter((c) => !certBlank(c)),
+      // 공사업 면허를 지워 섹션이 닫혔으면 남은 입력을 버린다(숨은 값이 저장되면
+      // 나중에 면허를 다시 넣었을 때 유령 데이터가 살아난다).
+      capacityEvals: showCapacity ? draft.capacityEvals.filter((c) => !capBlank(c)) : [],
     };
     setProfile(cleaned);
     saveProfile(user.email, cleaned);
@@ -113,6 +118,28 @@ export default function MyPage() {
       : draft.bizNo.length === 10 && !isValidBizNo(draft.bizNo)
         ? "유효하지 않은 사업자등록번호예요"
         : "";
+
+  // 시공능력 — 공사업 면허를 가진 회사에만 노출한다(시공능력평가는 공사업 제도).
+  // 면허를 지우면 섹션이 닫히므로, 그때 남은 입력은 저장 시 버린다.
+  const showCapacity = isConstructionCompany(draft.licenseRefs);
+  const addCapacity = () =>
+    setDraft((d) => ({
+      ...d,
+      capacityEvals: [...d.capacityEvals, { code: "", name: "", evalAmount: "", evalYear: "" }],
+    }));
+  const setCapacity = (i: number, patch: Partial<CapacityRow>) =>
+    setDraft((d) => ({
+      ...d,
+      capacityEvals: d.capacityEvals.map((c, idx) => (idx === i ? { ...c, ...patch } : c)),
+    }));
+  const removeCapacity = (i: number) =>
+    setDraft((d) => ({ ...d, capacityEvals: d.capacityEvals.filter((_, idx) => idx !== i) }));
+
+  const capBlank = (c: CapacityRow) => c.code === "" && !c.evalAmount && !c.evalYear;
+  /** 업종과 평가액은 필수(DB NOT NULL), 평가연도는 선택 */
+  const capComplete = (c: CapacityRow) => c.code !== "" && Number(c.evalAmount) > 0;
+  const capError =
+    showCapacity && draft.capacityEvals.some((c) => !capBlank(c) && !capComplete(c));
 
   // 보유 인증 — 인증 + 유효기간. 만료 판정을 해야 하므로 기한을 받되,
   // 갱신 개념이 없는 인증은 "무기한"으로 표시해 NULL로 남긴다.
@@ -456,6 +483,75 @@ export default function MyPage() {
             </div>
           </Field>
 
+          {/* 시공능력 — 공사업 면허 보유 회사에만. 비공사업 회사엔 해당 제도가 없어
+              빈 칸을 보여줄 이유가 없다(면허를 고르면 이 섹션이 나타난다). */}
+          {showCapacity && (
+            <Field label="시공능력평가액 (업종별)">
+              <div className="flex flex-col gap-2">
+                {draft.capacityEvals.map((c, i) => {
+                  const show = !capBlank(c) && !capComplete(c);
+                  return (
+                    <div
+                      key={i}
+                      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_104px_auto] items-start gap-2"
+                    >
+                      <LicenseOneSelect
+                        value={c.code ? { code: c.code, name: c.name } : null}
+                        onChange={(v) => setCapacity(i, { code: v?.code ?? "", name: v?.name ?? "" })}
+                        ariaLabel={`시공능력 ${i + 1} 업종`}
+                        placeholder="업종 검색"
+                      />
+                      <div>
+                        <input
+                          value={formatWon(c.evalAmount)}
+                          onChange={(e) =>
+                            setCapacity(i, { evalAmount: e.target.value.replace(/\D/g, "").slice(0, 15) })
+                          }
+                          inputMode="numeric"
+                          placeholder="평가액 (원)"
+                          aria-label={`시공능력 ${i + 1} 평가액(원)`}
+                          className={`${inputClass} ${show && !(Number(c.evalAmount) > 0) ? "border-rose-400" : ""}`}
+                        />
+                        <p className="mt-1 h-4 text-xs text-slate-500">{amountHint(c.evalAmount)}</p>
+                      </div>
+                      <input
+                        value={c.evalYear}
+                        onChange={(e) =>
+                          setCapacity(i, { evalYear: e.target.value.replace(/\D/g, "").slice(0, 4) })
+                        }
+                        inputMode="numeric"
+                        placeholder="평가연도"
+                        aria-label={`시공능력 ${i + 1} 평가연도`}
+                        className={inputClass}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCapacity(i)}
+                        aria-label={`시공능력 ${i + 1} 삭제`}
+                        className="h-[46px] rounded-md border border-slate-200 px-3 text-sm text-slate-500 transition-colors hover:bg-slate-50"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={addCapacity}
+                  className="self-start rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  + 시공능력 추가
+                </button>
+                {capError && (
+                  <p className="text-xs text-rose-500">업종과 평가액은 모두 필요해요.</p>
+                )}
+                <p className="text-xs text-slate-400">
+                  공사업 면허를 보유해 표시되는 항목이에요. 업종별로 평가액을 등록하세요.
+                </p>
+              </div>
+            </Field>
+          )}
+
           {/* 보유 인력 — 자격·등급별 인원. 공고가 "고급기술자 이상 2명"처럼 요구하므로
               총원 하나로는 판정할 수 없다(company_personnel에 1:1 대응). */}
           <Field label="보유 인력 (자격·등급별)">
@@ -516,7 +612,7 @@ export default function MyPage() {
             </button>
             <button
               type="submit"
-              disabled={bizNoError !== "" || perfError || certError}
+              disabled={bizNoError !== "" || perfError || certError || capError}
               className="rounded-[10px] bg-indigo-700 px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               변경사항 저장
@@ -548,6 +644,24 @@ export default function MyPage() {
                 : profile.licenses
             }
           />
+          {/* 시공능력 — 등록된 값이 있을 때만 보인다(비공사업 회사엔 빈 칸도 안 보임) */}
+          {profile.capacityEvals.length > 0 && (
+            <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
+              <span className="text-xs font-medium text-gray-400">시공능력평가액</span>
+              <ul className="flex flex-col gap-1">
+                {profile.capacityEvals.map((c, i) => (
+                  <li key={i} className="text-[15px] font-bold text-gray-900">
+                    {c.name}
+                    <span className="ml-2 text-sm font-medium text-slate-500">
+                      {amountHint(c.evalAmount)}
+                      {c.evalYear ? ` · ${c.evalYear}년 평가` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* 인증도 건별 유효기간이 붙어 한 줄로 못 줄인다 */}
           <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
             <span className="text-xs font-medium text-gray-400">보유 인증</span>

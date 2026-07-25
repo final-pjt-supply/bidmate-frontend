@@ -61,6 +61,38 @@ export type CertRow = {
   indefinite: boolean;
 };
 
+/** 시공능력 한 건 — company_capacity_evals(license_code, license_name, eval_amount, eval_year).
+ *  업종은 license_master 공용이라 실적 분야와 같은 선택기를 쓴다.
+ *  eval_amount는 원 단위(DB bigint), eval_year는 선택. */
+export type CapacityRow = {
+  code: string;
+  name: string;
+  evalAmount: string; // 원 단위 숫자만
+  evalYear: string; // "2025"
+};
+
+/** 시공능력평가를 받는 공사업 면허(license_master.law_basis 기준, 33종).
+ *  시공능력평가액은 건설·전기·정보통신·소방 공사업 제도라, 이 면허가 없는 회사에는
+ *  섹션 자체를 숨긴다(비공사업 회사에 빈 칸을 보여줄 이유가 없다).
+ *  ⚠ law_basis를 LIKE '%공사업%'로 뽑으면 "항공사업법"이 걸린다(항+공사업+법). 그래서
+ *    법령 조문을 명시해 뽑은 코드를 상수로 박아 둔다. 교육기관·공제사업(2830·4696·4984)은
+ *    같은 법에 있어도 시공 업종이 아니라 제외했다. */
+const CONSTRUCTION_LICENSE_CODES = new Set([
+  // 건설산업기본법 제9조
+  "0001", "0002", "0003", "0005", "1449", "4989", "4990", "4991", "4992", "4993",
+  "4994", "4995", "4996", "4997", "4998", "4999", "6201", "6202", "6203",
+  // 정보통신공사업법 제14조 · 전기공사업법 제4조
+  "0036", "0037",
+  // 소방시설공사업법 제4조
+  "0038", "0039", "0040", "1489", "1490", "1491", "1492", "1493", "1494",
+  "1527", "1528", "1529",
+]);
+
+/** 보유 면허에 공사업이 하나라도 있는지 — 시공능력 섹션 노출 조건 */
+export function isConstructionCompany(licenseRefs: MasterRef[]): boolean {
+  return licenseRefs.some((l) => CONSTRUCTION_LICENSE_CODES.has(l.code));
+}
+
 /** 원 단위 숫자 문자열 → 천단위 콤마 (입력 표시용).
  *  0이 아홉 개 붙는 값을 맨눈으로 세다 틀리는 걸 막는다. */
 export function formatWon(v: string): string {
@@ -94,6 +126,7 @@ export type CompanyProfile = {
   certRefs: CertRow[]; // 보유 인증 + 유효기간 (company_certs)
   certs: string; // (레거시) 구 자유텍스트 인증. certRefs 이전 값 보존용
   performances: PerformanceRow[]; // 실적 대장 (company_performance_records)
+  capacityEvals: CapacityRow[]; // 시공능력 (company_capacity_evals) — 공사업 회사만
   revenue: string; // (레거시) 구 "최근 3년 실적" 억원 단일값. performances 이전 값 보존용
   personnel: PersonnelRow[]; // 자격·등급별 인원 (company_personnel)
   employees: string; // (레거시) 구 상시근로자 총원. personnel 이전 값 보존용
@@ -161,6 +194,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
   certRefs: [],
   certs: "",
   performances: [],
+  capacityEvals: [],
   revenue: "",
   personnel: [],
   employees: "",
@@ -199,6 +233,8 @@ export const DEMO_PROFILE: CompanyProfile = {
       endDate: "2023-06-15",
     },
   ],
+  // 데모 회사는 정보통신공사업(0036)을 보유해 시공능력 섹션이 노출된다
+  capacityEvals: [{ code: "0036", name: "정보통신공사업", evalAmount: "5000000000", evalYear: "2025" }],
   revenue: "5.0",
   personnel: [
     { code: "KGRADE_SP", name: "특급기술자", headcount: "2" },
@@ -274,6 +310,7 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     personnel: rest.personnel ?? [],
     performances: rest.performances ?? [],
     certRefs: rest.certRefs ?? [],
+    capacityEvals: rest.capacityEvals ?? [],
     size: migrateSize(size),
     // 하이픈 포함 저장분 → 숫자 10자리로 정규화
     bizNo: rest.bizNo != null ? normalizeBizNo(rest.bizNo) : "",
@@ -307,6 +344,7 @@ export function hasCompanyProfile(email: string): boolean {
     p.licenseRefs.length > 0 ||
     p.personnel.length > 0 ||
     p.performances.length > 0 ||
-    p.certRefs.length > 0
+    p.certRefs.length > 0 ||
+    p.capacityEvals.length > 0
   );
 }
