@@ -102,20 +102,19 @@ export function BidDetailView({ bid }: { bid: Bid }) {
     }
   };
 
-  // 스크랩(북마크) — 저장소를 구독한다. 목록 카드의 북마크와 같은 저장소라
+  // 스크랩(북마크) — 서버 저장분(메모리 캐시)을 구독한다. 목록 카드와 같은 캐시라
   // 한쪽에서 바꾸면 다른 쪽도 즉시 따라온다.
-  const email = isMember ? user?.email : undefined;
   const scrapped = useSyncExternalStore(
     subscribeScraps,
-    useCallback(() => (email ? isScrapped(email, bid.bid_id) : false), [email, bid.bid_id]),
+    useCallback(() => isScrapped(bid.bid_id), [bid.bid_id]),
     () => false
   );
   const toggleBookmark = () => {
-    if (!email) {
+    if (!isMember || !user) {
       router.push("/login");
       return;
     }
-    const next = toggleScrap(email, bid.bid_id);
+    const next = toggleScrap(bid.bid_id);   // 낙관적 — 즉시 반영, 실패 시 자동 되돌림
     logEvent("bid_bookmarked", { bid_id: bid.bid_id, properties: { on: next } });
   };
 
