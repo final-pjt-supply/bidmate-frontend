@@ -18,6 +18,7 @@ import {
   signOut as cognitoSignOut,
   signUp as cognitoSignUp,
 } from "@/lib/cognito";
+import { clearScraps, loadScraps } from "@/lib/scraps";
 
 export type User = {
   email: string;
@@ -92,7 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let alive = true;
     syncFromSession()
       .then((u) => {
-        if (alive) setUser(u);
+        if (!alive) return;
+        setUser(u);
+        if (u) void loadScraps();   // 새로고침 후 세션 복원 시 스크랩 캐시도 채운다
       })
       .finally(() => {
         if (alive) setReady(true);
@@ -108,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await fetchMe(token);
       if (!me) return { ok: false, error: "회사 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요." };
       setUser(me);
+      void loadScraps();   // 로그인 직후 내 스크랩 캐시 로드
       return { ok: true };
     } catch (err) {
       return { ok: false, error: authErrorMessage(err) };
@@ -144,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     cognitoSignOut();
+    clearScraps();   // 다음 사용자에게 이전 스크랩이 새지 않게 캐시 비우기
     setUser(null);
   };
 
@@ -166,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 3) 마지막으로 로그인 계정 삭제
       await deleteCurrentUser();
+      clearScraps();
       setUser(null);
       return { ok: true };
     } catch (err) {

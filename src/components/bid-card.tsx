@@ -34,13 +34,11 @@ export function BidCard({ bid, className = "", position, sort, list }: BidCardPr
   const cardRef = useRef<HTMLAnchorElement>(null);
   const { user } = useAuth();
 
-  // 스크랩 상태는 브라우저 저장소에 있어 서버 렌더 시점에 알 수 없다. 서버 스냅샷을
-  // false로 두어 첫 렌더는 빈 아이콘으로 그리고, 마운트 후 실제 값으로 맞춘다.
-  // TODO(스크랩 서버 저장): API가 붙으면 이 자리만 서버 상태로 교체한다. UI는 그대로.
-  const email = user?.email;
+  // 스크랩 상태는 로그인 사용자의 서버 저장분이다(메모리 캐시로 공유). 서버 렌더
+  // 시점엔 알 수 없어 스냅샷을 false로 두고, 마운트 후 캐시 값으로 맞춘다.
   const scrapped = useSyncExternalStore(
     subscribeScraps,
-    useCallback(() => (email ? isScrapped(email, bid.bid_id) : false), [email, bid.bid_id]),
+    useCallback(() => isScrapped(bid.bid_id), [bid.bid_id]),
     () => false
   );
 
@@ -48,8 +46,8 @@ export function BidCard({ bid, className = "", position, sort, list }: BidCardPr
     // 카드 전체가 링크라, 버튼 클릭이 상세 페이지 이동으로 번지지 않게 막는다.
     e.preventDefault();
     e.stopPropagation();
-    if (!email) return;
-    const next = toggleScrap(email, bid.bid_id);
+    if (!user) return;
+    const next = toggleScrap(bid.bid_id);   // 낙관적 — 즉시 반영, 실패 시 자동 되돌림
     logEvent("bid_bookmarked", { bid_id: bid.bid_id, properties: { on: next, list } });
   };
 

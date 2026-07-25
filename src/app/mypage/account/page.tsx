@@ -6,7 +6,6 @@ import { LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { authErrorMessage, changePassword } from "@/lib/cognito";
 import { clearProfile } from "@/lib/company";
-import { clearScraps } from "@/lib/scraps";
 import { MypageShell } from "@/components/mypage-shell";
 
 export default function AccountPage() {
@@ -66,7 +65,6 @@ export default function AccountPage() {
       return;
     }
     clearProfile(user.email);
-    clearScraps(user.email);
     router.push("/");
   };
 
