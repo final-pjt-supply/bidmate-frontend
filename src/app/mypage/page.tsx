@@ -24,6 +24,7 @@ import {
   normalizeBizNo,
   saveProfile,
 } from "@/lib/company";
+import { fetchProfile, hasServerContent, putProfile } from "@/lib/company-api";
 import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
 import { RegionSelect } from "@/components/region-select";
@@ -56,6 +57,11 @@ export default function MyPage() {
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<CompanyProfile>(EMPTY_PROFILE);
   const [draft, setDraft] = useState<CompanyProfile>(EMPTY_PROFILE);
+  // 서버엔 없고 로컬에만 있던 값을 폼에 이어받은 상태(아직 저장 안 됨)
+  const [carriedOver, setCarriedOver] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // 가입 완료 → "회사 정보 등록하기"로 진입 시 바로 수정 모드
   // window는 서버 렌더 중엔 없으므로 마운트 후(effect)에 읽는 것이 정석 — 규칙 예외 처리
@@ -64,14 +70,39 @@ export default function MyPage() {
     if (new URLSearchParams(window.location.search).get("edit") === "1") setEditing(true);
   }, []);
 
-  // 저장된 프로필 로드
+  // 저장된 프로필 로드 — 서버가 정본, localStorage는 서버에 자리가 없는 항목
+  // (회사명·사업자번호·레거시 자유텍스트)의 보관처이자 서버 장애 시 폴백이다.
   // localStorage도 서버에는 없어 effect에서 읽어 state에 반영한다 — 규칙 예외 처리
   useEffect(() => {
     if (!user) return;
-    const loaded = loadProfile(user.email, user.company);
+    const local = loadProfile(user.email, user.company);
+    // 서버 응답을 기다리는 동안 화면이 비지 않게 로컬 값을 먼저 보여준다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setProfile(loaded);
-    setDraft(loaded);
+    setProfile(local);
+    setDraft(local);
+
+    let alive = true;
+    (async () => {
+      try {
+        const { profile: fromServer, serverEmpty } = await fetchProfile(local);
+        if (!alive) return;
+        // 서버는 비었는데 로컬에만 값이 있다 — 예전에 브라우저에만 저장한 경우다.
+        // 값을 폼에 채워만 두고 저장은 사용자가 직접 누르게 한다(자동 업로드 금지:
+        // PUT이 전체 교체라 낡은 값이 조용히 올라가면 되돌리기 어렵다).
+        if (serverEmpty && hasServerContent(local)) {
+          setCarriedOver(true);
+          return; // 이미 로컬 값이 draft에 들어가 있다
+        }
+        setProfile(fromServer);
+        setDraft(fromServer);
+      } catch (err) {
+        if (!alive) return;
+        setLoadError(err instanceof Error ? err.message : "프로필을 불러오지 못했어요");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, [user]);
 
   const startEdit = () => {
@@ -82,9 +113,9 @@ export default function MyPage() {
     setDraft(profile);
     setEditing(false);
   };
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || saving) return;
     // 검증 실패 상태면 저장하지 않는다(엔터 제출 등 우회 경로 포함)
     if (bizNoError || perfError || certError || capError) return;
     const wasFilled = hasCompanyProfile(user.email); // 저장 전 상태로 최초/수정 판별
@@ -101,10 +132,23 @@ export default function MyPage() {
       // 나중에 면허를 다시 넣었을 때 유령 데이터가 살아난다).
       capacityEvals: showCapacity ? draft.capacityEvals.filter((c) => !capBlank(c)) : [],
     };
-    setProfile(cleaned);
-    saveProfile(user.email, cleaned);
-    setEditing(false);
-    logEvent(wasFilled ? "profile_updated" : "company_profile_submitted");
+    setSaveError("");
+    setSaving(true);
+    try {
+      // 서버가 정본 — 저장 결과를 그대로 화면에 반영한다(서버가 채운 마스터 이름 포함).
+      const saved = await putProfile(cleaned);
+      setProfile(saved);
+      setDraft(saved);
+      // 로컬에도 남긴다: 회사명·사업자번호·레거시 필드는 서버에 자리가 없다.
+      saveProfile(user.email, saved);
+      setCarriedOver(false);
+      setEditing(false);
+      logEvent(wasFilled ? "profile_updated" : "company_profile_submitted");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "저장하지 못했어요");
+    } finally {
+      setSaving(false);
+    }
   };
   const setField = (key: StringField, value: string) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -228,13 +272,28 @@ export default function MyPage() {
     ? "회사 정보를 수정한 뒤 저장하세요. 이 정보로 공고 적합도를 계산해요."
     : "등록된 회사 정보예요. 값을 바꾸려면 “수정하기”를 누르세요.";
 
+  /** 이어받은 로컬 값 안내 — 값만 채워두고 저장은 사용자가 누르게 하므로,
+   *  안내가 없으면 이미 저장된 줄 알고 그냥 나간다. (c)안의 핵심. */
+  const carriedOverBanner = carriedOver && (
+    <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      이전에 이 브라우저에만 저장돼 있던 회사 정보를 불러왔어요.{" "}
+      <b>아직 서버에 저장되지 않았어요</b> — 내용을 확인한 뒤 “변경사항 저장”을 눌러 주세요.
+    </p>
+  );
+
   return (
     <MypageShell title="회사 정보" description={description}>
+      {loadError && (
+        <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {loadError} — 이 브라우저에 저장된 값을 보여주고 있어요.
+        </p>
+      )}
       {editing ? (
         <form
           onSubmit={save}
           className="flex w-full flex-col gap-[18px] rounded-xl border border-slate-200 bg-white p-7"
         >
+          {carriedOverBanner}
           <div className="flex gap-4">
             <Field label="회사명">
               <input value={draft.name} onChange={(e) => setField("name", e.target.value)} className={inputClass} />
@@ -602,25 +661,32 @@ export default function MyPage() {
               )}
             </div>
           </Field>
+          {saveError && (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {saveError}
+            </p>
+          )}
           <div className="flex justify-end gap-2.5 pt-1">
             <button
               type="button"
               onClick={cancelEdit}
-              className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+              disabled={saving}
+              className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
             >
               취소
             </button>
             <button
               type="submit"
-              disabled={bizNoError !== "" || perfError || certError || capError}
+              disabled={saving || bizNoError !== "" || perfError || certError || capError}
               className="rounded-[10px] bg-indigo-700 px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              변경사항 저장
+              {saving ? "저장 중…" : "변경사항 저장"}
             </button>
           </div>
         </form>
       ) : (
         <div className="flex w-full flex-col gap-[18px] rounded-xl border border-slate-200 bg-white p-7">
+          {carriedOverBanner}
           <div className="flex gap-[34px]">
             <ViewField label="회사명" value={profile.name} />
             <ViewField label="사업자등록번호" value={formatBizNo(profile.bizNo)} />
