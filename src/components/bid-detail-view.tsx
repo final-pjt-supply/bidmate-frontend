@@ -19,6 +19,26 @@ const DDAY_STYLE: Record<string, string> = {
   unknown: "bg-slate-200 text-slate-500",
 };
 
+// 기업규모 제한 — bid_table.company_size_limit 실측 5종(전 23,610건). 상류에서 이 5종
+// 외의 값은 나오지 않지만, 새 값이 생겨도 "제한 있음"으로 안전하게 흘리도록 폴백을 둔다.
+// (sme_only만 처리하던 탓에 726건이 "제한 없음"으로 잘못 표시됐다 — 참여 못 하는 공고를
+//  가능하다고 알려주는 방향의 오류라, 모르는 값은 "제한 없음"으로 흘리지 않는다.)
+const SIZE_LIMIT_LABEL: Record<string, string> = {
+  sme_only: "중소기업만 참여 가능",
+  small_only: "소기업만 참여 가능",
+  no_conglomerate: "대기업 참여 불가",
+  // TODO(#51 후속): no_large가 중견기업까지 배제하는지 원문(name_raw) 스팟체크로 확정.
+  //   확정 전까지 no_conglomerate와 같은 문구로 둔다(211건).
+  no_large: "대기업 참여 불가",
+  none: "제한 없음",
+};
+
+/** 기업규모 제한 라벨. 빈값·null은 제한 없음, 모르는 값은 "제한 있음"으로 폴백. */
+function sizeLimitLabel(v: string | null | undefined): string {
+  if (!v) return "제한 없음";
+  return SIZE_LIMIT_LABEL[v] ?? "제한 있음";
+}
+
 /** 금액(원) → "1.21억 원" / "5,660만 원" / "1,200원" */
 function formatKRW(v: number | null): string {
   if (v == null) return "미정";
@@ -135,7 +155,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
 
   const qualFields: { label: string; value: string }[] = q
     ? [
-        { label: "기업규모 제한", value: q.company_size_limit === "sme_only" ? "중소기업만 참여 가능" : "제한 없음" },
+        { label: "기업규모 제한", value: sizeLimitLabel(q.company_size_limit) },
         { label: "지역제한", value: q.region_limit_type ? (q.region_limit_names?.join(", ") ?? "제한 있음") : "제한 없음" },
         { label: "필수 면허·등록", value: licenses },
         { label: "필수 인증", value: certs },
