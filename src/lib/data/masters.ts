@@ -48,6 +48,22 @@ export async function loadPersonnel(): Promise<PersonnelNode[]> {
   return _personnel;
 }
 
+/** 인증 마스터(cert_master, 45종) 한 항목.
+ *  category는 원문 코드 그대로 둔다 — 한글 라벨은 표시 계층에서 붙여야
+ *  문구를 바꿀 때 스냅샷을 다시 뜨지 않아도 된다. */
+export type CertNode = MasterRef & { category: string };
+
+/** 인증 마스터 — 지연 로드(3.7KB).
+ *  공고가 실제로 많이 요구하는 순(GS·KC·KS…)으로 정렬돼 있어,
+ *  검색어 없이 열어도 쓸 만한 후보가 먼저 보인다. */
+let _certs: CertNode[] | null = null;
+export async function loadCerts(): Promise<CertNode[]> {
+  if (!_certs) {
+    _certs = (await import("./cert-master.json")).default as CertNode[];
+  }
+  return _certs;
+}
+
 /** 마스터에서 질의어로 검색 — 자동완성 공용.
  *  나중에 품목(item)처럼 서버 API로 가는 축은 이 함수 시그니처만 맞춰 교체하면 된다. */
 export function searchMaster<T extends MasterRef>(list: T[], q: string, limit = 30): T[] {

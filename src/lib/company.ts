@@ -49,6 +49,18 @@ export type PerformanceRow = {
   endDate: string; // "YYYY-MM-DD"
 };
 
+/** 인증 한 건 — company_certs(cert_code, cert_name, valid_until)에 1:1 대응.
+ *  valid_until은 DB에서 nullable인데, 이유가 있다 — 갱신 개념이 없는 무기한 인증이
+ *  섞여 있다. 무조건 날짜를 받으면 사용자가 먼 미래 값을 억지로 넣어 데이터가 오염된다.
+ *  그래서 indefinite로 "원래 기한이 없음"과 "몰라서 비움"을 구분하고,
+ *  indefinite면 valid_until을 NULL로 적재한다(매칭은 항상 유효로 해석). */
+export type CertRow = {
+  code: string;
+  name: string;
+  validUntil: string; // "YYYY-MM-DD" (indefinite면 빈 문자열)
+  indefinite: boolean;
+};
+
 /** 원 단위 숫자 문자열 → 천단위 콤마 (입력 표시용).
  *  0이 아홉 개 붙는 값을 맨눈으로 세다 틀리는 걸 막는다. */
 export function formatWon(v: string): string {
@@ -79,7 +91,8 @@ export type CompanyProfile = {
   creditRating: string; // 신용등급(선택)
   licenseRefs: MasterRef[]; // 면허·업종 (license_master 코드) — 매칭 정본
   licenses: string; // (레거시) 구 자유텍스트 면허. licenseRefs 이전 값 보존용
-  certs: string;
+  certRefs: CertRow[]; // 보유 인증 + 유효기간 (company_certs)
+  certs: string; // (레거시) 구 자유텍스트 인증. certRefs 이전 값 보존용
   performances: PerformanceRow[]; // 실적 대장 (company_performance_records)
   revenue: string; // (레거시) 구 "최근 3년 실적" 억원 단일값. performances 이전 값 보존용
   personnel: PersonnelRow[]; // 자격·등급별 인원 (company_personnel)
@@ -145,6 +158,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
   creditRating: "",
   licenseRefs: [],
   licenses: "",
+  certRefs: [],
   certs: "",
   performances: [],
   revenue: "",
@@ -165,6 +179,11 @@ export const DEMO_PROFILE: CompanyProfile = {
     { code: "1468", name: "소프트웨어사업자(컴퓨터관련서비스사업)" },
   ],
   licenses: "",
+  certRefs: [
+    { code: "GS", name: "GS인증(Good Software 품질인증)", validUntil: "2027-07-24", indefinite: false },
+    { code: "ISO_27001", name: "ISO/IEC 27001 정보보안경영시스템", validUntil: "2026-03-01", indefinite: false },
+    { code: "VENTURE", name: "벤처기업 확인", validUntil: "", indefinite: true },
+  ],
   certs: "CC인증, ISO 27001, GS인증",
   performances: [
     {
@@ -254,6 +273,7 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     // (licenses→licenseRefs와 동일 방식).
     personnel: rest.personnel ?? [],
     performances: rest.performances ?? [],
+    certRefs: rest.certRefs ?? [],
     size: migrateSize(size),
     // 하이픈 포함 저장분 → 숫자 10자리로 정규화
     bizNo: rest.bizNo != null ? normalizeBizNo(rest.bizNo) : "",
@@ -286,6 +306,7 @@ export function hasCompanyProfile(email: string): boolean {
     p.branchRegions.length > 0 ||
     p.licenseRefs.length > 0 ||
     p.personnel.length > 0 ||
-    p.performances.length > 0
+    p.performances.length > 0 ||
+    p.certRefs.length > 0
   );
 }

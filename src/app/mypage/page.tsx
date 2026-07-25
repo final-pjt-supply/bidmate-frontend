@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Field, inputClass } from "@/components/auth-card";
 import {
+  type CertRow,
   type CompanyProfile,
   type CompanySize,
   type PerformanceRow,
@@ -26,6 +27,7 @@ import { MypageShell } from "@/components/mypage-shell";
 import { RegionSelect } from "@/components/region-select";
 import { LicenseOneSelect, LicenseSelect } from "@/components/license-select";
 import { DateField, isValidDate } from "@/components/date-field";
+import { CertSelect } from "@/components/cert-select";
 import { PersonnelSelect } from "@/components/personnel-select";
 import { SelectMenu } from "@/components/select-menu";
 import type { MasterRef } from "@/lib/data/masters";
@@ -82,7 +84,7 @@ export default function MyPage() {
     e.preventDefault();
     if (!user) return;
     // 검증 실패 상태면 저장하지 않는다(엔터 제출 등 우회 경로 포함)
-    if (bizNoError || perfError) return;
+    if (bizNoError || perfError || certError) return;
     const wasFilled = hasCompanyProfile(user.email); // 저장 전 상태로 최초/수정 판별
     // 미선택 상태로 남은 지사 행은 버린다
     const cleaned: CompanyProfile = {
@@ -92,6 +94,7 @@ export default function MyPage() {
       personnel: draft.personnel.filter((p) => p.code !== "" && Number(p.headcount) > 0),
       // 아무것도 안 넣은 빈 행만 버린다(쓰다 만 행은 위에서 저장을 막았다).
       performances: draft.performances.filter((p) => !perfBlank(p)),
+      certRefs: draft.certRefs.filter((c) => !certBlank(c)),
     };
     setProfile(cleaned);
     saveProfile(user.email, cleaned);
@@ -110,6 +113,32 @@ export default function MyPage() {
       : draft.bizNo.length === 10 && !isValidBizNo(draft.bizNo)
         ? "유효하지 않은 사업자등록번호예요"
         : "";
+
+  // 보유 인증 — 인증 + 유효기간. 만료 판정을 해야 하므로 기한을 받되,
+  // 갱신 개념이 없는 인증은 "무기한"으로 표시해 NULL로 남긴다.
+  const addCert = () =>
+    setDraft((d) => ({
+      ...d,
+      certRefs: [...d.certRefs, { code: "", name: "", validUntil: "", indefinite: false }],
+    }));
+  const setCert = (i: number, patch: Partial<CertRow>) =>
+    setDraft((d) => ({
+      ...d,
+      certRefs: d.certRefs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)),
+    }));
+  const removeCert = (i: number) =>
+    setDraft((d) => ({ ...d, certRefs: d.certRefs.filter((_, idx) => idx !== i) }));
+
+  const certBlank = (c: CertRow) => c.code === "" && !c.validUntil && !c.indefinite;
+  /** 인증을 골랐으면 기한도 있어야 한다 — 무기한 체크면 날짜 없이도 완성 */
+  const certComplete = (c: CertRow) =>
+    c.code !== "" && (c.indefinite || isValidDate(c.validUntil));
+  const certError = draft.certRefs.some((c) => !certBlank(c) && !certComplete(c));
+
+  // 오늘(KST 기준 로컬) — 인증 만료 판정에 쓴다
+  const todayISO = new Date().toLocaleDateString("en-CA");
+  const certExpired = (c: CertRow) =>
+    !c.indefinite && isValidDate(c.validUntil) && c.validUntil < todayISO;
 
   // 실적 대장 — 건별(계약명·분야·금액·완료일). DB는 계약명/금액/완료일이 NOT NULL이라
   // 일부만 채운 행은 저장을 막는다(지사·인력처럼 조용히 버리면 입력 손실로 느껴진다).
@@ -263,8 +292,86 @@ export default function MyPage() {
               </p>
             )}
           </Field>
+          {/* 보유 인증 — 인증마다 유효기간이 붙어야 해서 칩(다중 선택)으로는 담을 수 없다.
+              만료된 인증은 매칭에서 빠지므로 기한을 반드시 알아야 한다. */}
           <Field label="보유 인증">
-            <input value={draft.certs} onChange={(e) => setField("certs", e.target.value)} className={inputClass} />
+            <div className="flex flex-col gap-2">
+              {draft.certRefs.map((c, i) => {
+                const show = !certBlank(c) && !certComplete(c);
+                const expired = certExpired(c);
+                return (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2"
+                  >
+                    <CertSelect
+                      value={c.code ? { code: c.code, name: c.name } : null}
+                      onChange={(v) => setCert(i, { code: v?.code ?? "", name: v?.name ?? "" })}
+                      ariaLabel={`인증 ${i + 1}`}
+                    />
+                    <div>
+                      {c.indefinite ? (
+                        <div className="flex h-[46px] items-center rounded-lg border border-gray-200 bg-slate-50 px-3.5 text-sm text-slate-400">
+                          기한 없음
+                        </div>
+                      ) : (
+                        <DateField
+                          value={c.validUntil}
+                          onChange={(v) => setCert(i, { validUntil: v })}
+                          ariaLabel={`인증 ${i + 1} 유효기간`}
+                          invalid={show && !isValidDate(c.validUntil)}
+                        />
+                      )}
+                      <label className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={c.indefinite}
+                          onChange={(e) =>
+                            setCert(i, {
+                              indefinite: e.target.checked,
+                              // 무기한으로 바꾸면 적재 시 NULL이므로 날짜는 비운다
+                              validUntil: e.target.checked ? "" : c.validUntil,
+                            })
+                          }
+                          className="size-3.5 accent-indigo-700"
+                        />
+                        무기한 (갱신 없는 인증)
+                        {expired && (
+                          <span className="ml-1 rounded bg-rose-50 px-1.5 py-0.5 font-bold text-rose-500">
+                            만료됨
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeCert(i)}
+                      aria-label={`인증 ${i + 1} 삭제`}
+                      className="h-[46px] rounded-md border border-slate-200 px-3 text-sm text-slate-500 transition-colors hover:bg-slate-50"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                );
+              })}
+              <button
+                type="button"
+                onClick={addCert}
+                className="self-start rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                + 인증 추가
+              </button>
+              {certError && (
+                <p className="text-xs text-rose-500">
+                  유효기간을 입력하거나 “무기한”을 체크해 주세요. 기한을 모르면 만료 여부를 판정할 수 없어요.
+                </p>
+              )}
+              {draft.certs.trim() && draft.certRefs.length === 0 && (
+                <p className="text-xs text-slate-400">
+                  이전 입력값: {draft.certs} — 위에서 다시 선택해 주세요.
+                </p>
+              )}
+            </div>
           </Field>
           {/* 실적 — 건별 대장. 공고가 "최근 5년 / 특정 분야 / 누계 N억"으로 요구해
               기간·분야로 걸러 합산하므로, 요약 숫자로는 판정할 수 없다. */}
@@ -409,7 +516,7 @@ export default function MyPage() {
             </button>
             <button
               type="submit"
-              disabled={bizNoError !== "" || perfError}
+              disabled={bizNoError !== "" || perfError || certError}
               className="rounded-[10px] bg-indigo-700 px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               변경사항 저장
@@ -441,7 +548,31 @@ export default function MyPage() {
                 : profile.licenses
             }
           />
-          <ViewField label="보유 인증" value={profile.certs} />
+          {/* 인증도 건별 유효기간이 붙어 한 줄로 못 줄인다 */}
+          <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
+            <span className="text-xs font-medium text-gray-400">보유 인증</span>
+            {profile.certRefs.length > 0 ? (
+              <ul className="flex flex-col gap-1">
+                {profile.certRefs.map((c, i) => (
+                  <li key={i} className="text-[15px] font-bold text-gray-900">
+                    {c.name}
+                    <span className="ml-2 text-sm font-medium text-slate-500">
+                      {c.indefinite ? "기한 없음" : `${c.validUntil}까지`}
+                    </span>
+                    {certExpired(c) && (
+                      <span className="ml-1.5 rounded bg-rose-50 px-1.5 py-0.5 text-xs font-bold text-rose-500">
+                        만료됨
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-[15px] font-bold text-slate-300">
+                {profile.certs.trim() ? `${profile.certs} (코드 미매핑)` : "미등록"}
+              </span>
+            )}
+          </div>
 
           {/* 실적은 건별이라 한 줄로 못 줄인다 — 목록으로 표시 */}
           <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
