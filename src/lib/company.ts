@@ -61,6 +61,20 @@ export type CertRow = {
   indefinite: boolean;
 };
 
+/** 품목 한 건 — company_items(item_code, item_name, has_direct_production,
+ *  direct_prod_valid_until)에 1:1 대응.
+ *  직접생산확인증명서는 갱신 개념이 있는 유한 기한 제도라(보통 2년) 인증의 "무기한"
+ *  같은 예외가 없다 — 직생을 체크하면 유효기간을 반드시 받는다. 만료된 직생은
+ *  매칭에서 빠지므로 기한을 모른 채 저장하면 판정이 틀어진다.
+ *  코드는 10자리(세부품명)만 — 8자리 물품분류로 등록하면 10자리를 요구하는 공고와
+ *  코드가 어긋난다(서버가 10자리만 내려준다). */
+export type ItemRow = {
+  code: string;
+  name: string;
+  hasDirectProduction: boolean;
+  directProdValidUntil: string; // "YYYY-MM-DD" (직생 미보유면 빈 문자열)
+};
+
 /** 시공능력 한 건 — company_capacity_evals(license_code, license_name, eval_amount, eval_year).
  *  업종은 license_master 공용이라 실적 분야와 같은 선택기를 쓴다.
  *  eval_amount는 원 단위(DB bigint), eval_year는 선택. */
@@ -125,6 +139,7 @@ export type CompanyProfile = {
   licenses: string; // (레거시) 구 자유텍스트 면허. licenseRefs 이전 값 보존용
   certRefs: CertRow[]; // 보유 인증 + 유효기간 (company_certs)
   certs: string; // (레거시) 구 자유텍스트 인증. certRefs 이전 값 보존용
+  items: ItemRow[]; // 취급 품목 + 직접생산 (company_items)
   performances: PerformanceRow[]; // 실적 대장 (company_performance_records)
   capacityEvals: CapacityRow[]; // 시공능력 (company_capacity_evals) — 공사업 회사만
   revenue: string; // (레거시) 구 "최근 3년 실적" 억원 단일값. performances 이전 값 보존용
@@ -193,6 +208,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
   licenses: "",
   certRefs: [],
   certs: "",
+  items: [],
   performances: [],
   capacityEvals: [],
   revenue: "",
@@ -219,6 +235,15 @@ export const DEMO_PROFILE: CompanyProfile = {
     { code: "VENTURE", name: "벤처기업 확인", validUntil: "", indefinite: true },
   ],
   certs: "CC인증, ISO 27001, GS인증",
+  items: [
+    {
+      code: "4321150301",
+      name: "노트북컴퓨터",
+      hasDirectProduction: true,
+      directProdValidUntil: "2027-05-31",
+    },
+    { code: "4321161301", name: "노트북스탠드", hasDirectProduction: false, directProdValidUntil: "" },
+  ],
   performances: [
     {
       contractName: "○○청 정보시스템 구축",
@@ -310,6 +335,7 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     personnel: rest.personnel ?? [],
     performances: rest.performances ?? [],
     certRefs: rest.certRefs ?? [],
+    items: rest.items ?? [],
     capacityEvals: rest.capacityEvals ?? [],
     size: migrateSize(size),
     // 하이픈 포함 저장분 → 숫자 10자리로 정규화
@@ -345,6 +371,7 @@ export function hasCompanyProfile(email: string): boolean {
     p.personnel.length > 0 ||
     p.performances.length > 0 ||
     p.certRefs.length > 0 ||
+    p.items.length > 0 ||
     p.capacityEvals.length > 0
   );
 }

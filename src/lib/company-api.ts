@@ -16,6 +16,7 @@ import type {
   CertRow,
   CompanyProfile,
   CompanySize,
+  ItemRow,
   PerformanceRow,
   PersonnelRow,
 } from "@/lib/company";
@@ -28,6 +29,12 @@ type RegionOut = { region_code: string; region_name: string | null; region_type:
 type LicenseOut = { license_code: string; license_name: string | null };
 type CertOut = { cert_code: string; cert_name: string | null; valid_until: string | null };
 type PersonnelOut = { qual_code: string; qual_name: string | null; headcount: number | null };
+type ItemOut = {
+  item_code: string;
+  item_name: string | null;
+  has_direct_production: boolean | null;
+  direct_prod_valid_until: string | null;
+};
 type CapacityEvalOut = {
   license_code: string;
   license_name: string | null;
@@ -48,7 +55,7 @@ export type ProfileResponse = {
   qualification: QualificationOut | null;
   regions: RegionOut[];
   licenses: LicenseOut[];
-  items: { item_code: string; item_name: string | null }[];
+  items: ItemOut[];
   certs: CertOut[];
   personnel: PersonnelOut[];
   capacity_evals: CapacityEvalOut[];
@@ -104,6 +111,12 @@ export function toProfile(r: ProfileResponse, base: CompanyProfile): CompanyProf
       validUntil: c.valid_until ?? "",
       indefinite: c.valid_until == null,
     })),
+    items: r.items.map<ItemRow>((i) => ({
+      code: i.item_code,
+      name: i.item_name ?? "",
+      hasDirectProduction: i.has_direct_production === true,
+      directProdValidUntil: i.direct_prod_valid_until ?? "",
+    })),
     personnel: r.personnel.map<PersonnelRow>((p) => ({
       code: p.qual_code,
       name: p.qual_name ?? "",
@@ -138,7 +151,11 @@ type ProfileUpsertRequest = {
   qualification: { company_size: CompanySize; credit_rating: string | null } | null;
   regions: { region_code: string; region_type: "hq" | "branch" }[];
   licenses: { license_code: string }[];
-  items: { item_code: string; has_direct_production: boolean }[];
+  items: {
+    item_code: string;
+    has_direct_production: boolean;
+    direct_prod_valid_until: string | null;
+  }[];
   certs: { cert_code: string; valid_until: string | null }[];
   personnel: { qual_code: string; headcount: number }[];
   capacity_evals: { license_code: string; eval_amount: number; eval_year: number | null }[];
@@ -166,8 +183,16 @@ export function toUpsertRequest(p: CompanyProfile): ProfileUpsertRequest {
       : null,
     regions,
     licenses: p.licenseRefs.filter((l) => l.code).map((l) => ({ license_code: l.code })),
-    // 품목 폼은 아직 없다(이슈 #78 ⑤) — 항상 빈 배열.
-    items: [],
+    items: p.items
+      .filter((i) => i.code)
+      .map((i) => ({
+        item_code: i.code,
+        has_direct_production: i.hasDirectProduction,
+        // 직생을 안 갖고 있으면 기한 자체가 의미 없다 — 남은 입력을 흘리지 않는다.
+        direct_prod_valid_until: i.hasDirectProduction
+          ? i.directProdValidUntil || null
+          : null,
+      })),
     certs: p.certRefs
       .filter((c) => c.code)
       .map((c) => ({
@@ -203,6 +228,7 @@ export function hasServerContent(p: CompanyProfile): boolean {
     r.qualification != null ||
     r.regions.length > 0 ||
     r.licenses.length > 0 ||
+    r.items.length > 0 ||
     r.certs.length > 0 ||
     r.personnel.length > 0 ||
     r.capacity_evals.length > 0 ||
