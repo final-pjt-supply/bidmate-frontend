@@ -30,6 +30,90 @@ export const CREDIT_RATINGS = [
   "B+", "B", "B-", "CCC", "CC", "C", "D",
 ] as const;
 
+/** 인력 한 행 — company_personnel(qual_code, qual_name, headcount)에 1:1 대응.
+ *  공고가 "고급기술자 이상 2명"처럼 자격·등급별로 요구하므로 총원 하나로는 판정할 수 없다.
+ *  등급 없이 인원만 요구하는 공고("기술자 5명")는 마스터의 ROLE_GEN_ENG
+ *  (일반기술자(등급무관))로 담는다 — 별도 필드가 필요 없다.
+ *  headcount는 입력 편의상 문자열로 들고, DB 적재 시 smallint로 변환한다. */
+export type PersonnelRow = { code: string; name: string; headcount: string };
+
+/** 실적 한 건 — company_performance_records에 1:1 대응.
+ *  공고는 "최근 5년 / 특정 분야 / 누계 5억"처럼 요구하고 매칭 시점에 기간·분야로
+ *  걸러 합산한다. 요약 숫자엔 기간도 분야도 없어 거를 수 없으므로 건별로 받는다.
+ *  amount는 원 단위 정수 문자열(DB가 bigint 원 단위). 억원으로 받으면 소수 실적에서
+ *  반올림 오차가 생겨 누계가 틀어진다. field는 license_master 공용(field_code). */
+export type PerformanceRow = {
+  contractName: string;
+  field: MasterRef | null; // 선택 — 비우면 분야 조건 있는 공고 집계에 안 잡힌다
+  amount: string; // 원 단위 숫자만
+  endDate: string; // "YYYY-MM-DD"
+};
+
+/** 인증 한 건 — company_certs(cert_code, cert_name, valid_until)에 1:1 대응.
+ *  valid_until은 DB에서 nullable인데, 이유가 있다 — 갱신 개념이 없는 무기한 인증이
+ *  섞여 있다. 무조건 날짜를 받으면 사용자가 먼 미래 값을 억지로 넣어 데이터가 오염된다.
+ *  그래서 indefinite로 "원래 기한이 없음"과 "몰라서 비움"을 구분하고,
+ *  indefinite면 valid_until을 NULL로 적재한다(매칭은 항상 유효로 해석). */
+export type CertRow = {
+  code: string;
+  name: string;
+  validUntil: string; // "YYYY-MM-DD" (indefinite면 빈 문자열)
+  indefinite: boolean;
+};
+
+/** 시공능력 한 건 — company_capacity_evals(license_code, license_name, eval_amount, eval_year).
+ *  업종은 license_master 공용이라 실적 분야와 같은 선택기를 쓴다.
+ *  eval_amount는 원 단위(DB bigint), eval_year는 선택. */
+export type CapacityRow = {
+  code: string;
+  name: string;
+  evalAmount: string; // 원 단위 숫자만
+  evalYear: string; // "2025"
+};
+
+/** 시공능력평가를 받는 공사업 면허(license_master.law_basis 기준, 33종).
+ *  시공능력평가액은 건설·전기·정보통신·소방 공사업 제도라, 이 면허가 없는 회사에는
+ *  섹션 자체를 숨긴다(비공사업 회사에 빈 칸을 보여줄 이유가 없다).
+ *  ⚠ law_basis를 LIKE '%공사업%'로 뽑으면 "항공사업법"이 걸린다(항+공사업+법). 그래서
+ *    법령 조문을 명시해 뽑은 코드를 상수로 박아 둔다. 교육기관·공제사업(2830·4696·4984)은
+ *    같은 법에 있어도 시공 업종이 아니라 제외했다. */
+const CONSTRUCTION_LICENSE_CODES = new Set([
+  // 건설산업기본법 제9조
+  "0001", "0002", "0003", "0005", "1449", "4989", "4990", "4991", "4992", "4993",
+  "4994", "4995", "4996", "4997", "4998", "4999", "6201", "6202", "6203",
+  // 정보통신공사업법 제14조 · 전기공사업법 제4조
+  "0036", "0037",
+  // 소방시설공사업법 제4조
+  "0038", "0039", "0040", "1489", "1490", "1491", "1492", "1493", "1494",
+  "1527", "1528", "1529",
+]);
+
+/** 보유 면허에 공사업이 하나라도 있는지 — 시공능력 섹션 노출 조건 */
+export function isConstructionCompany(licenseRefs: MasterRef[]): boolean {
+  return licenseRefs.some((l) => CONSTRUCTION_LICENSE_CODES.has(l.code));
+}
+
+/** 원 단위 숫자 문자열 → 천단위 콤마 (입력 표시용).
+ *  0이 아홉 개 붙는 값을 맨눈으로 세다 틀리는 걸 막는다. */
+export function formatWon(v: string): string {
+  const d = v.replace(/\D/g, "");
+  return d ? Number(d).toLocaleString() : "";
+}
+
+/** 원 단위 → "30억 원" / "4,850만 원" / "1,200원" (콤마 밑에 붙는 보조 표시) */
+export function amountHint(v: string): string {
+  const d = v.replace(/\D/g, "");
+  if (!d) return "";
+  const n = Number(d);
+  if (n >= 100_000_000) {
+    const eok = n / 100_000_000;
+    // 30억은 "30억", 4.8억은 "4.8억" — 불필요한 소수점 0은 떼고 최대 2자리
+    return `${Number(eok.toFixed(2))}억 원`;
+  }
+  if (n >= 10_000) return `${Math.round(n / 10_000).toLocaleString()}만 원`;
+  return `${n.toLocaleString()}원`;
+}
+
 export type CompanyProfile = {
   name: string;
   bizNo: string; // 하이픈 없는 숫자 10자리로 저장(표시할 때만 3-2-5)
@@ -39,9 +123,13 @@ export type CompanyProfile = {
   creditRating: string; // 신용등급(선택)
   licenseRefs: MasterRef[]; // 면허·업종 (license_master 코드) — 매칭 정본
   licenses: string; // (레거시) 구 자유텍스트 면허. licenseRefs 이전 값 보존용
-  certs: string;
-  revenue: string; // 억원
-  employees: string;
+  certRefs: CertRow[]; // 보유 인증 + 유효기간 (company_certs)
+  certs: string; // (레거시) 구 자유텍스트 인증. certRefs 이전 값 보존용
+  performances: PerformanceRow[]; // 실적 대장 (company_performance_records)
+  capacityEvals: CapacityRow[]; // 시공능력 (company_capacity_evals) — 공사업 회사만
+  revenue: string; // (레거시) 구 "최근 3년 실적" 억원 단일값. performances 이전 값 보존용
+  personnel: PersonnelRow[]; // 자격·등급별 인원 (company_personnel)
+  employees: string; // (레거시) 구 상시근로자 총원. personnel 이전 값 보존용
 };
 
 /** 구 자유텍스트 소재지 → region_code 마이그레이션용 시도 매핑(완전일치만) */
@@ -103,8 +191,12 @@ export const EMPTY_PROFILE: CompanyProfile = {
   creditRating: "",
   licenseRefs: [],
   licenses: "",
+  certRefs: [],
   certs: "",
+  performances: [],
+  capacityEvals: [],
   revenue: "",
+  personnel: [],
   employees: "",
 };
 
@@ -121,8 +213,34 @@ export const DEMO_PROFILE: CompanyProfile = {
     { code: "1468", name: "소프트웨어사업자(컴퓨터관련서비스사업)" },
   ],
   licenses: "",
+  certRefs: [
+    { code: "GS", name: "GS인증(Good Software 품질인증)", validUntil: "2027-07-24", indefinite: false },
+    { code: "ISO_27001", name: "ISO/IEC 27001 정보보안경영시스템", validUntil: "2026-03-01", indefinite: false },
+    { code: "VENTURE", name: "벤처기업 확인", validUntil: "", indefinite: true },
+  ],
   certs: "CC인증, ISO 27001, GS인증",
+  performances: [
+    {
+      contractName: "○○청 정보시스템 구축",
+      field: { code: "1468", name: "소프트웨어사업자(컴퓨터관련서비스사업)" },
+      amount: "480000000",
+      endDate: "2024-11-30",
+    },
+    {
+      contractName: "△△시 통신망 유지보수",
+      field: { code: "0036", name: "정보통신공사업" },
+      amount: "120000000",
+      endDate: "2023-06-15",
+    },
+  ],
+  // 데모 회사는 정보통신공사업(0036)을 보유해 시공능력 섹션이 노출된다
+  capacityEvals: [{ code: "0036", name: "정보통신공사업", evalAmount: "5000000000", evalYear: "2025" }],
   revenue: "5.0",
+  personnel: [
+    { code: "KGRADE_SP", name: "특급기술자", headcount: "2" },
+    { code: "KGRADE_HI", name: "고급기술자", headcount: "5" },
+    { code: "ROLE_GEN_ENG", name: "일반기술자(등급무관)", headcount: "35" },
+  ],
   employees: "42",
 };
 
@@ -186,6 +304,13 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     hqRegion: hqRegion ?? null,
     branchRegions: rest.branchRegions ?? [],
     licenseRefs: rest.licenseRefs ?? [],
+    // 구 employees(총원)·revenue(억원 단일값)는 자격·등급이나 계약명·완료일을 알 수 없어
+    // 자동 이관이 불가하다. 레거시 값은 보존하고 폼에서 다시 입력받는다
+    // (licenses→licenseRefs와 동일 방식).
+    personnel: rest.personnel ?? [],
+    performances: rest.performances ?? [],
+    certRefs: rest.certRefs ?? [],
+    capacityEvals: rest.capacityEvals ?? [],
     size: migrateSize(size),
     // 하이픈 포함 저장분 → 숫자 10자리로 정규화
     bizNo: rest.bizNo != null ? normalizeBizNo(rest.bizNo) : "",
@@ -216,6 +341,10 @@ export function hasCompanyProfile(email: string): boolean {
     filledText ||
     p.hqRegion != null ||
     p.branchRegions.length > 0 ||
-    p.licenseRefs.length > 0
+    p.licenseRefs.length > 0 ||
+    p.personnel.length > 0 ||
+    p.performances.length > 0 ||
+    p.certRefs.length > 0 ||
+    p.capacityEvals.length > 0
   );
 }
