@@ -27,13 +27,34 @@ export async function loadLicenses(): Promise<MasterRef[]> {
   return _licenses;
 }
 
+/** 인력 자격·등급 마스터(personnel_grade_master, 1,255종) 한 항목.
+ *  rank는 grade_rank — 같은 field(family) 안에서만 비교가 유효하다.
+ *  (역량등급·감리원·숙련기술자·학위 4개 family만 rank를 갖는다. 자격수준
+ *   "기사 이상"은 중의성이 커서 rank를 비워 뒀다 — 매칭 v2 과제.) */
+export type PersonnelNode = MasterRef & {
+  qualType: "license" | "role" | "grade" | "degree";
+  field?: string;
+  rank?: number;
+};
+
+/** 인력 자격·등급 마스터 — 지연 로드.
+ *  등급 있는 항목(학위·감리원·역량등급·숙련기술자) → 역할 → 자격수준 → 개별 자격 순으로
+ *  정렬돼 있어, 검색어 없이 열었을 때 실제로 많이 쓰는 항목이 먼저 보인다. */
+let _personnel: PersonnelNode[] | null = null;
+export async function loadPersonnel(): Promise<PersonnelNode[]> {
+  if (!_personnel) {
+    _personnel = (await import("./personnel-master.json")).default as PersonnelNode[];
+  }
+  return _personnel;
+}
+
 /** 마스터에서 질의어로 검색 — 자동완성 공용.
  *  나중에 품목(item)처럼 서버 API로 가는 축은 이 함수 시그니처만 맞춰 교체하면 된다. */
-export function searchMaster(list: MasterRef[], q: string, limit = 30): MasterRef[] {
+export function searchMaster<T extends MasterRef>(list: T[], q: string, limit = 30): T[] {
   const t = q.trim().toLowerCase();
   if (!t) return list.slice(0, limit);
-  const starts: MasterRef[] = [];
-  const includes: MasterRef[] = [];
+  const starts: T[] = [];
+  const includes: T[] = [];
   for (const m of list) {
     const name = m.name.toLowerCase();
     if (name.startsWith(t) || m.code.startsWith(t)) starts.push(m);

@@ -22,7 +22,9 @@ import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
 import { RegionSelect } from "@/components/region-select";
 import { LicenseSelect } from "@/components/license-select";
+import { PersonnelSelect } from "@/components/personnel-select";
 import { SelectMenu } from "@/components/select-menu";
+import type { MasterRef } from "@/lib/data/masters";
 
 // 자유텍스트(문자열) 필드 키 — 코드/객체 필드는 별도 핸들러로 처리
 type StringField = "name" | "licenses" | "certs" | "revenue" | "employees";
@@ -82,6 +84,8 @@ export default function MyPage() {
     const cleaned: CompanyProfile = {
       ...draft,
       branchRegions: draft.branchRegions.filter((b) => b.code !== ""),
+      // 자격을 안 고르거나 인원이 비었거나 0명인 행은 버린다(DB는 headcount NOT NULL).
+      personnel: draft.personnel.filter((p) => p.code !== "" && Number(p.headcount) > 0),
     };
     setProfile(cleaned);
     saveProfile(user.email, cleaned);
@@ -100,6 +104,27 @@ export default function MyPage() {
       : draft.bizNo.length === 10 && !isValidBizNo(draft.bizNo)
         ? "유효하지 않은 사업자등록번호예요"
         : "";
+
+  // 보유 인력 다중 — 자격·등급(마스터 코드) + 인원 수
+  const addPersonnel = () =>
+    setDraft((d) => ({ ...d, personnel: [...d.personnel, { code: "", name: "", headcount: "" }] }));
+  const setPersonnelQual = (i: number, v: MasterRef | null) =>
+    setDraft((d) => ({
+      ...d,
+      personnel: d.personnel.map((p, idx) =>
+        idx === i ? { ...p, code: v?.code ?? "", name: v?.name ?? "" } : p
+      ),
+    }));
+  const setPersonnelCount = (i: number, v: string) =>
+    setDraft((d) => ({
+      ...d,
+      // 숫자만 허용(headcount는 DB에서 smallint). 3자리면 999명까지.
+      personnel: d.personnel.map((p, idx) =>
+        idx === i ? { ...p, headcount: v.replace(/\D/g, "").slice(0, 3) } : p
+      ),
+    }));
+  const removePersonnel = (i: number) =>
+    setDraft((d) => ({ ...d, personnel: d.personnel.filter((_, idx) => idx !== i) }));
 
   // 지사 소재지 다중
   const addBranch = () => setDraft((d) => ({ ...d, branchRegions: [...d.branchRegions, { code: "", name: "" }] }));
@@ -213,10 +238,59 @@ export default function MyPage() {
             <Field label="최근 3년 실적 (억원)">
               <input value={draft.revenue} onChange={(e) => setField("revenue", e.target.value)} className={inputClass} />
             </Field>
-            <Field label="상시근로자 수">
-              <input value={draft.employees} onChange={(e) => setField("employees", e.target.value)} className={inputClass} />
-            </Field>
+            <div className="flex-1" />
           </div>
+
+          {/* 보유 인력 — 자격·등급별 인원. 공고가 "고급기술자 이상 2명"처럼 요구하므로
+              총원 하나로는 판정할 수 없다(company_personnel에 1:1 대응). */}
+          <Field label="보유 인력 (자격·등급별)">
+            <div className="flex flex-col gap-2">
+              {draft.personnel.map((p, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <PersonnelSelect
+                      ariaLabel={`인력 ${i + 1} 자격·등급`}
+                      value={p.code ? { code: p.code, name: p.name } : null}
+                      onChange={(v) => setPersonnelQual(i, v)}
+                    />
+                  </div>
+                  <div className="w-[104px] shrink-0">
+                    <input
+                      value={p.headcount}
+                      onChange={(e) => setPersonnelCount(i, e.target.value)}
+                      inputMode="numeric"
+                      placeholder="인원"
+                      aria-label={`인력 ${i + 1} 인원 수`}
+                      className={inputClass}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePersonnel(i)}
+                    aria-label={`인력 ${i + 1} 삭제`}
+                    className="shrink-0 rounded-md border border-slate-200 px-3 py-[11px] text-sm text-slate-500 transition-colors hover:bg-slate-50"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addPersonnel}
+                className="self-start rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                + 인력 추가
+              </button>
+              <p className="text-xs text-slate-400">
+                등급 없이 인원만 요구하는 공고에는 “일반기술자(등급무관)”로 담으세요.
+              </p>
+              {draft.employees.trim() && draft.personnel.length === 0 && (
+                <p className="text-xs text-slate-400">
+                  이전 입력값: 상시근로자 {draft.employees}명 — 자격·등급별로 다시 입력해 주세요.
+                </p>
+              )}
+            </div>
+          </Field>
           <div className="flex justify-end gap-2.5 pt-1">
             <button
               type="button"
@@ -262,7 +336,16 @@ export default function MyPage() {
           <ViewField label="보유 인증" value={profile.certs} />
           <div className="flex gap-[34px]">
             <ViewField label="최근 3년 실적" value={profile.revenue.trim() ? `${profile.revenue}억` : ""} />
-            <ViewField label="상시근로자 수" value={profile.employees.trim() ? `${profile.employees}명` : ""} />
+            <ViewField
+              label="보유 인력"
+              value={
+                profile.personnel.length > 0
+                  ? profile.personnel.map((p) => `${p.name} ${p.headcount}명`).join(", ")
+                  : profile.employees.trim()
+                    ? `상시근로자 ${profile.employees}명 (자격·등급 미입력)`
+                    : ""
+              }
+            />
           </div>
           <div className="flex justify-end pt-1.5">
             <button

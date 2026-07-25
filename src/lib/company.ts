@@ -30,6 +30,13 @@ export const CREDIT_RATINGS = [
   "B+", "B", "B-", "CCC", "CC", "C", "D",
 ] as const;
 
+/** 인력 한 행 — company_personnel(qual_code, qual_name, headcount)에 1:1 대응.
+ *  공고가 "고급기술자 이상 2명"처럼 자격·등급별로 요구하므로 총원 하나로는 판정할 수 없다.
+ *  등급 없이 인원만 요구하는 공고("기술자 5명")는 마스터의 ROLE_GEN_ENG
+ *  (일반기술자(등급무관))로 담는다 — 별도 필드가 필요 없다.
+ *  headcount는 입력 편의상 문자열로 들고, DB 적재 시 smallint로 변환한다. */
+export type PersonnelRow = { code: string; name: string; headcount: string };
+
 export type CompanyProfile = {
   name: string;
   bizNo: string; // 하이픈 없는 숫자 10자리로 저장(표시할 때만 3-2-5)
@@ -41,7 +48,8 @@ export type CompanyProfile = {
   licenses: string; // (레거시) 구 자유텍스트 면허. licenseRefs 이전 값 보존용
   certs: string;
   revenue: string; // 억원
-  employees: string;
+  personnel: PersonnelRow[]; // 자격·등급별 인원 (company_personnel)
+  employees: string; // (레거시) 구 상시근로자 총원. personnel 이전 값 보존용
 };
 
 /** 구 자유텍스트 소재지 → region_code 마이그레이션용 시도 매핑(완전일치만) */
@@ -105,6 +113,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
   licenses: "",
   certs: "",
   revenue: "",
+  personnel: [],
   employees: "",
 };
 
@@ -123,6 +132,11 @@ export const DEMO_PROFILE: CompanyProfile = {
   licenses: "",
   certs: "CC인증, ISO 27001, GS인증",
   revenue: "5.0",
+  personnel: [
+    { code: "KGRADE_SP", name: "특급기술자", headcount: "2" },
+    { code: "KGRADE_HI", name: "고급기술자", headcount: "5" },
+    { code: "ROLE_GEN_ENG", name: "일반기술자(등급무관)", headcount: "35" },
+  ],
   employees: "42",
 };
 
@@ -186,6 +200,9 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     hqRegion: hqRegion ?? null,
     branchRegions: rest.branchRegions ?? [],
     licenseRefs: rest.licenseRefs ?? [],
+    // 구 employees(총원)는 자격·등급을 알 수 없어 자동 이관이 불가하다.
+    // 레거시 값은 그대로 보존하고 폼에서 다시 입력받는다(licenses→licenseRefs와 동일 방식).
+    personnel: rest.personnel ?? [],
     size: migrateSize(size),
     // 하이픈 포함 저장분 → 숫자 10자리로 정규화
     bizNo: rest.bizNo != null ? normalizeBizNo(rest.bizNo) : "",
@@ -216,6 +233,7 @@ export function hasCompanyProfile(email: string): boolean {
     filledText ||
     p.hqRegion != null ||
     p.branchRegions.length > 0 ||
-    p.licenseRefs.length > 0
+    p.licenseRefs.length > 0 ||
+    p.personnel.length > 0
   );
 }
