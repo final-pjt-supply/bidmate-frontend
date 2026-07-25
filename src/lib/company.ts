@@ -37,6 +37,39 @@ export const CREDIT_RATINGS = [
  *  headcount는 입력 편의상 문자열로 들고, DB 적재 시 smallint로 변환한다. */
 export type PersonnelRow = { code: string; name: string; headcount: string };
 
+/** 실적 한 건 — company_performance_records에 1:1 대응.
+ *  공고는 "최근 5년 / 특정 분야 / 누계 5억"처럼 요구하고 매칭 시점에 기간·분야로
+ *  걸러 합산한다. 요약 숫자엔 기간도 분야도 없어 거를 수 없으므로 건별로 받는다.
+ *  amount는 원 단위 정수 문자열(DB가 bigint 원 단위). 억원으로 받으면 소수 실적에서
+ *  반올림 오차가 생겨 누계가 틀어진다. field는 license_master 공용(field_code). */
+export type PerformanceRow = {
+  contractName: string;
+  field: MasterRef | null; // 선택 — 비우면 분야 조건 있는 공고 집계에 안 잡힌다
+  amount: string; // 원 단위 숫자만
+  endDate: string; // "YYYY-MM-DD"
+};
+
+/** 원 단위 숫자 문자열 → 천단위 콤마 (입력 표시용).
+ *  0이 아홉 개 붙는 값을 맨눈으로 세다 틀리는 걸 막는다. */
+export function formatWon(v: string): string {
+  const d = v.replace(/\D/g, "");
+  return d ? Number(d).toLocaleString() : "";
+}
+
+/** 원 단위 → "30억 원" / "4,850만 원" / "1,200원" (콤마 밑에 붙는 보조 표시) */
+export function amountHint(v: string): string {
+  const d = v.replace(/\D/g, "");
+  if (!d) return "";
+  const n = Number(d);
+  if (n >= 100_000_000) {
+    const eok = n / 100_000_000;
+    // 30억은 "30억", 4.8억은 "4.8억" — 불필요한 소수점 0은 떼고 최대 2자리
+    return `${Number(eok.toFixed(2))}억 원`;
+  }
+  if (n >= 10_000) return `${Math.round(n / 10_000).toLocaleString()}만 원`;
+  return `${n.toLocaleString()}원`;
+}
+
 export type CompanyProfile = {
   name: string;
   bizNo: string; // 하이픈 없는 숫자 10자리로 저장(표시할 때만 3-2-5)
@@ -47,7 +80,8 @@ export type CompanyProfile = {
   licenseRefs: MasterRef[]; // 면허·업종 (license_master 코드) — 매칭 정본
   licenses: string; // (레거시) 구 자유텍스트 면허. licenseRefs 이전 값 보존용
   certs: string;
-  revenue: string; // 억원
+  performances: PerformanceRow[]; // 실적 대장 (company_performance_records)
+  revenue: string; // (레거시) 구 "최근 3년 실적" 억원 단일값. performances 이전 값 보존용
   personnel: PersonnelRow[]; // 자격·등급별 인원 (company_personnel)
   employees: string; // (레거시) 구 상시근로자 총원. personnel 이전 값 보존용
 };
@@ -112,6 +146,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
   licenseRefs: [],
   licenses: "",
   certs: "",
+  performances: [],
   revenue: "",
   personnel: [],
   employees: "",
@@ -131,6 +166,20 @@ export const DEMO_PROFILE: CompanyProfile = {
   ],
   licenses: "",
   certs: "CC인증, ISO 27001, GS인증",
+  performances: [
+    {
+      contractName: "○○청 정보시스템 구축",
+      field: { code: "1468", name: "소프트웨어사업자(컴퓨터관련서비스사업)" },
+      amount: "480000000",
+      endDate: "2024-11-30",
+    },
+    {
+      contractName: "△△시 통신망 유지보수",
+      field: { code: "0036", name: "정보통신공사업" },
+      amount: "120000000",
+      endDate: "2023-06-15",
+    },
+  ],
   revenue: "5.0",
   personnel: [
     { code: "KGRADE_SP", name: "특급기술자", headcount: "2" },
@@ -200,9 +249,11 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     hqRegion: hqRegion ?? null,
     branchRegions: rest.branchRegions ?? [],
     licenseRefs: rest.licenseRefs ?? [],
-    // 구 employees(총원)는 자격·등급을 알 수 없어 자동 이관이 불가하다.
-    // 레거시 값은 그대로 보존하고 폼에서 다시 입력받는다(licenses→licenseRefs와 동일 방식).
+    // 구 employees(총원)·revenue(억원 단일값)는 자격·등급이나 계약명·완료일을 알 수 없어
+    // 자동 이관이 불가하다. 레거시 값은 보존하고 폼에서 다시 입력받는다
+    // (licenses→licenseRefs와 동일 방식).
     personnel: rest.personnel ?? [],
+    performances: rest.performances ?? [],
     size: migrateSize(size),
     // 하이픈 포함 저장분 → 숫자 10자리로 정규화
     bizNo: rest.bizNo != null ? normalizeBizNo(rest.bizNo) : "",
@@ -234,6 +285,7 @@ export function hasCompanyProfile(email: string): boolean {
     p.hqRegion != null ||
     p.branchRegions.length > 0 ||
     p.licenseRefs.length > 0 ||
-    p.personnel.length > 0
+    p.personnel.length > 0 ||
+    p.performances.length > 0
   );
 }

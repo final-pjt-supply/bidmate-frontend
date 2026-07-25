@@ -6,12 +6,15 @@ import { Field, inputClass } from "@/components/auth-card";
 import {
   type CompanyProfile,
   type CompanySize,
+  type PerformanceRow,
   type RegionRef,
   CREDIT_RATINGS,
   EMPTY_PROFILE,
   SIZE_LABEL,
   SIZE_OPTIONS,
+  amountHint,
   formatBizNo,
+  formatWon,
   hasCompanyProfile,
   isValidBizNo,
   loadProfile,
@@ -21,7 +24,7 @@ import {
 import { logEvent } from "@/lib/analytics/track";
 import { MypageShell } from "@/components/mypage-shell";
 import { RegionSelect } from "@/components/region-select";
-import { LicenseSelect } from "@/components/license-select";
+import { LicenseOneSelect, LicenseSelect } from "@/components/license-select";
 import { PersonnelSelect } from "@/components/personnel-select";
 import { SelectMenu } from "@/components/select-menu";
 import type { MasterRef } from "@/lib/data/masters";
@@ -78,7 +81,7 @@ export default function MyPage() {
     e.preventDefault();
     if (!user) return;
     // 검증 실패 상태면 저장하지 않는다(엔터 제출 등 우회 경로 포함)
-    if (bizNoError) return;
+    if (bizNoError || perfError) return;
     const wasFilled = hasCompanyProfile(user.email); // 저장 전 상태로 최초/수정 판별
     // 미선택 상태로 남은 지사 행은 버린다
     const cleaned: CompanyProfile = {
@@ -86,6 +89,8 @@ export default function MyPage() {
       branchRegions: draft.branchRegions.filter((b) => b.code !== ""),
       // 자격을 안 고르거나 인원이 비었거나 0명인 행은 버린다(DB는 headcount NOT NULL).
       personnel: draft.personnel.filter((p) => p.code !== "" && Number(p.headcount) > 0),
+      // 아무것도 안 넣은 빈 행만 버린다(쓰다 만 행은 위에서 저장을 막았다).
+      performances: draft.performances.filter((p) => !perfBlank(p)),
     };
     setProfile(cleaned);
     saveProfile(user.email, cleaned);
@@ -104,6 +109,30 @@ export default function MyPage() {
       : draft.bizNo.length === 10 && !isValidBizNo(draft.bizNo)
         ? "유효하지 않은 사업자등록번호예요"
         : "";
+
+  // 실적 대장 — 건별(계약명·분야·금액·완료일). DB는 계약명/금액/완료일이 NOT NULL이라
+  // 일부만 채운 행은 저장을 막는다(지사·인력처럼 조용히 버리면 입력 손실로 느껴진다).
+  const addPerformance = () =>
+    setDraft((d) => ({
+      ...d,
+      performances: [...d.performances, { contractName: "", field: null, amount: "", endDate: "" }],
+    }));
+  const setPerformance = (i: number, patch: Partial<PerformanceRow>) =>
+    setDraft((d) => ({
+      ...d,
+      performances: d.performances.map((p, idx) => (idx === i ? { ...p, ...patch } : p)),
+    }));
+  const removePerformance = (i: number) =>
+    setDraft((d) => ({ ...d, performances: d.performances.filter((_, idx) => idx !== i) }));
+
+  /** 아무것도 안 넣은 빈 행 — 저장 시 조용히 버린다 */
+  const perfBlank = (p: PerformanceRow) =>
+    !p.contractName.trim() && !p.field && !p.amount && !p.endDate;
+  /** 필수 3종(계약명·금액·완료일)이 다 찼는지. 분야는 선택 */
+  const perfComplete = (p: PerformanceRow) =>
+    p.contractName.trim() !== "" && Number(p.amount) > 0 && p.endDate !== "";
+  // 쓰다 만 행이 하나라도 있으면 저장 차단
+  const perfError = draft.performances.some((p) => !perfBlank(p) && !perfComplete(p));
 
   // 보유 인력 다중 — 자격·등급(마스터 코드) + 인원 수
   const addPersonnel = () =>
@@ -234,12 +263,94 @@ export default function MyPage() {
           <Field label="보유 인증">
             <input value={draft.certs} onChange={(e) => setField("certs", e.target.value)} className={inputClass} />
           </Field>
-          <div className="flex gap-4">
-            <Field label="최근 3년 실적 (억원)">
-              <input value={draft.revenue} onChange={(e) => setField("revenue", e.target.value)} className={inputClass} />
-            </Field>
-            <div className="flex-1" />
-          </div>
+          {/* 실적 — 건별 대장. 공고가 "최근 5년 / 특정 분야 / 누계 N억"으로 요구해
+              기간·분야로 걸러 합산하므로, 요약 숫자로는 판정할 수 없다. */}
+          <Field label="실적 (건별)">
+            <div className="flex flex-col gap-3">
+              {draft.performances.map((p, i) => {
+                const show = !perfBlank(p) && !perfComplete(p); // 쓰다 만 행만 빨갛게
+                const bad = (empty: boolean) => (show && empty ? "border-rose-400" : "");
+                return (
+                  <div key={i} className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-[2]">
+                        <input
+                          value={p.contractName}
+                          onChange={(e) => setPerformance(i, { contractName: e.target.value })}
+                          placeholder="계약명"
+                          aria-label={`실적 ${i + 1} 계약명`}
+                          maxLength={200}
+                          className={`${inputClass} ${bad(!p.contractName.trim())}`}
+                        />
+                      </div>
+                      <div className="flex-[2]">
+                        <LicenseOneSelect
+                          value={p.field}
+                          onChange={(v) => setPerformance(i, { field: v })}
+                          ariaLabel={`실적 ${i + 1} 분야`}
+                          placeholder="분야 (선택)"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removePerformance(i)}
+                        aria-label={`실적 ${i + 1} 삭제`}
+                        className="shrink-0 rounded-md border border-slate-200 bg-white px-3 py-[11px] text-sm text-slate-500 transition-colors hover:bg-slate-50"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                    <div className="mt-2 flex items-start gap-2">
+                      <div className="flex-[2]">
+                        <input
+                          value={formatWon(p.amount)}
+                          onChange={(e) =>
+                            setPerformance(i, { amount: e.target.value.replace(/\D/g, "").slice(0, 15) })
+                          }
+                          inputMode="numeric"
+                          placeholder="계약금액 (원)"
+                          aria-label={`실적 ${i + 1} 계약금액(원)`}
+                          className={`${inputClass} ${bad(!(Number(p.amount) > 0))}`}
+                        />
+                        <p className="mt-1 h-4 text-xs text-slate-500">{amountHint(p.amount)}</p>
+                      </div>
+                      <div className="flex-[2]">
+                        <input
+                          type="date"
+                          value={p.endDate}
+                          onChange={(e) => setPerformance(i, { endDate: e.target.value })}
+                          aria-label={`실적 ${i + 1} 완료일`}
+                          className={`${inputClass} ${bad(!p.endDate)}`}
+                        />
+                      </div>
+                      {/* 삭제 버튼 자리만큼 폭 맞춤 */}
+                      <div className="w-[57px] shrink-0" />
+                    </div>
+                  </div>
+                );
+              })}
+              <button
+                type="button"
+                onClick={addPerformance}
+                className="self-start rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                + 실적 추가
+              </button>
+              {perfError && (
+                <p className="text-xs text-rose-500">
+                  계약명·계약금액·완료일은 모두 필요해요. 빨간 칸을 채우거나 그 행을 삭제해 주세요.
+                </p>
+              )}
+              <p className="text-xs text-slate-400">
+                분야를 비우면 분야 조건이 붙은 공고에서는 이 실적이 집계되지 않아요.
+              </p>
+              {draft.revenue.trim() && draft.performances.length === 0 && (
+                <p className="text-xs text-slate-400">
+                  이전 입력값: 최근 3년 실적 {draft.revenue}억 — 계약 건별로 다시 입력해 주세요.
+                </p>
+              )}
+            </div>
+          </Field>
 
           {/* 보유 인력 — 자격·등급별 인원. 공고가 "고급기술자 이상 2명"처럼 요구하므로
               총원 하나로는 판정할 수 없다(company_personnel에 1:1 대응). */}
@@ -301,7 +412,7 @@ export default function MyPage() {
             </button>
             <button
               type="submit"
-              disabled={bizNoError !== ""}
+              disabled={bizNoError !== "" || perfError}
               className="rounded-[10px] bg-indigo-700 px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               변경사항 저장
@@ -334,8 +445,30 @@ export default function MyPage() {
             }
           />
           <ViewField label="보유 인증" value={profile.certs} />
+
+          {/* 실적은 건별이라 한 줄로 못 줄인다 — 목록으로 표시 */}
+          <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
+            <span className="text-xs font-medium text-gray-400">실적</span>
+            {profile.performances.length > 0 ? (
+              <ul className="flex flex-col gap-1">
+                {profile.performances.map((p, i) => (
+                  <li key={i} className="text-[15px] font-bold text-gray-900">
+                    {p.contractName}
+                    <span className="ml-2 text-sm font-medium text-slate-500">
+                      {p.field ? `${p.field.name} · ` : ""}
+                      {amountHint(p.amount)} · {p.endDate} 완료
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-[15px] font-bold text-slate-300">
+                {profile.revenue.trim() ? `최근 3년 ${profile.revenue}억 (건별 미입력)` : "미등록"}
+              </span>
+            )}
+          </div>
+
           <div className="flex gap-[34px]">
-            <ViewField label="최근 3년 실적" value={profile.revenue.trim() ? `${profile.revenue}억` : ""} />
             <ViewField
               label="보유 인력"
               value={
