@@ -9,7 +9,6 @@ import { fetchMatches, type MatchListItem, type MatchSort } from "@/lib/api/matc
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { VerdictBadge, verdictHint } from "@/components/verdict-badge";
-import { RecommendationTabs } from "@/components/recommendation-tabs";
 
 const PAGE_SIZE = 20;
 
@@ -31,7 +30,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex-1">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
-        <RecommendationTabs active="match" />
         <h1 className="text-2xl font-bold text-gray-900">맞춤 추천</h1>
         {children}
       </div>

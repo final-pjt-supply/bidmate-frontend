@@ -12,7 +12,6 @@ import {
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { VerdictBadge } from "@/components/verdict-badge";
-import { RecommendationTabs } from "@/components/recommendation-tabs";
 
 const RECOMMENDATION_LIMIT = 12;
 
@@ -20,7 +19,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex-1">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
-        <RecommendationTabs active="ai" />
         {children}
       </div>
     </main>
