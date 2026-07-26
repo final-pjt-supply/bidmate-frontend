@@ -1,13 +1,21 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Building2, ChevronLeft, ChevronRight, Lock } from "lucide-react";
-import type { Bid } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { hasCompanyProfile } from "@/lib/company";
+import { fetchMatches, type MatchListItem, type MatchSort } from "@/lib/api/matches";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
+import { VerdictBadge, verdictHint } from "@/components/verdict-badge";
+
+const PAGE_SIZE = 20;
+
+const SORTS: { key: MatchSort; label: string }[] = [
+  { key: "deadline", label: "마감 임박순" },
+  { key: "recent", label: "최신순" },
+];
 
 /** 페이지네이션에 노출할 페이지 번호(많으면 말줄임) */
 function buildPages(total: number, current: number): (number | "ellipsis")[] {
@@ -29,19 +37,45 @@ function PageShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function RecoView({
-  items,
-  total,
-  page,
-  pageSize,
+function CenterCard({
+  icon,
+  title,
+  body,
+  children,
 }: {
-  items: Bid[];
-  total: number;
-  page: number;
-  pageSize: number;
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  children?: React.ReactNode;
 }) {
+  return (
+    <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+      <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
+        {icon}
+      </span>
+      <p className="text-lg font-bold text-gray-900">{title}</p>
+      <p className="max-w-md text-sm text-gray-500">{body}</p>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * 맞춤 추천 — 자격 판정(match_results)이 붙은 공고 목록.
+ *
+ * 백엔드가 '불가'를 기본 제외한다(판정의 65%). 여기서 다시 거르지 않는다 —
+ * 프론트에서 걸러내면 페이지당 남는 개수가 들쭉날쭉해져 페이지네이션이 깨진다.
+ */
+export function RecoView() {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
+
+  const [items, setItems] = useState<MatchListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<MatchSort>("deadline");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // 회원의 회사 정보 입력 여부 (SSR·비회원 시 isMember=false로 localStorage 미접근)
   const companyMissing = useMemo(
@@ -49,18 +83,39 @@ export function RecoView({
     [isMember, user]
   );
 
-  // 비회원(또는 로딩 중): 로그인 안내 카드
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await fetchMatches({ sort, page });
+      setItems(data.items);
+      setTotal(data.total);
+    } catch (err) {
+      console.error("매칭 목록 로드 실패:", err);
+      setError("추천 공고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setItems([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [sort, page]);
+
+  // 매칭 목록은 토큰이 있어야 부를 수 있고 토큰은 브라우저에만 있다 — 서버에서 미리
+  // 못 받으므로 마운트 후 여기서 로드한다(mypage와 같은 규칙 예외).
+  useEffect(() => {
+    if (!isMember || companyMissing) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [isMember, companyMissing, load]);
+
   if (!isMember) {
     return (
       <PageShell>
-        <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
-          <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
-            <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
-          </span>
-          <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 맞춤 공고를 추천해드려요</p>
-          <p className="max-w-md text-sm text-gray-500">
-            회사 정보를 등록하면 우리 회사 조건에 맞는 공고를 모아서 볼 수 있어요.
-          </p>
+        <CenterCard
+          icon={<Lock className="size-[22px] text-indigo-600" strokeWidth={2} />}
+          title="로그인하면 우리 회사 맞춤 공고를 추천해드려요"
+          body="회사 정보를 등록하면 우리 회사 조건에 맞는 공고를 모아서 볼 수 있어요."
+        >
           <div className="mt-1 flex gap-2">
             <Link
               href="/login"
@@ -75,82 +130,120 @@ export function RecoView({
               회원가입
             </Link>
           </div>
-        </div>
+        </CenterCard>
       </PageShell>
     );
   }
 
-  // 회원이지만 회사 정보가 없으면 매칭 대신 회사 정보 입력을 먼저 안내
   if (companyMissing) {
     return (
       <PageShell>
-        <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
-          <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
-            <Building2 className="size-[22px] text-indigo-600" strokeWidth={2} />
-          </span>
-          <p className="text-lg font-bold text-gray-900">먼저 회사 정보를 입력해 주세요</p>
-          <p className="max-w-md text-sm text-gray-500">
-            등록하신 회사 정보로 공고 적합도를 계산해 맞춤 공고를 추천해드려요. 회사 정보를 입력하면 매칭
-            결과를 볼 수 있어요.
-          </p>
+        <CenterCard
+          icon={<Building2 className="size-[22px] text-indigo-600" strokeWidth={2} />}
+          title="먼저 회사 정보를 입력해 주세요"
+          body="등록하신 회사 정보로 공고 적합도를 계산해 맞춤 공고를 추천해드려요. 회사 정보를 입력하면 매칭 결과를 볼 수 있어요."
+        >
           <Link
             href="/mypage?edit=1"
             className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
           >
             회사 정보 입력하기
           </Link>
-        </div>
+        </CenterCard>
       </PageShell>
     );
   }
 
-  // 회원 + 회사 정보 있음: 추천 리스트 (서버 페이징)
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hrefFor = (p: number) => (p > 1 ? `/recommend?page=${p}` : "/recommend");
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <PageShell>
-      {/* 헤더: 건수 + 동기화.
-          정렬 탭(매칭 점수순/마감 임박순)은 제거했다 — 백엔드 match_results가 점수가 아닌
-          판정(verdict) 구조라 점수순이 성립하지 않고, sort=score는 마감순으로 폴백되어
-          눌러도 순서가 바뀌지 않는 죽은 UI였다. 판정 연동 시 그에 맞는 이름으로 새로 만든다. */}
+      {/* 헤더: 건수 + 정렬 + 동기화 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[15px] font-bold text-gray-900">추천 공고 {total}건</p>
-        <SyncIndicator />
+        <p className="text-[15px] font-bold text-gray-900">
+          {loading ? "추천 공고 불러오는 중…" : `추천 공고 ${total.toLocaleString()}건`}
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1">
+            {SORTS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => {
+                  setSort(s.key);
+                  setPage(1);
+                }}
+                className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
+                  sort === s.key
+                    ? "font-bold text-indigo-700"
+                    : "font-medium text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <SyncIndicator />
+        </div>
       </div>
 
-      {/* 카드 그리드 */}
-      {items.length > 0 ? (
+      {/* 참가 불가 공고는 서버에서 빠진다는 안내 — 건수가 적어 보이는 이유를 알려준다 */}
+      {!loading && !error && (
+        <p className="-mt-2 text-xs text-slate-400">
+          자격이 맞지 않아 참가할 수 없는 공고는 제외했어요.
+        </p>
+      )}
+
+      {error && (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+
+      {loading ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((bid, i) => (
-            <BidCard
-              key={bid.bid_id}
-              bid={bid}
-              position={(page - 1) * pageSize + i + 1}
-              list="reco"
-            />
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
+          ))}
+        </div>
+      ) : items.length > 0 ? (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((it, i) => (
+            <div key={it.bid.bid_id} className="flex flex-col gap-1.5">
+              <BidCard bid={it.bid} position={(page - 1) * PAGE_SIZE + i + 1} list="reco" />
+              <div className="flex items-center gap-2 px-1">
+                <VerdictBadge verdict={it.match.verdict} />
+                <span className="text-xs text-slate-400">{verdictHint(it.match)}</span>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-20 text-center">
-          <p className="text-[15px] font-bold text-gray-900">표시할 공고가 없어요</p>
-          <p className="text-sm text-slate-500">잠시 후 다시 시도해 주세요.</p>
+          <p className="text-[15px] font-bold text-gray-900">참가 가능한 공고가 아직 없어요</p>
+          <p className="text-sm text-slate-500">
+            회사 정보를 더 채우면 더 많은 공고와 매칭될 수 있어요.
+          </p>
+          <Link
+            href="/mypage?edit=1"
+            className="mt-2 rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+          >
+            회사 정보 보완하기
+          </Link>
         </div>
       )}
 
-      {/* 페이지네이션 (서버) */}
-      {totalPages > 1 && (
+      {totalPages > 1 && !loading && (
         <div className="flex items-center justify-center gap-1.5 pt-3">
-          <Link
-            href={hrefFor(Math.max(1, page - 1))}
-            aria-disabled={page === 1}
-            className={`flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 ${
-              page === 1 ? "pointer-events-none opacity-40" : ""
-            }`}
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
             aria-label="이전 페이지"
           >
             <ChevronLeft className="size-4" strokeWidth={2} />
-          </Link>
+          </button>
 
           {buildPages(totalPages, page).map((p, i) =>
             p === "ellipsis" ? (
@@ -158,9 +251,10 @@ export function RecoView({
                 …
               </span>
             ) : (
-              <Link
+              <button
                 key={p}
-                href={hrefFor(p)}
+                type="button"
+                onClick={() => setPage(p)}
                 aria-current={p === page ? "page" : undefined}
                 className={`flex size-9 items-center justify-center rounded-lg text-sm transition-colors ${
                   p === page
@@ -169,20 +263,19 @@ export function RecoView({
                 }`}
               >
                 {p}
-              </Link>
+              </button>
             )
           )}
 
-          <Link
-            href={hrefFor(Math.min(totalPages, page + 1))}
-            aria-disabled={page === totalPages}
-            className={`flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 ${
-              page === totalPages ? "pointer-events-none opacity-40" : ""
-            }`}
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
             aria-label="다음 페이지"
           >
             <ChevronRight className="size-4" strokeWidth={2} />
-          </Link>
+          </button>
         </div>
       )}
     </PageShell>
