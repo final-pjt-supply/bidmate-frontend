@@ -284,8 +284,16 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <p className="text-xs text-slate-400">로그인하면 이 공고에 대해 챗봇에 질문할 수 있어요.</p>
       </section>
 
-      {/* 적합도: 비회원 잠금 / 회원 로딩 / 회원 표 또는 미계산 안내 */}
-      {isMember && matchLoading ? (
+      {/* 적합도: 인증 확인 중 스켈레톤 / 비회원 잠금 / 회원 로딩 / 회원 표 또는 미계산 안내
+          !ready인 짧은 순간엔 isMember가 무조건 false라, 로그인한 사용자에게도 "로그인하면
+          확인할 수 있어요" 잠금 화면이 한 프레임 반짝인다(useAuth의 세션 확인이 비동기라
+          첫 렌더에선 로그인 여부를 아직 모른다). 그 순간엔 아무 쪽으로도 단정하지 않고
+          중립 스켈레톤만 보여준다. */}
+      {!ready ? (
+        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
+          <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
+        </section>
+      ) : isMember && matchLoading ? (
         <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
           <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
         </section>
