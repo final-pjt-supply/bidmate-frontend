@@ -9,7 +9,10 @@ import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
 import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 import { logEvent } from "@/lib/analytics/track";
+import { getIdToken } from "@/lib/cognito";
+import type { Match } from "@/lib/types";
 import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
+import { MatchAxesTable } from "@/components/match-axes-table";
 
 const DDAY_STYLE: Record<string, string> = {
   urgent: "bg-rose-50 text-orange-700",
@@ -92,6 +95,40 @@ export function BidDetailView({ bid }: { bid: Bid }) {
   const router = useRouter();
   const isMember = ready && !!user;
   const [botMode, setBotMode] = useState<BotMode>("closed");
+
+  // 매칭(bid.match)은 서버 컴포넌트가 비로그인 상태로 받아온 값이라 항상 null이다
+  // (Cognito 토큰이 브라우저에만 있어 SSR 요청엔 못 싣는다). 로그인 회원이면 마운트 후
+  // 인증을 실어 한 번 더 받는다 — 공개 정보(SSR, 캐시)와 개인화 정보(CSR, 무캐시)를
+  // 분리해서, 매칭 데이터가 다른 사용자의 캐시로 새어나가는 일을 막는다.
+  const [match, setMatch] = useState<Match | null>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isMember) return;
+    let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMatchLoading(true);
+    (async () => {
+      try {
+        const token = await getIdToken();
+        if (!token) return;
+        const res = await fetch(`/api/bids/${encodeURIComponent(bid.bid_id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { match: Match | null };
+        if (alive) setMatch(data.match);
+      } catch (err) {
+        console.error("매칭 결과 로드 실패:", err);
+      } finally {
+        if (alive) setMatchLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isMember, bid.bid_id]);
 
   // 상세 조회 + 체류시간(dwell): 진입 시점이 아니라 "이탈 시점"에 한 번 발사해
   // 얼마나 오래 봤는지(properties.dwell_ms)를 함께 기록한다. 관심도 강신호.
@@ -247,41 +284,65 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <p className="text-xs text-slate-400">로그인하면 이 공고에 대해 챗봇에 질문할 수 있어요.</p>
       </section>
 
-      {/* 적합도: 비회원 잠금 / 회원 준비 중 */}
-      <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
-        <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
-          <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
-        </span>
-        {isMember ? (
-          <>
-            <p className="text-lg font-bold text-gray-900">적합도 계산이 준비 중이에요</p>
-            <p className="text-sm text-gray-500">
-              공고 자격요건 분석이 끝나면 우리 회사 적합도를 항목별 점수로 보여드릴게요.
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 적합도를 계산해드려요</p>
-            <p className="text-sm text-gray-500">
-              회사 정보를 등록하면 이 공고가 우리 회사와 얼마나 맞는지 항목별로 점수를 매겨드려요.
-            </p>
-            <div className="mt-1 flex gap-2">
+      {/* 적합도: 인증 확인 중 스켈레톤 / 비회원 잠금 / 회원 로딩 / 회원 표 또는 미계산 안내
+          !ready인 짧은 순간엔 isMember가 무조건 false라, 로그인한 사용자에게도 "로그인하면
+          확인할 수 있어요" 잠금 화면이 한 프레임 반짝인다(useAuth의 세션 확인이 비동기라
+          첫 렌더에선 로그인 여부를 아직 모른다). 그 순간엔 아무 쪽으로도 단정하지 않고
+          중립 스켈레톤만 보여준다. */}
+      {!ready ? (
+        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
+          <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
+        </section>
+      ) : isMember && matchLoading ? (
+        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
+          <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
+        </section>
+      ) : isMember && match ? (
+        <Section title="우리 회사 적합도">
+          <MatchAxesTable verdict={match.verdict} axes={match.axes} />
+        </Section>
+      ) : (
+        <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
+          <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
+            <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
+          </span>
+          {isMember ? (
+            <>
+              <p className="text-lg font-bold text-gray-900">아직 적합도가 계산되지 않았어요</p>
+              <p className="text-sm text-gray-500">
+                회사 정보를 등록하면 이 공고가 우리 회사와 맞는지 항목별로 확인할 수 있어요.
+              </p>
               <Link
-                href="/login"
-                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                href="/mypage?edit=1"
+                className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
               >
-                로그인
+                회사 정보 입력하기
               </Link>
-              <Link
-                href="/signup"
-                className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
-              >
-                회원가입
-              </Link>
-            </div>
-          </>
-        )}
-      </section>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 적합도를 확인할 수 있어요</p>
+              <p className="text-sm text-gray-500">
+                회사 정보를 등록하면 이 공고가 우리 회사와 얼마나 맞는지 항목별로 보여드려요.
+              </p>
+              <div className="mt-1 flex gap-2">
+                <Link
+                  href="/login"
+                  className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                >
+                  로그인
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+                >
+                  회원가입
+                </Link>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {/* 공고 핵심 정보 */}
       <Section title="공고 핵심 정보">
