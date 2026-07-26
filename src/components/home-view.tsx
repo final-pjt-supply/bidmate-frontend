@@ -14,7 +14,7 @@ type HomeViewProps = {
 };
 
 /** 로그인 사용자 대시보드 건수. 로드 전엔 null — "0건"을 먼저 보여주면 오해를 준다. */
-type Counts = { total: number; urgent: number; scraps: number } | null;
+type Counts = { total: number; scraps: number } | null;
 
 const fmt = (n: number | undefined) => (n == null ? "—" : `${n.toLocaleString()}건`);
 
@@ -42,7 +42,6 @@ export function HomeView({ recommendedBids, recentBids }: HomeViewProps) {
       if (scraps.status === "rejected") console.error("스크랩 건수 실패:", scraps.reason);
       setCounts({
         total: summary.status === "fulfilled" ? summary.value.total : NaN,
-        urgent: summary.status === "fulfilled" ? summary.value.urgent : NaN,
         scraps: scraps.status === "fulfilled" ? scraps.value : NaN,
       });
     })();
@@ -53,10 +52,10 @@ export function HomeView({ recommendedBids, recentBids }: HomeViewProps) {
 
   if (isMember) {
     const safe = (n: number | undefined) => (n == null || Number.isNaN(n) ? undefined : n);
+    // 건수를 누르면 그 목록으로 바로 간다.
     const stats: HeroStat[] = [
-      { value: fmt(safe(counts?.total)), label: "내 맞춤 공고" },
-      { value: fmt(safe(counts?.urgent)), label: "마감 임박" },
-      { value: fmt(safe(counts?.scraps)), label: "스크랩" },
+      { value: fmt(safe(counts?.total)), label: "내 맞춤 공고", href: "/recommend" },
+      { value: fmt(safe(counts?.scraps)), label: "스크랩", href: "/mypage/scraps" },
     ];
     const total = safe(counts?.total);
     return (

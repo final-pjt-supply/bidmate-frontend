@@ -31,11 +31,7 @@ export type MatchListResponse = {
 export type MatchSort = "deadline" | "recent";
 
 /** 홈 대시보드용 건수 요약 — 목록을 받지 않으므로 가볍다. */
-export type MatchSummary = {
-  total: number;
-  urgent: number;
-  urgent_days: number;
-};
+export type MatchSummary = { total: number };
 
 export async function fetchMatchSummary(): Promise<MatchSummary> {
   const token = await getIdToken();
