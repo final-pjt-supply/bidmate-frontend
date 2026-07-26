@@ -1,0 +1,253 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Building2, Lock, RefreshCw, Sparkles } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { hasCompanyProfile } from "@/lib/company";
+import {
+  fetchRecommendations,
+  type RecommendationListItem,
+} from "@/lib/api/recommendations";
+import { BidCard } from "@/components/bid-card";
+import { SyncIndicator } from "@/components/sync-indicator";
+import { VerdictBadge } from "@/components/verdict-badge";
+
+const RECOMMENDATION_LIMIT = 12;
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="flex-1">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+        {children}
+      </div>
+    </main>
+  );
+}
+
+function CenterCard({
+  icon,
+  title,
+  body,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+      <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
+        {icon}
+      </span>
+      <p className="text-lg font-bold text-gray-900">{title}</p>
+      <p className="max-w-md text-sm leading-6 text-gray-500">{body}</p>
+      {children}
+    </div>
+  );
+}
+
+function RecommendationReason({ item }: { item: RecommendationListItem }) {
+  const score = Math.max(0, Math.min(100, Math.round(item.recommendation.score * 100)));
+  return (
+    <div className="flex flex-col gap-1.5 px-1">
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700">
+          <Sparkles className="size-3.5" aria-hidden="true" />
+          AI 추천 {score}점
+        </span>
+        <VerdictBadge verdict={item.match.verdict} />
+      </div>
+      <p className="truncate text-xs text-slate-400">
+        <span className="font-medium text-slate-500">{item.recommendation.signal_source}</span>
+        {" · "}
+        {item.recommendation.matched_text}
+      </p>
+    </div>
+  );
+}
+
+/** 자격 가능한 공고만 대상으로 회사 관심 텍스트와 제목 벡터 유사도를 계산한 목록. */
+export function AIRecoView() {
+  const { user, ready } = useAuth();
+  const isMember = ready && !!user;
+  const [items, setItems] = useState<RecommendationListItem[]>([]);
+  const [candidateCount, setCandidateCount] = useState(0);
+  const [querySource, setQuerySource] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const companyMissing = useMemo(
+    () => isMember && !!user && !hasCompanyProfile(user.email),
+    [isMember, user]
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await fetchRecommendations(RECOMMENDATION_LIMIT);
+      setItems(data.items);
+      setCandidateCount(data.candidate_count);
+      setQuerySource(data.query_source);
+    } catch (err) {
+      console.error("AI 추천 목록 로드 실패:", err);
+      setError(err instanceof Error ? err.message : "추천 공고를 불러오지 못했어요.");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isMember || companyMissing) return;
+    // 인증 상태가 준비된 뒤 최초 1회 서버 추천 목록과 동기화한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [isMember, companyMissing, load]);
+
+  if (!isMember) {
+    return (
+      <PageShell>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI 추천</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            회사 관심사와 유사한 공고를 참가 가능한 후보 안에서 찾아드려요.
+          </p>
+        </div>
+        <CenterCard
+          icon={<Lock className="size-[22px] text-indigo-600" strokeWidth={2} />}
+          title="로그인하면 우리 회사 맞춤 공고를 추천해드려요"
+          body="회사 실적과 관심 공고를 바탕으로, 참가 가능한 공고 중 가장 관련 있는 공고를 먼저 보여드려요."
+        >
+          <div className="mt-1 flex gap-2">
+            <Link
+              href="/login"
+              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+            >
+              로그인
+            </Link>
+            <Link
+              href="/signup"
+              className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            >
+              회원가입
+            </Link>
+          </div>
+        </CenterCard>
+      </PageShell>
+    );
+  }
+
+  if (companyMissing) {
+    return (
+      <PageShell>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI 추천</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            회사 관심사와 유사한 공고를 참가 가능한 후보 안에서 찾아드려요.
+          </p>
+        </div>
+        <CenterCard
+          icon={<Building2 className="size-[22px] text-indigo-600" strokeWidth={2} />}
+          title="먼저 회사 정보를 입력해 주세요"
+          body="실적, 취급 품목, 보유 면허를 입력하면 참가 가능한 공고를 회사 관심도 순으로 추천해드려요."
+        >
+          <Link
+            href="/mypage?edit=1"
+            className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+          >
+            회사 정보 입력하기
+          </Link>
+        </CenterCard>
+      </PageShell>
+    );
+  }
+
+  return (
+    <PageShell>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI 추천</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            자격 판정을 통과한 공고 중 회사 관심사와 가까운 공고를 먼저 보여드려요.
+          </p>
+        </div>
+        <SyncIndicator />
+      </div>
+
+      {!loading && !error && candidateCount > 0 && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
+          <span className="inline-flex items-center gap-1.5 font-bold text-indigo-700">
+            <Sparkles className="size-4" aria-hidden="true" />
+            추천 기준
+          </span>
+          <span className="text-slate-600">{querySource ?? "회사 정보"}</span>
+          <span className="text-slate-400">
+            자격 후보 {candidateCount.toLocaleString()}건 분석
+          </span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-lg font-bold text-gray-900">추천 공고</h2>
+          <span className="text-sm text-slate-400">
+            {loading ? "분석 중…" : `총 ${items.length}건`}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-50"
+        >
+          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+          새로고침
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <p>{error}</p>
+          <button type="button" onClick={() => void load()} className="mt-2 font-bold underline">
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
+          ))}
+        </div>
+      ) : items.length > 0 ? (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((item, index) => (
+            <div key={item.bid.bid_id} className="flex flex-col gap-1.5">
+              <BidCard bid={item.bid} position={index + 1} list="ai_reco" />
+              <RecommendationReason item={item} />
+            </div>
+          ))}
+        </div>
+      ) : !error ? (
+        <CenterCard
+          icon={<Sparkles className="size-[22px] text-indigo-600" strokeWidth={2} />}
+          title="분석할 수 있는 추천 공고가 아직 없어요"
+          body={
+            candidateCount === 0
+              ? "현재 참가 가능한 미마감 공고가 없습니다."
+              : "회사 관심 정보는 준비됐지만 아직 제목 벡터가 적재되지 않았습니다. 데이터가 추가되면 자동으로 추천됩니다."
+          }
+        />
+      ) : null}
+
+      <p className="text-xs leading-5 text-slate-400">
+        AI 추천 점수는 공고 제목과 회사 관심 정보의 유사도를 나타내는 베타 지표예요.
+        실제 참여 전에는 자격 판정과 공고 원문을 확인해 주세요.
+      </p>
+    </PageShell>
+  );
+}

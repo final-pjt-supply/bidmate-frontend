@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "공고 검색", href: "/search" },
   { label: "맞춤 추천", href: "/recommend" },
+  { label: "AI 추천", href: "/ai-recommend" },
   { label: "비드봇", href: "/bidbot" },
   { label: "이용안내", href: "/guide" },
 ];
@@ -105,7 +106,8 @@ export function Topbar() {
         {/* 내비게이션 */}
         <nav className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
           {NAV_ITEMS.map(({ label, href }) => {
-            const active = href !== "#" && pathname === href;
+            const active =
+              href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
             return (
               <Link
                 key={label}
