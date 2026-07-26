@@ -29,17 +29,25 @@ export interface Qualification {
   award_cutline_value: number | null;
 }
 
-// 매칭 결과 (에이전트가 계산) — 현재는 항상 null
+/** 매칭 판정 축 하나. axis는 9종 카테고리 고정값(license/region/size/direct_prod/
+ *  item/personnel/performance/capacity/credit) + 참고용 cert. 마스터 코드가 아니다 —
+ *  한글 라벨은 프론트가 AXIS_LABEL로 붙인다. */
+export type MatchAxis = {
+  axis: string;
+  class: "gate" | "supp" | "info";
+  status: "충족" | "미충족" | "확인필요";
+  detail: string;
+};
+
+// 매칭 판정 — 점수가 아니라 축별 충족/미충족/확인필요 구조(백엔드 #57 확정).
 export interface Match {
-  total_score: number;
-  items: {
-    label: string;
-    required: string;
-    company: string;
-    judgment: "ok" | "partial" | "no";
-    score: number;
-    detail: string;
-  }[];
+  verdict: string | null;   // 가능/불가/보완가능/확인필요
+  required: number | null;
+  satisfied: number | null;
+  gate_failed: number | null;
+  need_review: number | null;
+  axes: MatchAxis[] | null;
+  computed_at: string | null;
 }
 
 // 목록 응답의 카드용 최소 필드 (상세는 Bid 전체)

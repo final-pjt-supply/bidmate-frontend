@@ -10,6 +10,7 @@ import { categoryLabel, computeDday } from "@/lib/format";
 import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 import { logEvent } from "@/lib/analytics/track";
 import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
+import { MatchAxesTable } from "@/components/match-axes-table";
 
 const DDAY_STYLE: Record<string, string> = {
   urgent: "bg-rose-50 text-orange-700",
@@ -247,41 +248,53 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <p className="text-xs text-slate-400">로그인하면 이 공고에 대해 챗봇에 질문할 수 있어요.</p>
       </section>
 
-      {/* 적합도: 비회원 잠금 / 회원 준비 중 */}
-      <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
-        <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
-          <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
-        </span>
-        {isMember ? (
-          <>
-            <p className="text-lg font-bold text-gray-900">적합도 계산이 준비 중이에요</p>
-            <p className="text-sm text-gray-500">
-              공고 자격요건 분석이 끝나면 우리 회사 적합도를 항목별 점수로 보여드릴게요.
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 적합도를 계산해드려요</p>
-            <p className="text-sm text-gray-500">
-              회사 정보를 등록하면 이 공고가 우리 회사와 얼마나 맞는지 항목별로 점수를 매겨드려요.
-            </p>
-            <div className="mt-1 flex gap-2">
+      {/* 적합도: 비회원 잠금 / 회원 표 또는 미계산 안내 */}
+      {isMember && bid.match ? (
+        <Section title="우리 회사 적합도">
+          <MatchAxesTable verdict={bid.match.verdict} axes={bid.match.axes} />
+        </Section>
+      ) : (
+        <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
+          <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
+            <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
+          </span>
+          {isMember ? (
+            <>
+              <p className="text-lg font-bold text-gray-900">아직 적합도가 계산되지 않았어요</p>
+              <p className="text-sm text-gray-500">
+                회사 정보를 등록하면 이 공고가 우리 회사와 맞는지 항목별로 확인할 수 있어요.
+              </p>
               <Link
-                href="/login"
-                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                href="/mypage?edit=1"
+                className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
               >
-                로그인
+                회사 정보 입력하기
               </Link>
-              <Link
-                href="/signup"
-                className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
-              >
-                회원가입
-              </Link>
-            </div>
-          </>
-        )}
-      </section>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 적합도를 확인할 수 있어요</p>
+              <p className="text-sm text-gray-500">
+                회사 정보를 등록하면 이 공고가 우리 회사와 얼마나 맞는지 항목별로 보여드려요.
+              </p>
+              <div className="mt-1 flex gap-2">
+                <Link
+                  href="/login"
+                  className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                >
+                  로그인
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+                >
+                  회원가입
+                </Link>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {/* 공고 핵심 정보 */}
       <Section title="공고 핵심 정보">
