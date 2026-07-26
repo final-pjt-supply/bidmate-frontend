@@ -30,6 +30,37 @@ export type MatchListResponse = {
 
 export type MatchSort = "deadline" | "recent";
 
+/** 홈 대시보드용 건수 요약 — 목록을 받지 않으므로 가볍다. */
+export type MatchSummary = {
+  total: number;
+  urgent: number;
+  urgent_days: number;
+};
+
+export async function fetchMatchSummary(): Promise<MatchSummary> {
+  const token = await getIdToken();
+  if (!token) throw new Error("로그인이 필요합니다");
+  const res = await fetch("/api/me/matches/summary", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`GET /me/matches/summary 실패: ${res.status}`);
+  return (await res.json()) as MatchSummary;
+}
+
+/** 스크랩 건수 — 목록의 total만 쓴다(홈 타일용). */
+export async function fetchScrapCount(): Promise<number> {
+  const token = await getIdToken();
+  if (!token) throw new Error("로그인이 필요합니다");
+  const res = await fetch("/api/me/scraps", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`GET /me/scraps 실패: ${res.status}`);
+  const data = (await res.json()) as { total: number };
+  return data.total;
+}
+
 export async function fetchMatches(opts: {
   sort?: MatchSort;
   page?: number;

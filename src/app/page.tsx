@@ -1,4 +1,3 @@
-import { computeDday } from "@/lib/format";
 import { getBids, searchBids } from "@/lib/api/bids";
 import { Topbar } from "@/components/topbar";
 import { HomeView } from "@/components/home-view";
@@ -10,12 +9,14 @@ import type { Bid } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // 추천: 매칭 점수순(sort=score, 점수 준비 전엔 마감순 폴백)
+  // 카드 목록은 비회원도 보는 화면이라 서버에서 미리 받는다(로그인 불필요).
+  // 회원 대시보드 건수는 토큰이 필요해 HomeView가 마운트 후 따로 부른다.
+  //
   // 최신: 등록이 최근인 순. today=true(오늘 등록분)로 두면 신규 유입이 없는 저녁·주말에
   //       섹션이 비거나 몇 건만 떴다 — 실측상 신규는 KST 업무시간에 몰린다.
   // allSettled: 한쪽이 실패해도 나머지 섹션은 살린다(all이면 둘 다 빈 화면이 된다).
   const [recommended, latest] = await Promise.allSettled([
-    getBids({ sort: "score", page: 1 }),
+    getBids({ sort: "deadline", page: 1 }),
     searchBids({ sort: "recent", page: 1 }),
   ]);
 
@@ -24,22 +25,12 @@ export default async function Home() {
 
   const recommendedBids: Bid[] = recommended.status === "fulfilled" ? recommended.value.items : [];
   const recentBids: Bid[] = latest.status === "fulfilled" ? latest.value.items : [];
-  const totalCount = recommended.status === "fulfilled" ? recommended.value.total : 0;
-
-  const urgentCount = recommendedBids.filter(
-    (bid) => computeDday(bid.bid_clse_dt).kind === "urgent"
-  ).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
-        <HomeView
-          recommendedBids={recommendedBids}
-          recentBids={recentBids}
-          urgentCount={urgentCount}
-          totalCount={totalCount}
-        />
+        <HomeView recommendedBids={recommendedBids} recentBids={recentBids} />
       </main>
       <SiteFooter />
     </div>
