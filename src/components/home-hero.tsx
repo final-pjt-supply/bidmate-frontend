@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { logEvent } from "@/lib/analytics/track";
 
-export type HeroStat = { value: string; label: string };
+/** href를 주면 타일이 링크가 된다 — 건수를 보고 바로 그 목록으로 가게. */
+export type HeroStat = { value: string; label: string; href?: string };
 
 // 업종 바로가기 칩 — 클릭 시 상세 검색이 열린 검색 결과로 이동
 const HERO_CHIPS: { label: string; cat: string }[] = [
@@ -90,15 +91,29 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
 
         {stats && stats.length > 0 && (
           <div className="flex items-center justify-center">
-            {stats.map((stat, i) => (
-              <div key={stat.label} className="flex items-center">
-                {i > 0 && <div className="h-12 w-px bg-white/20" />}
-                <div className="flex flex-col items-center gap-1 px-10 py-4">
+            {stats.map((stat, i) => {
+              const inner = (
+                <>
                   <span className="text-2xl font-bold text-white">{stat.value}</span>
                   <span className="text-[13px] text-indigo-300">{stat.label}</span>
+                </>
+              );
+              return (
+                <div key={stat.label} className="flex items-center">
+                  {i > 0 && <div className="h-12 w-px bg-white/20" />}
+                  {stat.href ? (
+                    <Link
+                      href={stat.href}
+                      className="flex flex-col items-center gap-1 rounded-lg px-10 py-4 transition-colors hover:bg-white/10"
+                    >
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 px-10 py-4">{inner}</div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
