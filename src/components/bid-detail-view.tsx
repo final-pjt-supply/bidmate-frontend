@@ -9,6 +9,8 @@ import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
 import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 import { logEvent } from "@/lib/analytics/track";
+import { getIdToken } from "@/lib/cognito";
+import type { Match } from "@/lib/types";
 import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
 import { MatchAxesTable } from "@/components/match-axes-table";
 
@@ -93,6 +95,40 @@ export function BidDetailView({ bid }: { bid: Bid }) {
   const router = useRouter();
   const isMember = ready && !!user;
   const [botMode, setBotMode] = useState<BotMode>("closed");
+
+  // 매칭(bid.match)은 서버 컴포넌트가 비로그인 상태로 받아온 값이라 항상 null이다
+  // (Cognito 토큰이 브라우저에만 있어 SSR 요청엔 못 싣는다). 로그인 회원이면 마운트 후
+  // 인증을 실어 한 번 더 받는다 — 공개 정보(SSR, 캐시)와 개인화 정보(CSR, 무캐시)를
+  // 분리해서, 매칭 데이터가 다른 사용자의 캐시로 새어나가는 일을 막는다.
+  const [match, setMatch] = useState<Match | null>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isMember) return;
+    let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMatchLoading(true);
+    (async () => {
+      try {
+        const token = await getIdToken();
+        if (!token) return;
+        const res = await fetch(`/api/bids/${encodeURIComponent(bid.bid_id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { match: Match | null };
+        if (alive) setMatch(data.match);
+      } catch (err) {
+        console.error("매칭 결과 로드 실패:", err);
+      } finally {
+        if (alive) setMatchLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isMember, bid.bid_id]);
 
   // 상세 조회 + 체류시간(dwell): 진입 시점이 아니라 "이탈 시점"에 한 번 발사해
   // 얼마나 오래 봤는지(properties.dwell_ms)를 함께 기록한다. 관심도 강신호.
@@ -248,10 +284,14 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <p className="text-xs text-slate-400">로그인하면 이 공고에 대해 챗봇에 질문할 수 있어요.</p>
       </section>
 
-      {/* 적합도: 비회원 잠금 / 회원 표 또는 미계산 안내 */}
-      {isMember && bid.match ? (
+      {/* 적합도: 비회원 잠금 / 회원 로딩 / 회원 표 또는 미계산 안내 */}
+      {isMember && matchLoading ? (
+        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
+          <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
+        </section>
+      ) : isMember && match ? (
         <Section title="우리 회사 적합도">
-          <MatchAxesTable verdict={bid.match.verdict} axes={bid.match.axes} />
+          <MatchAxesTable verdict={match.verdict} axes={match.axes} />
         </Section>
       ) : (
         <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
