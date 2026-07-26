@@ -51,16 +51,16 @@ function CenterCard({
 function RecommendationReason({ item }: { item: RecommendationListItem }) {
   const score = Math.max(0, Math.min(100, Math.round(item.recommendation.score * 100)));
   return (
-    <div className="rounded-b-xl border border-t-0 border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/70 px-4 py-3">
+    <div className="flex flex-col gap-1.5 px-1">
       <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700">
           <Sparkles className="size-3.5" aria-hidden="true" />
-          AI 추천 점수 {score}
+          AI 추천 {score}점
         </span>
         <VerdictBadge verdict={item.match.verdict} />
       </div>
-      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-600">
-        <span className="font-semibold text-slate-700">{item.recommendation.signal_source}</span>
+      <p className="truncate text-xs text-slate-400">
+        <span className="font-medium text-slate-500">{item.recommendation.signal_source}</span>
         {" · "}
         {item.recommendation.matched_text}
       </p>
@@ -110,7 +110,12 @@ export function AIRecoView() {
   if (!isMember) {
     return (
       <PageShell>
-        <h1 className="text-2xl font-bold text-gray-900">AI 맞춤 추천</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI 추천</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            회사 관심사와 유사한 공고를 참가 가능한 후보 안에서 찾아드려요.
+          </p>
+        </div>
         <CenterCard
           icon={<Lock className="size-[22px] text-indigo-600" strokeWidth={2} />}
           title="로그인하면 우리 회사 맞춤 공고를 추천해드려요"
@@ -138,7 +143,12 @@ export function AIRecoView() {
   if (companyMissing) {
     return (
       <PageShell>
-        <h1 className="text-2xl font-bold text-gray-900">AI 맞춤 추천</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI 추천</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            회사 관심사와 유사한 공고를 참가 가능한 후보 안에서 찾아드려요.
+          </p>
+        </div>
         <CenterCard
           icon={<Building2 className="size-[22px] text-indigo-600" strokeWidth={2} />}
           title="먼저 회사 정보를 입력해 주세요"
@@ -157,52 +167,44 @@ export function AIRecoView() {
 
   return (
     <PageShell>
-      <section className="overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-800 px-6 py-7 text-white shadow-sm sm:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-indigo-100 ring-1 ring-white/15">
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              AI PERSONALIZED
-            </span>
-            <h1 className="mt-3 text-2xl font-bold sm:text-3xl">우리 회사 AI 맞춤 추천</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
-              자격 판정을 통과한 공고 중 회사의 {querySource ?? "실적과 관심사"}와 가까운
-              공고를 제목 의미 유사도 순으로 골랐어요.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 text-right">
-            {!loading && (
-              <div>
-                <p className="text-2xl font-bold">{items.length}</p>
-                <p className="text-xs text-indigo-200">상위 추천</p>
-              </div>
-            )}
-            <div className="h-8 w-px bg-white/20" />
-            <SyncIndicator />
-          </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI 추천</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            자격 판정을 통과한 공고 중 회사 관심사와 가까운 공고를 먼저 보여드려요.
+          </p>
         </div>
-      </section>
+        <SyncIndicator />
+      </div>
+
+      {!loading && !error && candidateCount > 0 && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
+          <span className="inline-flex items-center gap-1.5 font-bold text-indigo-700">
+            <Sparkles className="size-4" aria-hidden="true" />
+            추천 기준
+          </span>
+          <span className="text-slate-600">{querySource ?? "회사 정보"}</span>
+          <span className="text-slate-400">
+            자격 후보 {candidateCount.toLocaleString()}건 분석
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[15px] font-bold text-gray-900">
-            {loading ? "추천 공고를 분석하고 있어요…" : `AI 추천 공고 ${items.length}건`}
-          </p>
-          {!loading && candidateCount > 0 && (
-            <p className="mt-1 text-xs text-slate-400">
-              자격 후보 {candidateCount.toLocaleString()}건 중 참가 불가·마감·스크랩 공고를
-              제외하고 분석했어요.
-            </p>
-          )}
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-lg font-bold text-gray-900">추천 공고</h2>
+          <span className="text-sm text-slate-400">
+            {loading ? "분석 중…" : `총 ${items.length}건`}
+          </span>
         </div>
         <button
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-50"
         >
           <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-          다시 분석
+          새로고침
         </button>
       </div>
 
@@ -218,24 +220,14 @@ export function AIRecoView() {
       {loading ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-64 animate-pulse rounded-xl border border-slate-200 bg-white" />
+            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
           ))}
         </div>
       ) : items.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {items.map((item, index) => (
-            <div key={item.bid.bid_id} className="flex flex-col">
-              <div className="relative">
-                <span className="absolute -left-2 -top-2 z-10 flex size-7 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white shadow">
-                  {index + 1}
-                </span>
-                <BidCard
-                  bid={item.bid}
-                  position={index + 1}
-                  list="ai_reco"
-                  className="rounded-b-none border-indigo-100"
-                />
-              </div>
+            <div key={item.bid.bid_id} className="flex flex-col gap-1.5">
+              <BidCard bid={item.bid} position={index + 1} list="ai_reco" />
               <RecommendationReason item={item} />
             </div>
           ))}
@@ -252,8 +244,9 @@ export function AIRecoView() {
         />
       ) : null}
 
-      <p className="text-center text-xs leading-5 text-slate-400">
-        AI 추천 점수는 베타 지표이며, 실제 입찰 참여 전 자격 판정과 공고 원문을 확인해 주세요.
+      <p className="text-xs leading-5 text-slate-400">
+        AI 추천 점수는 공고 제목과 회사 관심 정보의 유사도를 나타내는 베타 지표예요.
+        실제 참여 전에는 자격 판정과 공고 원문을 확인해 주세요.
       </p>
     </PageShell>
   );
