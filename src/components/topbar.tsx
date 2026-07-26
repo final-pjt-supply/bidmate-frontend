@@ -105,7 +105,8 @@ export function Topbar() {
         {/* 내비게이션 */}
         <nav className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
           {NAV_ITEMS.map(({ label, href }) => {
-            const active = href !== "#" && pathname === href;
+            const active =
+              href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
             return (
               <Link
                 key={label}

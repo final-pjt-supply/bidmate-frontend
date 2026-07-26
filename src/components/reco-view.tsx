@@ -2,23 +2,37 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Lock, RefreshCw, Sparkles } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { hasCompanyProfile } from "@/lib/company";
-import {
-  fetchRecommendations,
-  type RecommendationListItem,
-} from "@/lib/api/recommendations";
+import { fetchMatches, type MatchListItem, type MatchSort } from "@/lib/api/matches";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
-import { VerdictBadge } from "@/components/verdict-badge";
+import { VerdictBadge, verdictHint } from "@/components/verdict-badge";
+import { RecommendationTabs } from "@/components/recommendation-tabs";
 
-const RECOMMENDATION_LIMIT = 12;
+const PAGE_SIZE = 20;
+
+const SORTS: { key: MatchSort; label: string }[] = [
+  { key: "deadline", label: "마감 임박순" },
+  { key: "recent", label: "최신순" },
+];
+
+/** 페이지네이션에 노출할 페이지 번호(많으면 말줄임) */
+function buildPages(total: number, current: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total];
+  if (current >= total - 3)
+    return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
+}
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex-1">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+        <RecommendationTabs active="match" />
+        <h1 className="text-2xl font-bold text-gray-900">맞춤 추천</h1>
         {children}
       </div>
     </main>
@@ -42,42 +56,30 @@ function CenterCard({
         {icon}
       </span>
       <p className="text-lg font-bold text-gray-900">{title}</p>
-      <p className="max-w-md text-sm leading-6 text-gray-500">{body}</p>
+      <p className="max-w-md text-sm text-gray-500">{body}</p>
       {children}
     </div>
   );
 }
 
-function RecommendationReason({ item }: { item: RecommendationListItem }) {
-  const score = Math.max(0, Math.min(100, Math.round(item.recommendation.score * 100)));
-  return (
-    <div className="rounded-b-xl border border-t-0 border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/70 px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700">
-          <Sparkles className="size-3.5" aria-hidden="true" />
-          AI 추천 점수 {score}
-        </span>
-        <VerdictBadge verdict={item.match.verdict} />
-      </div>
-      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-600">
-        <span className="font-semibold text-slate-700">{item.recommendation.signal_source}</span>
-        {" · "}
-        {item.recommendation.matched_text}
-      </p>
-    </div>
-  );
-}
-
-/** 자격 가능한 공고만 대상으로 회사 관심 텍스트와 제목 벡터 유사도를 계산한 목록. */
+/**
+ * 맞춤 추천 — 자격 판정(match_results)이 붙은 공고 목록.
+ *
+ * 백엔드가 '불가'를 기본 제외한다(판정의 65%). 여기서 다시 거르지 않는다 —
+ * 프론트에서 걸러내면 페이지당 남는 개수가 들쭉날쭉해져 페이지네이션이 깨진다.
+ */
 export function RecoView() {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
-  const [items, setItems] = useState<RecommendationListItem[]>([]);
-  const [candidateCount, setCandidateCount] = useState(0);
-  const [querySource, setQuerySource] = useState<string | null>(null);
+
+  const [items, setItems] = useState<MatchListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<MatchSort>("deadline");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // 회원의 회사 정보 입력 여부 (SSR·비회원 시 isMember=false로 localStorage 미접근)
   const companyMissing = useMemo(
     () => isMember && !!user && !hasCompanyProfile(user.email),
     [isMember, user]
@@ -87,22 +89,23 @@ export function RecoView() {
     setLoading(true);
     setError("");
     try {
-      const data = await fetchRecommendations(RECOMMENDATION_LIMIT);
+      const data = await fetchMatches({ sort, page });
       setItems(data.items);
-      setCandidateCount(data.candidate_count);
-      setQuerySource(data.query_source);
+      setTotal(data.total);
     } catch (err) {
-      console.error("AI 추천 목록 로드 실패:", err);
-      setError(err instanceof Error ? err.message : "추천 공고를 불러오지 못했어요.");
+      console.error("매칭 목록 로드 실패:", err);
+      setError("추천 공고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
       setItems([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sort, page]);
 
+  // 매칭 목록은 토큰이 있어야 부를 수 있고 토큰은 브라우저에만 있다 — 서버에서 미리
+  // 못 받으므로 마운트 후 여기서 로드한다(mypage와 같은 규칙 예외).
   useEffect(() => {
     if (!isMember || companyMissing) return;
-    // 인증 상태가 준비된 뒤 최초 1회 서버 추천 목록과 동기화한다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [isMember, companyMissing, load]);
@@ -110,11 +113,10 @@ export function RecoView() {
   if (!isMember) {
     return (
       <PageShell>
-        <h1 className="text-2xl font-bold text-gray-900">AI 맞춤 추천</h1>
         <CenterCard
           icon={<Lock className="size-[22px] text-indigo-600" strokeWidth={2} />}
           title="로그인하면 우리 회사 맞춤 공고를 추천해드려요"
-          body="회사 실적과 관심 공고를 바탕으로, 참가 가능한 공고 중 가장 관련 있는 공고를 먼저 보여드려요."
+          body="회사 정보를 등록하면 우리 회사 조건에 맞는 공고를 모아서 볼 수 있어요."
         >
           <div className="mt-1 flex gap-2">
             <Link
@@ -138,11 +140,10 @@ export function RecoView() {
   if (companyMissing) {
     return (
       <PageShell>
-        <h1 className="text-2xl font-bold text-gray-900">AI 맞춤 추천</h1>
         <CenterCard
           icon={<Building2 className="size-[22px] text-indigo-600" strokeWidth={2} />}
           title="먼저 회사 정보를 입력해 주세요"
-          body="실적, 취급 품목, 보유 면허를 입력하면 참가 가능한 공고를 회사 관심도 순으로 추천해드려요."
+          body="등록하신 회사 정보로 공고 적합도를 계산해 맞춤 공고를 추천해드려요. 회사 정보를 입력하면 매칭 결과를 볼 수 있어요."
         >
           <Link
             href="/mypage?edit=1"
@@ -155,106 +156,130 @@ export function RecoView() {
     );
   }
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   return (
     <PageShell>
-      <section className="overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-800 px-6 py-7 text-white shadow-sm sm:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-indigo-100 ring-1 ring-white/15">
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              AI PERSONALIZED
-            </span>
-            <h1 className="mt-3 text-2xl font-bold sm:text-3xl">우리 회사 AI 맞춤 추천</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
-              자격 판정을 통과한 공고 중 회사의 {querySource ?? "실적과 관심사"}와 가까운
-              공고를 제목 의미 유사도 순으로 골랐어요.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 text-right">
-            {!loading && (
-              <div>
-                <p className="text-2xl font-bold">{items.length}</p>
-                <p className="text-xs text-indigo-200">상위 추천</p>
-              </div>
-            )}
-            <div className="h-8 w-px bg-white/20" />
-            <SyncIndicator />
-          </div>
-        </div>
-      </section>
-
+      {/* 헤더: 건수 + 정렬 + 동기화 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[15px] font-bold text-gray-900">
-            {loading ? "추천 공고를 분석하고 있어요…" : `AI 추천 공고 ${items.length}건`}
-          </p>
-          {!loading && candidateCount > 0 && (
-            <p className="mt-1 text-xs text-slate-400">
-              자격 후보 {candidateCount.toLocaleString()}건 중 참가 불가·마감·스크랩 공고를
-              제외하고 분석했어요.
-            </p>
-          )}
+        <p className="text-[15px] font-bold text-gray-900">
+          {loading ? "추천 공고 불러오는 중…" : `추천 공고 ${total.toLocaleString()}건`}
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1">
+            {SORTS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => {
+                  setSort(s.key);
+                  setPage(1);
+                }}
+                className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
+                  sort === s.key
+                    ? "font-bold text-indigo-700"
+                    : "font-medium text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <SyncIndicator />
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-          다시 분석
-        </button>
       </div>
 
+      {/* 참가 불가 공고는 서버에서 빠진다는 안내 — 건수가 적어 보이는 이유를 알려준다 */}
+      {!loading && !error && (
+        <p className="-mt-2 text-xs text-slate-400">
+          자격이 맞지 않아 참가할 수 없는 공고는 제외했어요.
+        </p>
+      )}
+
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          <p>{error}</p>
-          <button type="button" onClick={() => void load()} className="mt-2 font-bold underline">
-            다시 시도
-          </button>
-        </div>
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </p>
       )}
 
       {loading ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-64 animate-pulse rounded-xl border border-slate-200 bg-white" />
+            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
           ))}
         </div>
       ) : items.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item, index) => (
-            <div key={item.bid.bid_id} className="flex flex-col">
-              <div className="relative">
-                <span className="absolute -left-2 -top-2 z-10 flex size-7 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white shadow">
-                  {index + 1}
-                </span>
-                <BidCard
-                  bid={item.bid}
-                  position={index + 1}
-                  list="ai_reco"
-                  className="rounded-b-none border-indigo-100"
-                />
+          {items.map((it, i) => (
+            <div key={it.bid.bid_id} className="flex flex-col gap-1.5">
+              <BidCard bid={it.bid} position={(page - 1) * PAGE_SIZE + i + 1} list="reco" />
+              <div className="flex items-center gap-2 px-1">
+                <VerdictBadge verdict={it.match.verdict} />
+                <span className="text-xs text-slate-400">{verdictHint(it.match)}</span>
               </div>
-              <RecommendationReason item={item} />
             </div>
           ))}
         </div>
-      ) : !error ? (
-        <CenterCard
-          icon={<Sparkles className="size-[22px] text-indigo-600" strokeWidth={2} />}
-          title="분석할 수 있는 추천 공고가 아직 없어요"
-          body={
-            candidateCount === 0
-              ? "현재 참가 가능한 미마감 공고가 없습니다."
-              : "회사 관심 정보는 준비됐지만 아직 제목 벡터가 적재되지 않았습니다. 데이터가 추가되면 자동으로 추천됩니다."
-          }
-        />
-      ) : null}
+      ) : (
+        <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-20 text-center">
+          <p className="text-[15px] font-bold text-gray-900">참가 가능한 공고가 아직 없어요</p>
+          <p className="text-sm text-slate-500">
+            회사 정보를 더 채우면 더 많은 공고와 매칭될 수 있어요.
+          </p>
+          <Link
+            href="/mypage?edit=1"
+            className="mt-2 rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+          >
+            회사 정보 보완하기
+          </Link>
+        </div>
+      )}
 
-      <p className="text-center text-xs leading-5 text-slate-400">
-        AI 추천 점수는 베타 지표이며, 실제 입찰 참여 전 자격 판정과 공고 원문을 확인해 주세요.
-      </p>
+      {totalPages > 1 && !loading && (
+        <div className="flex items-center justify-center gap-1.5 pt-3">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+            aria-label="이전 페이지"
+          >
+            <ChevronLeft className="size-4" strokeWidth={2} />
+          </button>
+
+          {buildPages(totalPages, page).map((p, i) =>
+            p === "ellipsis" ? (
+              <span key={`e${i}`} className="px-1 text-xs text-slate-400">
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPage(p)}
+                aria-current={p === page ? "page" : undefined}
+                className={`flex size-9 items-center justify-center rounded-lg text-sm transition-colors ${
+                  p === page
+                    ? "font-bold text-indigo-700"
+                    : "font-medium text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40"
+            aria-label="다음 페이지"
+          >
+            <ChevronRight className="size-4" strokeWidth={2} />
+          </button>
+        </div>
+      )}
     </PageShell>
   );
 }
