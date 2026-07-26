@@ -8,6 +8,7 @@ import {
   type CertRow,
   type CompanyProfile,
   type CompanySize,
+  type ItemRow,
   type PerformanceRow,
   type RegionRef,
   CREDIT_RATINGS,
@@ -31,6 +32,7 @@ import { RegionSelect } from "@/components/region-select";
 import { LicenseOneSelect, LicenseSelect } from "@/components/license-select";
 import { DateField, isValidDate } from "@/components/date-field";
 import { CertSelect } from "@/components/cert-select";
+import { ItemSelect } from "@/components/item-select";
 import { PersonnelSelect } from "@/components/personnel-select";
 import { SelectMenu } from "@/components/select-menu";
 import type { MasterRef } from "@/lib/data/masters";
@@ -117,7 +119,7 @@ export default function MyPage() {
     e.preventDefault();
     if (!user || saving) return;
     // 검증 실패 상태면 저장하지 않는다(엔터 제출 등 우회 경로 포함)
-    if (bizNoError || perfError || certError || capError) return;
+    if (bizNoError || perfError || certError || itemError || capError) return;
     const wasFilled = hasCompanyProfile(user.email); // 저장 전 상태로 최초/수정 판별
     // 미선택 상태로 남은 지사 행은 버린다
     const cleaned: CompanyProfile = {
@@ -128,6 +130,7 @@ export default function MyPage() {
       // 아무것도 안 넣은 빈 행만 버린다(쓰다 만 행은 위에서 저장을 막았다).
       performances: draft.performances.filter((p) => !perfBlank(p)),
       certRefs: draft.certRefs.filter((c) => !certBlank(c)),
+      items: draft.items.filter((i) => !itemBlank(i)),
       // 공사업 면허를 지워 섹션이 닫혔으면 남은 입력을 버린다(숨은 값이 저장되면
       // 나중에 면허를 다시 넣었을 때 유령 데이터가 살아난다).
       capacityEvals: showCapacity ? draft.capacityEvals.filter((c) => !capBlank(c)) : [],
@@ -206,10 +209,41 @@ export default function MyPage() {
     c.code !== "" && (c.indefinite || isValidDate(c.validUntil));
   const certError = draft.certRefs.some((c) => !certBlank(c) && !certComplete(c));
 
+  // 취급 품목 — 품목 + 직접생산 여부(+ 직생 유효기간).
+  // 직생확인증명서는 갱신 개념이 있는 유한 기한 제도라 인증의 "무기한" 같은 예외가 없다.
+  // 직생을 체크했으면 기한을 반드시 받는다(만료된 직생은 매칭에서 빠진다).
+  const addItem = () =>
+    setDraft((d) => ({
+      ...d,
+      items: [
+        ...d.items,
+        { code: "", name: "", hasDirectProduction: false, directProdValidUntil: "" },
+      ],
+    }));
+  const setItem = (i: number, patch: Partial<ItemRow>) =>
+    setDraft((d) => ({
+      ...d,
+      items: d.items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)),
+    }));
+  const removeItem = (i: number) =>
+    setDraft((d) => ({ ...d, items: d.items.filter((_, idx) => idx !== i) }));
+
+  const itemBlank = (i: ItemRow) =>
+    i.code === "" && !i.hasDirectProduction && !i.directProdValidUntil;
+  /** 품목을 골랐으면 완성 — 단 직생을 체크했으면 기한도 있어야 한다 */
+  const itemComplete = (i: ItemRow) =>
+    i.code !== "" && (!i.hasDirectProduction || isValidDate(i.directProdValidUntil));
+  const itemError = draft.items.some((i) => !itemBlank(i) && !itemComplete(i));
+
   // 오늘(KST 기준 로컬) — 인증 만료 판정에 쓴다
   const todayISO = new Date().toLocaleDateString("en-CA");
   const certExpired = (c: CertRow) =>
     !c.indefinite && isValidDate(c.validUntil) && c.validUntil < todayISO;
+  /** 만료된 직생은 매칭에서 빠진다 — 사실이므로 저장은 허용하되 신호만 준다 */
+  const itemProdExpired = (i: ItemRow) =>
+    i.hasDirectProduction &&
+    isValidDate(i.directProdValidUntil) &&
+    i.directProdValidUntil < todayISO;
 
   // 실적 대장 — 건별(계약명·분야·금액·완료일). DB는 계약명/금액/완료일이 NOT NULL이라
   // 일부만 채운 행은 저장을 막는다(지사·인력처럼 조용히 버리면 입력 손실로 느껴진다).
@@ -457,6 +491,89 @@ export default function MyPage() {
                   이전 입력값: {draft.certs} — 위에서 다시 선택해 주세요.
                 </p>
               )}
+            </div>
+          </Field>
+          {/* 취급 품목 — 품목마다 직생 보유/기한이 붙어야 해서 칩으로는 담을 수 없다.
+              다른 축과 달리 후보를 서버 API로 검색한다(마스터 35,171행이라 스냅샷 불가).
+              서버가 10자리(세부품명)만 내려준다 — 8자리 물품분류로 등록하면 공고와
+              코드 층위가 어긋나 매칭에 안 걸린다. */}
+          <Field label="취급 품목">
+            <div className="flex flex-col gap-2">
+              {draft.items.map((it, i) => {
+                const show = !itemBlank(it) && !itemComplete(it);
+                const expired = itemProdExpired(it);
+                return (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2"
+                  >
+                    <ItemSelect
+                      value={it.code ? { code: it.code, name: it.name } : null}
+                      onChange={(v) => setItem(i, { code: v?.code ?? "", name: v?.name ?? "" })}
+                      ariaLabel={`품목 ${i + 1}`}
+                    />
+                    <div>
+                      {it.hasDirectProduction ? (
+                        <DateField
+                          value={it.directProdValidUntil}
+                          onChange={(v) => setItem(i, { directProdValidUntil: v })}
+                          ariaLabel={`품목 ${i + 1} 직접생산 유효기간`}
+                          invalid={show && !isValidDate(it.directProdValidUntil)}
+                        />
+                      ) : (
+                        <div className="flex h-[46px] items-center rounded-lg border border-gray-200 bg-slate-50 px-3.5 text-sm text-slate-400">
+                          직접생산 미보유
+                        </div>
+                      )}
+                      <label className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={it.hasDirectProduction}
+                          onChange={(e) =>
+                            setItem(i, {
+                              hasDirectProduction: e.target.checked,
+                              // 직생을 해제하면 기한은 의미가 없다 — 유령 값이 남지 않게 비운다
+                              directProdValidUntil: e.target.checked
+                                ? it.directProdValidUntil
+                                : "",
+                            })
+                          }
+                          className="size-3.5 accent-indigo-700"
+                        />
+                        직접생산확인증명서 보유
+                        {expired && (
+                          <span className="ml-1 rounded bg-rose-50 px-1.5 py-0.5 font-bold text-rose-500">
+                            만료됨
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(i)}
+                      aria-label={`품목 ${i + 1} 삭제`}
+                      className="h-[46px] rounded-md border border-slate-200 px-3 text-sm text-slate-500 transition-colors hover:bg-slate-50"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                );
+              })}
+              <button
+                type="button"
+                onClick={addItem}
+                className="self-start rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                + 품목 추가
+              </button>
+              {itemError && (
+                <p className="text-xs text-rose-500">
+                  품목을 선택하고, 직접생산을 체크했다면 유효기간도 입력해 주세요. 기한을 모르면 만료 여부를 판정할 수 없어요.
+                </p>
+              )}
+              <p className="text-xs text-slate-400">
+                물품 공고는 세부품명 단위로 자격을 요구해요. 만드는 품목을 하나씩 골라 주세요.
+              </p>
             </div>
           </Field>
           {/* 실적 — 건별 대장. 공고가 "최근 5년 / 특정 분야 / 누계 N억"으로 요구해
@@ -751,6 +868,32 @@ export default function MyPage() {
               <span className="text-[15px] font-bold text-slate-300">
                 {profile.certs.trim() ? `${profile.certs} (코드 미매핑)` : "미등록"}
               </span>
+            )}
+          </div>
+
+          {/* 품목도 건별 직생/기한이 붙어 한 줄로 못 줄인다 */}
+          <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
+            <span className="text-xs font-medium text-gray-400">취급 품목</span>
+            {profile.items.length > 0 ? (
+              <ul className="flex flex-col gap-1">
+                {profile.items.map((it, i) => (
+                  <li key={i} className="text-[15px] font-bold text-gray-900">
+                    {it.name}
+                    <span className="ml-2 text-sm font-medium text-slate-500">
+                      {it.hasDirectProduction
+                        ? `직접생산 · ${it.directProdValidUntil}까지`
+                        : "직접생산 미보유"}
+                    </span>
+                    {itemProdExpired(it) && (
+                      <span className="ml-1.5 rounded bg-rose-50 px-1.5 py-0.5 text-xs font-bold text-rose-500">
+                        만료됨
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-[15px] font-bold text-slate-300">미등록</span>
             )}
           </div>
 
