@@ -35,7 +35,8 @@ export interface Qualification {
 export type MatchAxis = {
   axis: string;
   class: "gate" | "supp" | "info";
-  status: "충족" | "미충족" | "확인필요";
+  // "해당없음"은 서버가 안 보낸다 — 요구 자체가 없는 축을 프론트가 채워 넣을 때만 쓴다.
+  status: "충족" | "미충족" | "확인필요" | "해당없음";
   detail: string;
 };
 

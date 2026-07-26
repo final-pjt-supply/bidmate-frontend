@@ -17,3 +17,14 @@ export const AXIS_LABEL: Record<string, string> = {
 export function axisLabel(axis: string): string {
   return AXIS_LABEL[axis] ?? axis;
 }
+
+/** 판정에 반영되는 축의 고정 순서 — compute_matches.py가 axes를 쌓는 순서와 같다.
+ *  화면은 항상 이 9개를 전부 보여준다: 요구 자체가 없는 축은 "해당없음"으로 표시해
+ *  "왜 항목이 하나뿐이지"를 명확히 한다(축이 적은 게 아니라 안 뜬 것뿐이었다는 오해 방지). */
+export const SCORED_AXIS_ORDER = [
+  "license", "region", "size", "direct_prod",
+  "item", "personnel", "performance", "capacity", "credit",
+] as const;
+
+/** 참고용(판정 미반영) 축. class='info'로만 오는 게 아니라, 화면에 항상 노출한다. */
+export const INFO_AXIS_ORDER = ["cert"] as const;
