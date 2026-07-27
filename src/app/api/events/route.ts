@@ -11,35 +11,50 @@ export async function POST(req: Request) {
   try {
     const raw = await req.text();
     const parsed = raw ? JSON.parse(raw) : null;
+    const authorization = req.headers.get("Authorization");
     // 단건 또는 배치({events:[]}) 모두 허용
     const events = Array.isArray(parsed) ? parsed : parsed?.events ?? [parsed];
 
-    // fire-and-forget: 실패해도 사용자 동작을 막지 않는다. 각 이벤트를 백엔드로 단건 전송.
-    await Promise.all(
+    // 각 이벤트를 백엔드로 단건 전송하고, 로그인 토큰은 본문이 아닌 헤더로 전달한다.
+    const results = await Promise.all(
       events.filter(Boolean).map(async (e: unknown) => {
+        const name = (e as { event_name?: string })?.event_name ?? "?";
         try {
+          const headers: Record<string, string> = { "Content-Type": "application/json" };
+          if (authorization) headers.Authorization = authorization;
+
           const res = await fetch(`${API_BASE}/events`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify(e),
           });
-          if (isDev) {
-            const name = (e as { event_name?: string })?.event_name ?? "?";
-            if (res.ok) {
-              console.log(`[event→backend] ${name} ${res.status}`);
-            } else {
-              // 스키마 불일치(422) 등은 개발 중에만 본문까지 찍어 디버깅
-              const detail = await res.text().catch(() => "");
-              console.warn(`[event→backend] ${name} ${res.status} ${detail.slice(0, 300)}`);
-            }
+
+          if (res.ok) {
+            if (isDev) console.log(`[event→backend] ${name} ${res.status}`);
+            return { ok: true, status: res.status };
           }
+
+          // 운영에서는 토큰·이벤트 본문을 남기지 않고 상태와 이벤트명만 기록한다.
+          console.warn(`[event→backend] ${name} rejected with ${res.status}`);
+          if (isDev) {
+            const detail = await res.text().catch(() => "");
+            console.warn(`[event→backend] response: ${detail.slice(0, 300)}`);
+          }
+          return { ok: false, status: res.status };
         } catch (err) {
-          if (isDev) console.warn("[event→backend] forward failed:", err);
+          console.warn(`[event→backend] ${name} forward failed`);
+          if (isDev) console.warn(err);
+          return { ok: false, status: 502 };
         }
       })
     );
+
+    const failure = results.find((result) => !result.ok);
+    if (failure) {
+      return new NextResponse(null, { status: failure.status });
+    }
   } catch {
-    // 파싱 실패 등은 무시 — 로깅이 앱 동작을 막지 않게
+    return new NextResponse(null, { status: 400 });
   }
 
   return new NextResponse(null, { status: 204 });
