@@ -8,6 +8,8 @@
 - `TARGET=health`: 캐시되지 않는 `/health`를 호출해 Nginx와 Next.js의 동적 HTTP 처리량을 측정한다.
 - `TARGET=page`: `/guide` HTML을 반복 요청하고, `/_next/static/` 자산은 각 VU의 최초 방문에 한 번만 요청한다.
   실제 브라우저가 정적 자산을 캐시하는 흐름을 모사한다.
+- `TARGET=html`: `/guide` HTML만 반복 요청해 Nginx와 Next.js의 HTML 응답을 분리 측정한다.
+- `TARGET=assets`: 시작 시 `/guide`에서 자산 URL을 한 번 찾고 정적 자산 묶음만 반복 요청한다.
 
 두 테스트는 결과 해석이 다르므로 한 번에 하나씩 실행한다. 일반 k6 HTTP 테스트는 JavaScript 실행, 화면 렌더링,
 Cognito 로그인, Sentry 및 사용자 이벤트 전송을 수행하지 않는다.
@@ -26,7 +28,7 @@ k6 version
 ## 안전장치
 
 - 기본 프로필은 `smoke`이며 1 VU로 30초만 실행한다.
-- `capacity`는 `ALLOW_LOAD_TEST=true`를 명시하지 않으면 시작되지 않는다.
+- `diagnostic`과 `capacity`는 `ALLOW_LOAD_TEST=true`를 명시하지 않으면 시작되지 않는다.
 - 요청에는 `User-Agent: bidmate-k6-frontend-load-test/1.0`과 `X-Load-Test` 헤더를 붙인다.
 - 실패율 5% 초과, p95 2초 초과 또는 체크 성공률 95% 미만이면 테스트를 자동 중단한다.
 - 실제 데이터 변경 요청은 보내지 않는다.
@@ -58,6 +60,38 @@ k6 run --summary-export .\load-tests\results\health-capacity.json .\load-tests\f
 
 `TARGET=page`도 별도 실행한다. Capacity 프로필은 10 → 30 → 50 → 100 VU 순으로 증가하며 각 구간을
 2분 유지한다. VU는 동시 사용자 모델이며 RPS와 동일한 값이 아니다.
+
+## 지연 원인 분리
+
+Page Capacity Test가 30 VU 상승 구간에서 타임아웃된 원인을 분리할 때는 짧은 `diagnostic` 프로필을 쓴다.
+이 프로필은 10 → 30 VU까지만 실행하며 각 단계를 1분 유지한다.
+
+```powershell
+$env:BASE_URL="http://13.125.187.40"
+$env:PROFILE="diagnostic"
+$env:ALLOW_LOAD_TEST="true"
+
+$env:TARGET="html"
+k6 run .\load-tests\frontend.js
+
+$env:TARGET="assets"
+k6 run .\load-tests\frontend.js
+```
+
+테스트 중 부하 발생 PC도 함께 확인한다.
+
+```powershell
+Get-Counter '\Processor(_Total)\% Processor Time',
+  '\Network Interface(*)\Bytes Total/sec' -SampleInterval 5 -Continuous
+```
+
+서버 처리시간을 구분하려면 실제 적용 전에 Nginx 접근 로그에 다음 항목을 추가하는 변경을 별도로 검토한다.
+
+- `$request_time`: Nginx가 요청을 받은 뒤 응답을 끝낼 때까지 걸린 전체 시간
+- `$upstream_response_time`: Next.js가 Nginx에 응답하는 데 걸린 시간
+- `$upstream_status`: Next.js가 반환한 상태 코드
+
+이 로그 변경은 테스트 스크립트 PR에 포함하지 않으며 별도 승인 후 운영 설정에 적용한다.
 
 ## 동시에 확인할 지표
 

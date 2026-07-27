@@ -9,6 +9,13 @@ const USER_AGENT = "bidmate-k6-frontend-load-test/1.0";
 
 const profiles = {
   smoke: [{ duration: "30s", target: 1 }],
+  diagnostic: [
+    { duration: "30s", target: 10 },
+    { duration: "1m", target: 10 },
+    { duration: "30s", target: 30 },
+    { duration: "1m", target: 30 },
+    { duration: "15s", target: 0 },
+  ],
   capacity: [
     { duration: "30s", target: 10 },
     { duration: "2m", target: 10 },
@@ -26,12 +33,12 @@ if (!profiles[PROFILE]) {
   throw new Error(`Unknown PROFILE=${PROFILE}. Use smoke or capacity.`);
 }
 
-if (!["health", "page"].includes(TARGET)) {
-  throw new Error(`Unknown TARGET=${TARGET}. Use health or page.`);
+if (!["health", "page", "html", "assets"].includes(TARGET)) {
+  throw new Error(`Unknown TARGET=${TARGET}. Use health, page, html, or assets.`);
 }
 
-if (PROFILE === "capacity" && __ENV.ALLOW_LOAD_TEST !== "true") {
-  throw new Error("Capacity test is locked. Set ALLOW_LOAD_TEST=true after the execution plan is approved.");
+if (PROFILE !== "smoke" && __ENV.ALLOW_LOAD_TEST !== "true") {
+  throw new Error("Load test is locked. Set ALLOW_LOAD_TEST=true after the execution plan is approved.");
 }
 
 export const options = {
@@ -75,47 +82,22 @@ function staticAssetUrls(html) {
   return [...paths].map(absoluteUrl);
 }
 
-function testHealth() {
-  const response = http.get(`${BASE_URL}/health`, {
+function getGuidePage(tag = "guide-html") {
+  return http.get(`${BASE_URL}/guide`, {
     ...requestParams,
-    tags: { target: "health" },
-  });
-
-  check(response, {
-    "health returns 200": (res) => res.status === 200,
-    "health identifies frontend": (res) => res.body.includes("bidmate-frontend"),
+    responseType: "text",
+    tags: { target: tag },
   });
 }
 
-function testPage() {
-  const page = http.get(`${BASE_URL}/guide`, {
-    ...requestParams,
-    responseType: "text",
-    tags: { target: "guide-html" },
-  });
-
-  const pageOk = check(page, {
+function checkGuidePage(page) {
+  return check(page, {
     "guide returns 200": (res) => res.status === 200,
     "guide returns HTML": (res) => res.headers["Content-Type"]?.includes("text/html") ?? false,
   });
+}
 
-  if (!pageOk) {
-    return;
-  }
-
-  if (staticAssetsLoaded) {
-    return;
-  }
-
-  const assets = staticAssetUrls(page.body);
-  check(assets, {
-    "guide exposes static assets": (urls) => urls.length > 0,
-  });
-
-  if (assets.length === 0) {
-    return;
-  }
-
+function requestAssets(assets) {
   const responses = http.batch(
     assets.map((url) => [
       "GET",
@@ -132,16 +114,82 @@ function testPage() {
     assetFailures.add(response.status !== 200);
   }
 
+  return responses;
+}
+
+export function setup() {
+  if (TARGET !== "assets") {
+    return {};
+  }
+
+  const page = getGuidePage("asset-discovery");
+  if (!checkGuidePage(page)) {
+    throw new Error("Cannot discover assets because /guide is unhealthy.");
+  }
+
+  const assets = staticAssetUrls(page.body);
+  if (assets.length === 0) {
+    throw new Error("No /_next/static assets were discovered from /guide.");
+  }
+
+  return { assets };
+}
+
+function testHealth() {
+  const response = http.get(`${BASE_URL}/health`, {
+    ...requestParams,
+    tags: { target: "health" },
+  });
+
+  check(response, {
+    "health returns 200": (res) => res.status === 200,
+    "health identifies frontend": (res) => res.body.includes("bidmate-frontend"),
+  });
+}
+
+function testHtml() {
+  const page = getGuidePage();
+  checkGuidePage(page);
+}
+
+function testPage() {
+  const page = getGuidePage();
+  if (!checkGuidePage(page)) {
+    return;
+  }
+
+  if (staticAssetsLoaded) {
+    return;
+  }
+
+  const assets = staticAssetUrls(page.body);
+  check(assets, {
+    "guide exposes static assets": (urls) => urls.length > 0,
+  });
+
+  if (assets.length === 0) {
+    return;
+  }
+
+  const responses = requestAssets(assets);
   staticAssetsLoaded = responses.every((response) => response.status === 200);
 }
 
-export default function frontendLoadTest() {
+function testAssets(assets) {
+  requestAssets(assets);
+}
+
+export default function frontendLoadTest(data) {
   const startedAt = Date.now();
 
   if (TARGET === "health") {
     testHealth();
-  } else {
+  } else if (TARGET === "page") {
     testPage();
+  } else if (TARGET === "html") {
+    testHtml();
+  } else {
+    testAssets(data.assets);
   }
 
   iterationDuration.add(Date.now() - startedAt);
