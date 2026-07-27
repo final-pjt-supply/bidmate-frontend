@@ -92,7 +92,7 @@ jobs:
               "docker rm -f ${CONTAINER_NAME} || true",
               "docker run -d --name ${CONTAINER_NAME} -p 80:3000 -e API_BASE_URL=${API_BASE_URL} --restart unless-stopped ${IMAGE}",
               "sleep 5",
-              "curl -fsS -o /dev/null http://localhost/",
+              "curl -fsS http://localhost/health",
               "docker image prune -f"
             ]
           }
