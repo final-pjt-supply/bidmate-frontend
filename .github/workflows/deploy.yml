@@ -12,7 +12,6 @@ env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: bidmate-frontend
   EC2_INSTANCE_ID: i-054a12633e0093178
-  CONTAINER_NAME: bidmate-web
   # 백엔드 주소(사설 IP). 컨테이너 실행 시 런타임 주입 → 바뀌면 여기만 수정.
   API_BASE_URL: http://10.0.140.134:8000
   # Cognito 식별자 — 브라우저에 노출되는 공개 값이라 비밀이 아니다(Secrets 불필요).
@@ -40,6 +39,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Validate deployment scripts
+        run: bash -n deploy/blue-green-deploy.sh
+
       - name: Build
         run: npm run build
 
@@ -48,6 +50,9 @@ jobs:
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: frontend-production
+      cancel-in-progress: false
     # OIDC로 AWS 임시 자격증명을 받기 위해 필수. 없으면 인증 실패.
     permissions:
       id-token: write
@@ -80,23 +85,32 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Deploy to EC2 via SSM
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
           set -e
-          # SSM으로 EC2에서 실행할 명령. set -e 라서 한 줄이라도 실패하면 전체 실패.
-          cat > /tmp/params.json <<EOF
-          {
-            "commands": [
-              "set -e",
-              "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${{ steps.ecr.outputs.registry }}",
-              "docker pull ${IMAGE}",
-              "docker rm -f ${CONTAINER_NAME} || true",
-              "docker run -d --name ${CONTAINER_NAME} -p 80:3000 -e API_BASE_URL=${API_BASE_URL} --restart unless-stopped ${IMAGE}",
-              "sleep 5",
-              "curl -fsS http://localhost/health",
-              "docker image prune -f"
-            ]
-          }
-          EOF
+          DEPLOY_SCRIPT_B64=$(base64 -w 0 deploy/blue-green-deploy.sh)
+          NGINX_CONFIG_B64=$(base64 -w 0 deploy/nginx.conf)
+
+          jq -n \
+            --arg deploy_script "$DEPLOY_SCRIPT_B64" \
+            --arg nginx_config "$NGINX_CONFIG_B64" \
+            --arg registry "$REGISTRY" \
+            --arg region "$AWS_REGION" \
+            --arg image "$IMAGE" \
+            --arg api_base_url "$API_BASE_URL" \
+            '{
+              commands: [
+                "set -e",
+                "install -d -m 0755 /opt/bidmate-frontend",
+                ("printf %s " + ($deploy_script | @sh) + " | base64 -d > /opt/bidmate-frontend/deploy.sh"),
+                ("printf %s " + ($nginx_config | @sh) + " | base64 -d > /opt/bidmate-frontend/nginx.conf"),
+                "chmod 0755 /opt/bidmate-frontend/deploy.sh",
+                ("aws ecr get-login-password --region " + ($region | @sh) + " | docker login --username AWS --password-stdin " + ($registry | @sh)),
+                ("docker pull " + ($image | @sh)),
+                ("IMAGE=" + ($image | @sh) + " API_BASE_URL=" + ($api_base_url | @sh) + " /opt/bidmate-frontend/deploy.sh")
+              ]
+            }' > /tmp/params.json
 
           CMD_ID=$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \
