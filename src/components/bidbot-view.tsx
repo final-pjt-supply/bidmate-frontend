@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Bot, Lock, Plus } from "lucide-react";
+import { ArrowRight, Bot, Check, Copy, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { logEvent } from "@/lib/analytics/track";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useBidbotChat, useChatSessions, type ChatMessage } from "@/lib/bidbot";
 
 export type { ChatMessage };
@@ -104,17 +105,149 @@ export function PendingBubble({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/**
+ * 내 말풍선 — 마지막 질문에는 복사·수정 아이콘이 붙는다.
+ *
+ * 수정은 클로드/GPT와 같은 동작이다. 지우고 새로 묻는 게 아니라 '이 질문을
+ * 고쳐 다시 묻는' 것으로 보이게 한다 — 실제로는 마지막 턴을 지우고(문맥도 함께
+ * 비워진다) 고친 질문을 다시 보낸다. 편집 상태는 이 컴포넌트가 들고 있다:
+ * 화면 전체 상태로 올리면 대화가 갱신될 때마다 초기화 타이밍을 맞춰야 한다.
+ */
+function UserBubble({
+  text,
+  actionable,
+  onSubmitEdit,
+}: {
+  text: string;
+  /** 마지막 질문이고 서버에 저장된 대화일 때만 아이콘을 보여준다. */
+  actionable: boolean;
+  onSubmitEdit: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      // 클립보드 권한이 없거나 비보안 컨텍스트 — 실패해도 대화는 계속돼야 한다.
+      console.error("복사 실패:", err);
+    }
+  };
+
+  const submit = () => {
+    const next = draft.trim();
+    if (!next) return;
+    setEditing(false);
+    onSubmitEdit(next);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <div className="w-full max-w-[80%] rounded-2xl border border-indigo-300 bg-white p-2">
+          <textarea
+            value={draft}
+            autoFocus
+            rows={2}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className="w-full resize-none bg-transparent px-2 py-1 text-sm leading-relaxed text-gray-900 focus:outline-none"
+          />
+          <div className="flex justify-end gap-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-md px-2.5 py-1 text-[12.5px] font-medium text-slate-500 transition-colors hover:bg-slate-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={draft.trim() === ""}
+              className="rounded-md bg-indigo-700 px-2.5 py-1 text-[12.5px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              보내기
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white">
+        {text}
+      </p>
+      {actionable && (
+        <div className="flex items-center gap-0.5 text-slate-400">
+          <button
+            type="button"
+            onClick={() => void copy()}
+            aria-label="질문 복사"
+            title={copied ? "복사했어요" : "복사"}
+            className="rounded-md p-1.5 transition-colors hover:bg-slate-50 hover:text-slate-700"
+          >
+            {copied ? (
+              <Check className="size-3.5 text-emerald-600" strokeWidth={2} />
+            ) : (
+              <Copy className="size-3.5" strokeWidth={2} />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(text);
+              setEditing(true);
+            }}
+            aria-label="질문 수정해서 다시 묻기"
+            title="수정해서 다시 질문"
+            className="rounded-md p-1.5 transition-colors hover:bg-slate-50 hover:text-slate-700"
+          >
+            <Pencil className="size-3.5" strokeWidth={2} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 사용자/봇 말풍선 목록 + disclaimer */
-function MessageList({ messages, pending }: { messages: ChatMessage[]; pending: boolean }) {
+function MessageList({
+  messages,
+  pending,
+  onEditLastTurn,
+}: {
+  messages: ChatMessage[];
+  pending: boolean;
+  /** 저장된 대화일 때만 준다 — 서버에 없는 대화는 되돌릴 턴이 없다. */
+  onEditLastTurn?: (next: string) => void;
+}) {
+  // 마지막 질문에만 붙인다. 백엔드가 되돌릴 수 있는 것도 '마지막 턴'뿐이라,
+  // 중간 질문에 달면 고친 것과 다른 턴이 사라진다.
+  const lastUserIndex = messages.reduce((acc, m, i) => (m.role === "user" ? i : acc), -1);
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
       {messages.map((m, i) =>
         m.role === "user" ? (
-          <div key={i} className="flex justify-end">
-            <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white">
-              {m.text}
-            </p>
-          </div>
+          <UserBubble
+            key={i}
+            text={m.text}
+            actionable={!!onEditLastTurn && i === lastUserIndex && !pending}
+            onSubmitEdit={(next) => onEditLastTurn?.(next)}
+          />
         ) : (
           <div key={i} className="flex items-start gap-2.5">
             <BotAvatar />
@@ -197,9 +330,27 @@ export function BidbotView() {
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, pending, send: ask, reset, loadSession, activeSessionId } =
-    useBidbotChat();
-  const { sessions, loading: sessionsLoading, refresh: refreshSessions } = useChatSessions();
+  const {
+    messages,
+    pending,
+    send: ask,
+    reset,
+    loadSession,
+    editLastTurn,
+    activeSessionId,
+  } = useBidbotChat();
+  const {
+    sessions,
+    loading: sessionsLoading,
+    refresh: refreshSessions,
+    remove: removeSession,
+  } = useChatSessions();
+
+  /** 삭제 확인 대상 대화방. 질문 수정은 되묻지 않는다(고친 내용이 바로 보인다). */
+  const [confirm, setConfirm] = useState<
+    { sessionId: string; title: string } | null
+  >(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     logEvent("chatbot_opened", { properties: { referrer_page: "bidbot_page" } });
@@ -235,6 +386,33 @@ export function BidbotView() {
     void loadSession(sessionId);
   };
 
+  /** 확인 모달의 '삭제' — 대화방을 지운다. */
+  const runDelete = async () => {
+    if (!confirm) return;
+    setDeleting(true);
+    try {
+      const ok = await removeSession(confirm.sessionId);
+      // 보고 있던 대화를 지웠으면 화면도 새 대화로. 안 그러면 사라진 session_id로
+      // 계속 질문하게 되고 매번 404가 돌아온다.
+      if (ok && confirm.sessionId === activeSessionId) reset();
+    } finally {
+      setDeleting(false);
+      setConfirm(null);
+    }
+  };
+
+  /** 마지막 질문 수정 — 그 턴을 되돌리고 고친 질문을 다시 보낸다. */
+  const editLast = (next: string) => {
+    void editLastTurn(next).then(() => {
+      // 제목·정렬 기준(updated_at)이 바뀌므로 목록을 다시 받는다.
+      void refreshSessions();
+    });
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  };
+
   return (
     <div className="flex min-h-0 flex-1">
       {/* 대화 내역 사이드바 (회원만) */}
@@ -258,28 +436,47 @@ export function BidbotView() {
           ) : (
             sessions.map((s) => {
               const active = s.session_id === activeSessionId;
+              const title = s.title || "제목 없는 대화";
               return (
-                <button
+                // 삭제 버튼을 항목 안에 넣어야 하는데 버튼 안에 버튼은 못 넣는다
+                // → 행을 div로 감싸고 열기/삭제를 형제 버튼으로 나눈다.
+                <div
                   key={s.session_id}
-                  type="button"
-                  onClick={() => openSession(s.session_id)}
-                  aria-current={active ? "true" : undefined}
-                  className={`flex flex-col rounded-lg px-2 py-2 text-left transition-colors ${
+                  className={`group flex items-center rounded-lg pr-1 transition-colors ${
                     active ? "bg-indigo-50" : "hover:bg-slate-50"
                   }`}
                 >
-                  <span
-                    className={`truncate text-sm ${
-                      active ? "font-bold text-indigo-700" : "text-slate-700"
+                  <button
+                    type="button"
+                    onClick={() => openSession(s.session_id)}
+                    aria-current={active ? "true" : undefined}
+                    className="flex min-w-0 flex-1 flex-col px-2 py-2 text-left"
+                  >
+                    <span
+                      className={`truncate text-sm ${
+                        active ? "font-bold text-indigo-700" : "text-slate-700"
+                      }`}
+                    >
+                      {/* 제목은 첫 질문으로 백엔드가 자동 생성한다. 아직 없으면 대체 문구. */}
+                      {title}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {formatSessionDate(s.updated_at)}
+                    </span>
+                  </button>
+                  {/* 평소엔 숨기고 hover·포커스·열려있는 대화에서만 보인다(목록이 시끄러워지지 않게) */}
+                  <button
+                    type="button"
+                    onClick={() => setConfirm({ sessionId: s.session_id, title })}
+                    aria-label={`${title} 삭제`}
+                    title="대화 삭제"
+                    className={`shrink-0 rounded-md p-1.5 text-slate-400 opacity-0 transition-colors hover:bg-white hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 ${
+                      active ? "opacity-100" : ""
                     }`}
                   >
-                    {/* 제목은 첫 질문으로 백엔드가 자동 생성한다. 아직 없으면 대체 문구. */}
-                    {s.title || "제목 없는 대화"}
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    {formatSessionDate(s.updated_at)}
-                  </span>
-                </button>
+                    <Trash2 className="size-3.5" strokeWidth={2} />
+                  </button>
+                </div>
               );
             })
           )}
@@ -295,7 +492,12 @@ export function BidbotView() {
               {messages.length === 0 ? (
                 <EmptyState onPick={send} />
               ) : (
-                <MessageList messages={messages} pending={pending} />
+                <MessageList
+                  messages={messages}
+                  pending={pending}
+                  // 저장된 대화에만 — 첫 답변 전엔 서버에 되돌릴 턴이 아직 없다.
+                  onEditLastTurn={activeSessionId ? editLast : undefined}
+                />
               )}
             </div>
             <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-4">
@@ -327,6 +529,18 @@ export function BidbotView() {
           <GuestGate />
         )}
       </div>
+
+      {/* 삭제 확인 — 되돌릴 수 없어 무엇이 사라지는지 명시한다. */}
+      {confirm && (
+        <ConfirmDialog
+          title="이 대화를 삭제할까요?"
+          description={`'${confirm.title}' 대화가 목록에서 사라져요. 삭제한 대화는 복구할 수 없어요.`}
+          confirmLabel="삭제"
+          pending={deleting}
+          onConfirm={() => void runDelete()}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }

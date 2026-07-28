@@ -1,16 +1,18 @@
-// /me/sessions/{id} 프록시 — 세션 상세(메시지 전체, 시간순).
+// /me/sessions/{id} 프록시 — GET=세션 상세(메시지 전체, 시간순), DELETE=대화방 삭제.
 // 브라우저 → (같은 오리진) /api/me/sessions/{id} → Next 서버 → 백엔드 /me/sessions/{id}
 //
 // 없는 세션과 남의 회사 세션 모두 백엔드가 404로 통일해 돌려준다(존재 은닉).
 // 여기서는 상태코드를 그대로 중계해 클라가 "대화를 찾을 수 없다"로 안내하게 한다.
+// 삭제는 소프트 삭제(백엔드가 deleted_at만 기록)라 204에 본문이 없다.
 
 import { NextResponse } from "next/server";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 
-export async function GET(
+async function proxy(
   req: Request,
-  { params }: { params: Promise<{ session_id: string }> }
+  params: Promise<{ session_id: string }>,
+  method: "GET" | "DELETE"
 ) {
   const auth = req.headers.get("Authorization");
   if (!auth) {
@@ -21,15 +23,23 @@ export async function GET(
   try {
     const res = await fetch(
       `${API_BASE}/me/sessions/${encodeURIComponent(session_id)}`,
-      { headers: { Authorization: auth }, cache: "no-store" }
+      { method, headers: { Authorization: auth }, cache: "no-store" }
     );
     const body = await res.text();
-    return new NextResponse(body || null, {
+    // 삭제 성공은 204(본문 없음) — 빈 본문에 Content-Type을 붙이지 않는다(/api/me와 동일).
+    if (!body) return new NextResponse(null, { status: res.status });
+    return new NextResponse(body, {
       status: res.status,
-      headers: body ? { "Content-Type": "application/json" } : undefined,
+      headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("/me/sessions/{id} 프록시 실패:", err);
+    console.error(`/me/sessions/{id}(${method}) 프록시 실패:`, err);
     return NextResponse.json({ detail: "서버에 연결할 수 없어요" }, { status: 502 });
   }
 }
+
+export const GET = (req: Request, ctx: { params: Promise<{ session_id: string }> }) =>
+  proxy(req, ctx.params, "GET");
+
+export const DELETE = (req: Request, ctx: { params: Promise<{ session_id: string }> }) =>
+  proxy(req, ctx.params, "DELETE");
