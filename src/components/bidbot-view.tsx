@@ -106,15 +106,39 @@ export function PendingBubble({ compact = false }: { compact?: boolean }) {
 }
 
 /** 사용자/봇 말풍선 목록 + disclaimer */
-function MessageList({ messages, pending }: { messages: ChatMessage[]; pending: boolean }) {
+function MessageList({
+  messages,
+  pending,
+  onDeleteLastTurn,
+}: {
+  messages: ChatMessage[];
+  pending: boolean;
+  /** 저장된 대화일 때만 준다 — 아직 서버에 없는 대화는 지울 것이 없다. */
+  onDeleteLastTurn?: () => void;
+}) {
+  // 마지막 질문에만 지우기를 붙인다. 백엔드가 지우는 것도 '마지막 턴'뿐이라,
+  // 중간 질문에 버튼을 달면 누른 것과 다른 턴이 사라진다.
+  const lastUserIndex = messages.reduce((acc, m, i) => (m.role === "user" ? i : acc), -1);
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
       {messages.map((m, i) =>
         m.role === "user" ? (
-          <div key={i} className="flex justify-end">
+          <div key={i} className="flex flex-col items-end gap-1">
             <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white">
               {m.text}
             </p>
+            {onDeleteLastTurn && i === lastUserIndex && !pending && (
+              <button
+                type="button"
+                onClick={onDeleteLastTurn}
+                title="이 질문과 답변을 지워요"
+                className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11.5px] text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700"
+              >
+                <Undo2 className="size-3" strokeWidth={2} />
+                이 질문 지우기
+              </button>
+            )}
           </div>
         ) : (
           <div key={i} className="flex items-start gap-2.5">
@@ -219,9 +243,6 @@ export function BidbotView() {
     { kind: "session"; sessionId: string; title: string } | { kind: "lastTurn" } | null
   >(null);
   const [deleting, setDeleting] = useState(false);
-
-  const titleOf = (sessionId: string) =>
-    sessions.find((s) => s.session_id === sessionId)?.title || "제목 없는 대화";
 
   useEffect(() => {
     logEvent("chatbot_opened", { properties: { referrer_page: "bidbot_page" } });
@@ -355,45 +376,18 @@ export function BidbotView() {
       <div className="flex min-h-0 flex-1 flex-col">
         {isMember ? (
           <>
-            {/* 저장된 대화를 보고 있을 때만 — 아직 첫 답변 전인 새 대화는 지울 것이 없다.
-                사이드바는 md 미만에서 숨겨지므로 모바일의 유일한 삭제 경로이기도 하다. */}
-            {activeSessionId && messages.length > 0 && (
-              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2">
-                <p className="truncate text-[13px] font-medium text-slate-600">
-                  {titleOf(activeSessionId)}
-                </p>
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setConfirm({ kind: "lastTurn" })}
-                    disabled={pending}
-                    className="flex items-center gap-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300"
-                  >
-                    <Undo2 className="size-3.5" strokeWidth={2} />
-                    마지막 질문 지우기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setConfirm({
-                        kind: "session",
-                        sessionId: activeSessionId,
-                        title: titleOf(activeSessionId),
-                      })
-                    }
-                    className="flex items-center gap-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 className="size-3.5" strokeWidth={2} />
-                    대화 삭제
-                  </button>
-                </div>
-              </div>
-            )}
             <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
               {messages.length === 0 ? (
                 <EmptyState onPick={send} />
               ) : (
-                <MessageList messages={messages} pending={pending} />
+                <MessageList
+                  messages={messages}
+                  pending={pending}
+                  // 저장된 대화에만 — 첫 답변 전엔 서버에 지울 턴이 아직 없다.
+                  onDeleteLastTurn={
+                    activeSessionId ? () => setConfirm({ kind: "lastTurn" }) : undefined
+                  }
+                />
               )}
             </div>
             <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-4">
