@@ -186,7 +186,7 @@ export function BidbotView() {
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, pending, send: ask, reset } = useBidbotChat({ companyId: user?.companyId });
+  const { messages, pending, send: ask, reset } = useBidbotChat();
 
   useEffect(() => {
     logEvent("chatbot_opened", { properties: { referrer_page: "bidbot_page" } });
