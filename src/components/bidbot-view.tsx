@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Bot, Lock, Plus } from "lucide-react";
+import { ArrowRight, Bot, Lock, Plus, Trash2, Undo2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { logEvent } from "@/lib/analytics/track";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useBidbotChat, useChatSessions, type ChatMessage } from "@/lib/bidbot";
 
 export type { ChatMessage };
@@ -197,9 +198,30 @@ export function BidbotView() {
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, pending, send: ask, reset, loadSession, activeSessionId } =
-    useBidbotChat();
-  const { sessions, loading: sessionsLoading, refresh: refreshSessions } = useChatSessions();
+  const {
+    messages,
+    pending,
+    send: ask,
+    reset,
+    loadSession,
+    deleteLastTurn,
+    activeSessionId,
+  } = useBidbotChat();
+  const {
+    sessions,
+    loading: sessionsLoading,
+    refresh: refreshSessions,
+    remove: removeSession,
+  } = useChatSessions();
+
+  /** 삭제 확인 대상 — 대화방 통째(session)인지 마지막 턴(lastTurn)인지. */
+  const [confirm, setConfirm] = useState<
+    { kind: "session"; sessionId: string; title: string } | { kind: "lastTurn" } | null
+  >(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const titleOf = (sessionId: string) =>
+    sessions.find((s) => s.session_id === sessionId)?.title || "제목 없는 대화";
 
   useEffect(() => {
     logEvent("chatbot_opened", { properties: { referrer_page: "bidbot_page" } });
@@ -235,6 +257,27 @@ export function BidbotView() {
     void loadSession(sessionId);
   };
 
+  /** 확인 모달의 '삭제' — 대상에 따라 대화방 또는 마지막 턴을 지운다. */
+  const runDelete = async () => {
+    if (!confirm) return;
+    setDeleting(true);
+    try {
+      if (confirm.kind === "session") {
+        const ok = await removeSession(confirm.sessionId);
+        // 보고 있던 대화를 지웠으면 화면도 새 대화로. 안 그러면 사라진 session_id로
+        // 계속 질문하게 되고 매번 404가 돌아온다.
+        if (ok && confirm.sessionId === activeSessionId) reset();
+      } else {
+        await deleteLastTurn();
+        // 마지막 턴을 지우면 updated_at이 바뀐다 — 목록의 시각·정렬을 다시 받는다.
+        void refreshSessions();
+      }
+    } finally {
+      setDeleting(false);
+      setConfirm(null);
+    }
+  };
+
   return (
     <div className="flex min-h-0 flex-1">
       {/* 대화 내역 사이드바 (회원만) */}
@@ -258,28 +301,49 @@ export function BidbotView() {
           ) : (
             sessions.map((s) => {
               const active = s.session_id === activeSessionId;
+              const title = s.title || "제목 없는 대화";
               return (
-                <button
+                // 삭제 버튼을 항목 안에 넣어야 하는데 버튼 안에 버튼은 못 넣는다
+                // → 행을 div로 감싸고 열기/삭제를 형제 버튼으로 나눈다.
+                <div
                   key={s.session_id}
-                  type="button"
-                  onClick={() => openSession(s.session_id)}
-                  aria-current={active ? "true" : undefined}
-                  className={`flex flex-col rounded-lg px-2 py-2 text-left transition-colors ${
+                  className={`group flex items-center rounded-lg pr-1 transition-colors ${
                     active ? "bg-indigo-50" : "hover:bg-slate-50"
                   }`}
                 >
-                  <span
-                    className={`truncate text-sm ${
-                      active ? "font-bold text-indigo-700" : "text-slate-700"
+                  <button
+                    type="button"
+                    onClick={() => openSession(s.session_id)}
+                    aria-current={active ? "true" : undefined}
+                    className="flex min-w-0 flex-1 flex-col px-2 py-2 text-left"
+                  >
+                    <span
+                      className={`truncate text-sm ${
+                        active ? "font-bold text-indigo-700" : "text-slate-700"
+                      }`}
+                    >
+                      {/* 제목은 첫 질문으로 백엔드가 자동 생성한다. 아직 없으면 대체 문구. */}
+                      {title}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {formatSessionDate(s.updated_at)}
+                    </span>
+                  </button>
+                  {/* 평소엔 숨기고 hover·포커스·열려있는 대화에서만 보인다(목록이 시끄러워지지 않게) */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfirm({ kind: "session", sessionId: s.session_id, title })
+                    }
+                    aria-label={`${title} 삭제`}
+                    title="대화 삭제"
+                    className={`shrink-0 rounded-md p-1.5 text-slate-400 opacity-0 transition-colors hover:bg-white hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 ${
+                      active ? "opacity-100" : ""
                     }`}
                   >
-                    {/* 제목은 첫 질문으로 백엔드가 자동 생성한다. 아직 없으면 대체 문구. */}
-                    {s.title || "제목 없는 대화"}
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    {formatSessionDate(s.updated_at)}
-                  </span>
-                </button>
+                    <Trash2 className="size-3.5" strokeWidth={2} />
+                  </button>
+                </div>
               );
             })
           )}
@@ -291,6 +355,40 @@ export function BidbotView() {
       <div className="flex min-h-0 flex-1 flex-col">
         {isMember ? (
           <>
+            {/* 저장된 대화를 보고 있을 때만 — 아직 첫 답변 전인 새 대화는 지울 것이 없다.
+                사이드바는 md 미만에서 숨겨지므로 모바일의 유일한 삭제 경로이기도 하다. */}
+            {activeSessionId && messages.length > 0 && (
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2">
+                <p className="truncate text-[13px] font-medium text-slate-600">
+                  {titleOf(activeSessionId)}
+                </p>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setConfirm({ kind: "lastTurn" })}
+                    disabled={pending}
+                    className="flex items-center gap-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300"
+                  >
+                    <Undo2 className="size-3.5" strokeWidth={2} />
+                    마지막 질문 지우기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfirm({
+                        kind: "session",
+                        sessionId: activeSessionId,
+                        title: titleOf(activeSessionId),
+                      })
+                    }
+                    className="flex items-center gap-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="size-3.5" strokeWidth={2} />
+                    대화 삭제
+                  </button>
+                </div>
+              </div>
+            )}
             <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
               {messages.length === 0 ? (
                 <EmptyState onPick={send} />
@@ -327,6 +425,26 @@ export function BidbotView() {
           <GuestGate />
         )}
       </div>
+
+      {/* 삭제 확인 — 둘 다 되돌릴 수 없어 무엇이 사라지는지 명시한다. */}
+      {confirm && (
+        <ConfirmDialog
+          title={
+            confirm.kind === "session"
+              ? "이 대화를 삭제할까요?"
+              : "마지막 질문과 답변을 지울까요?"
+          }
+          description={
+            confirm.kind === "session"
+              ? `'${confirm.title}' 대화가 목록에서 사라져요. 삭제한 대화는 복구할 수 없어요.`
+              : "방금 주고받은 질문과 답변이 지워져요. 비드봇이 기억하던 앞선 대화 맥락도 함께 초기화돼요."
+          }
+          confirmLabel={confirm.kind === "session" ? "삭제" : "지우기"}
+          pending={deleting}
+          onConfirm={() => void runDelete()}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }

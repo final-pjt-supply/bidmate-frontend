@@ -186,40 +186,99 @@ export function useBidbotChat({
   }, []);
 
   /**
-   * 지난 대화를 불러와 화면에 되살린다.
+   * 서버에 저장된 대화로 화면을 맞춘다(불러오기·삭제 후 동기화 공용).
    *
-   * session_id까지 이어받으므로 불러온 대화에 그대로 이어서 질문할 수 있다.
-   * 404(없거나 남의 세션)면 목록이 낡은 것이므로 새 대화 상태로 되돌린다.
+   * 404(없거나 남의 세션)면 목록이 낡은 것이므로 새 대화 상태로 되돌린다 —
+   * session_id를 계속 들고 있으면 다음 질문도 404가 반복된다.
    */
-  const loadSession = useCallback(async (sessionId: string) => {
-    const headers = await authHeader();
-    if (!headers) return;
-
-    setPending(true);
-    try {
+  const syncSession = useCallback(
+    async (sessionId: string, headers: Record<string, string>): Promise<boolean> => {
       const res = await fetch(`/api/me/sessions/${encodeURIComponent(sessionId)}`, {
         headers,
         cache: "no-store",
       });
       if (!res.ok) {
-        setMessages([
-          { role: "bot", kind: "error", text: errorTextFor(res.status) },
-        ]);
+        setMessages([{ role: "bot", kind: "error", text: errorTextFor(res.status) }]);
         sessionIdRef.current = null;
         setActiveSessionId(null);
-        return;
+        return false;
       }
       const data = (await res.json()) as { session_id: string; messages: StoredMessage[] };
       setMessages(data.messages.map(toChatMessage));
       sessionIdRef.current = data.session_id;
       setActiveSessionId(data.session_id);
+      return true;
+    },
+    []
+  );
+
+  /**
+   * 지난 대화를 불러와 화면에 되살린다.
+   *
+   * session_id까지 이어받으므로 불러온 대화에 그대로 이어서 질문할 수 있다.
+   */
+  const loadSession = useCallback(
+    async (sessionId: string) => {
+      const headers = await authHeader();
+      if (!headers) return;
+
+      setPending(true);
+      try {
+        await syncSession(sessionId, headers);
+      } catch (err) {
+        console.error("대화 불러오기 실패:", err);
+        setMessages([{ role: "bot", kind: "error", text: errorTextFor(0) }]);
+      } finally {
+        setPending(false);
+      }
+    },
+    [syncSession]
+  );
+
+  /**
+   * 마지막 질문·답변 취소.
+   *
+   * 지운 뒤 서버에서 다시 읽어 화면을 맞춘다. 화면에는 저장되지 않는 에러
+   * 말풍선이 섞일 수 있어(전송 실패 등) 끝 두 개를 로컬에서 지우면 DB와 어긋난다.
+   * 백엔드가 session_context도 함께 비우므로 취소한 내용을 봇이 기억하지 않는다.
+   */
+  const deleteLastTurn = useCallback(async (): Promise<boolean> => {
+    const sessionId = sessionIdRef.current;
+    if (!sessionId || pending) return false;
+
+    const headers = await authHeader();
+    if (!headers) {
+      setMessages((m) => [...m, { role: "bot", kind: "error", text: errorTextFor(401) }]);
+      return false;
+    }
+
+    setPending(true);
+    try {
+      const res = await fetch(
+        `/api/me/sessions/${encodeURIComponent(sessionId)}/last-turn`,
+        { method: "DELETE", headers, cache: "no-store" }
+      );
+      // 404는 '세션이 사라짐'과 '취소할 턴이 없음' 둘 다다. 어느 쪽이든 화면이
+      // 서버보다 낡았다는 뜻이라, 문구로 구분하지 않고 서버 상태로 맞춘다.
+      if (!res.ok) {
+        if (res.status === 404) await syncSession(sessionId, headers);
+        else
+          setMessages((m) => [
+            ...m,
+            { role: "bot", kind: "error", text: errorTextFor(res.status) },
+          ]);
+        return false;
+      }
+      await syncSession(sessionId, headers);
+      return true;
     } catch (err) {
-      console.error("대화 불러오기 실패:", err);
-      setMessages([{ role: "bot", kind: "error", text: errorTextFor(0) }]);
+      console.error("마지막 턴 취소 실패:", err);
+      setMessages((m) => [...m, { role: "bot", kind: "error", text: errorTextFor(0) }]);
+      return false;
     } finally {
       setPending(false);
     }
-  }, []);
+  }, [pending, syncSession]);
 
   const send = useCallback(
     async (text: string) => {
@@ -288,7 +347,15 @@ export function useBidbotChat({
     [entryBidId, pending]
   );
 
-  return { messages, pending, send, reset, loadSession, activeSessionId };
+  return {
+    messages,
+    pending,
+    send,
+    reset,
+    loadSession,
+    deleteLastTurn,
+    activeSessionId,
+  };
 }
 
 /**
@@ -325,5 +392,29 @@ export function useChatSessions() {
     }
   }, []);
 
-  return { sessions, loading, refresh };
+  /**
+   * 대화방 삭제 — 백엔드는 소프트 삭제(deleted_at 기록)라 목록에서만 사라진다.
+   *
+   * 404(이미 지웠거나 사라진 세션)도 목록에서 빼는 게 맞다 — 화면이 서버보다
+   * 낡았다는 뜻이므로, 실패로 처리해 그대로 두면 지워지지 않는 항목이 남는다.
+   */
+  const remove = useCallback(async (sessionId: string): Promise<boolean> => {
+    const headers = await authHeader();
+    if (!headers) return false;
+    try {
+      const res = await fetch(`/api/me/sessions/${encodeURIComponent(sessionId)}`, {
+        method: "DELETE",
+        headers,
+        cache: "no-store",
+      });
+      if (!res.ok && res.status !== 404) throw new Error(`delete session ${res.status}`);
+      setSessions((list) => list.filter((s) => s.session_id !== sessionId));
+      return true;
+    } catch (err) {
+      console.error("대화 삭제 실패:", err);
+      return false;
+    }
+  }, []);
+
+  return { sessions, loading, refresh, remove };
 }
