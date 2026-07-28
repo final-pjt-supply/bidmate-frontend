@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Bot, Lock, Plus, Trash2, Undo2 } from "lucide-react";
+import { ArrowRight, Bot, Check, Copy, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { logEvent } from "@/lib/analytics/track";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -105,41 +105,149 @@ export function PendingBubble({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/**
+ * 내 말풍선 — 마지막 질문에는 복사·수정 아이콘이 붙는다.
+ *
+ * 수정은 클로드/GPT와 같은 동작이다. 지우고 새로 묻는 게 아니라 '이 질문을
+ * 고쳐 다시 묻는' 것으로 보이게 한다 — 실제로는 마지막 턴을 지우고(문맥도 함께
+ * 비워진다) 고친 질문을 다시 보낸다. 편집 상태는 이 컴포넌트가 들고 있다:
+ * 화면 전체 상태로 올리면 대화가 갱신될 때마다 초기화 타이밍을 맞춰야 한다.
+ */
+function UserBubble({
+  text,
+  actionable,
+  onSubmitEdit,
+}: {
+  text: string;
+  /** 마지막 질문이고 서버에 저장된 대화일 때만 아이콘을 보여준다. */
+  actionable: boolean;
+  onSubmitEdit: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      // 클립보드 권한이 없거나 비보안 컨텍스트 — 실패해도 대화는 계속돼야 한다.
+      console.error("복사 실패:", err);
+    }
+  };
+
+  const submit = () => {
+    const next = draft.trim();
+    if (!next) return;
+    setEditing(false);
+    onSubmitEdit(next);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <div className="w-full max-w-[80%] rounded-2xl border border-indigo-300 bg-white p-2">
+          <textarea
+            value={draft}
+            autoFocus
+            rows={2}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className="w-full resize-none bg-transparent px-2 py-1 text-sm leading-relaxed text-gray-900 focus:outline-none"
+          />
+          <div className="flex justify-end gap-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-md px-2.5 py-1 text-[12.5px] font-medium text-slate-500 transition-colors hover:bg-slate-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={draft.trim() === ""}
+              className="rounded-md bg-indigo-700 px-2.5 py-1 text-[12.5px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              보내기
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white">
+        {text}
+      </p>
+      {actionable && (
+        <div className="flex items-center gap-0.5 text-slate-400">
+          <button
+            type="button"
+            onClick={() => void copy()}
+            aria-label="질문 복사"
+            title={copied ? "복사했어요" : "복사"}
+            className="rounded-md p-1.5 transition-colors hover:bg-slate-50 hover:text-slate-700"
+          >
+            {copied ? (
+              <Check className="size-3.5 text-emerald-600" strokeWidth={2} />
+            ) : (
+              <Copy className="size-3.5" strokeWidth={2} />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(text);
+              setEditing(true);
+            }}
+            aria-label="질문 수정해서 다시 묻기"
+            title="수정해서 다시 질문"
+            className="rounded-md p-1.5 transition-colors hover:bg-slate-50 hover:text-slate-700"
+          >
+            <Pencil className="size-3.5" strokeWidth={2} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 사용자/봇 말풍선 목록 + disclaimer */
 function MessageList({
   messages,
   pending,
-  onDeleteLastTurn,
+  onEditLastTurn,
 }: {
   messages: ChatMessage[];
   pending: boolean;
-  /** 저장된 대화일 때만 준다 — 아직 서버에 없는 대화는 지울 것이 없다. */
-  onDeleteLastTurn?: () => void;
+  /** 저장된 대화일 때만 준다 — 서버에 없는 대화는 되돌릴 턴이 없다. */
+  onEditLastTurn?: (next: string) => void;
 }) {
-  // 마지막 질문에만 지우기를 붙인다. 백엔드가 지우는 것도 '마지막 턴'뿐이라,
-  // 중간 질문에 버튼을 달면 누른 것과 다른 턴이 사라진다.
+  // 마지막 질문에만 붙인다. 백엔드가 되돌릴 수 있는 것도 '마지막 턴'뿐이라,
+  // 중간 질문에 달면 고친 것과 다른 턴이 사라진다.
   const lastUserIndex = messages.reduce((acc, m, i) => (m.role === "user" ? i : acc), -1);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
       {messages.map((m, i) =>
         m.role === "user" ? (
-          <div key={i} className="flex flex-col items-end gap-1">
-            <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white">
-              {m.text}
-            </p>
-            {onDeleteLastTurn && i === lastUserIndex && !pending && (
-              <button
-                type="button"
-                onClick={onDeleteLastTurn}
-                title="이 질문과 답변을 지워요"
-                className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11.5px] text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700"
-              >
-                <Undo2 className="size-3" strokeWidth={2} />
-                이 질문 지우기
-              </button>
-            )}
-          </div>
+          <UserBubble
+            key={i}
+            text={m.text}
+            actionable={!!onEditLastTurn && i === lastUserIndex && !pending}
+            onSubmitEdit={(next) => onEditLastTurn?.(next)}
+          />
         ) : (
           <div key={i} className="flex items-start gap-2.5">
             <BotAvatar />
@@ -228,7 +336,7 @@ export function BidbotView() {
     send: ask,
     reset,
     loadSession,
-    deleteLastTurn,
+    editLastTurn,
     activeSessionId,
   } = useBidbotChat();
   const {
@@ -238,9 +346,9 @@ export function BidbotView() {
     remove: removeSession,
   } = useChatSessions();
 
-  /** 삭제 확인 대상 — 대화방 통째(session)인지 마지막 턴(lastTurn)인지. */
+  /** 삭제 확인 대상 대화방. 질문 수정은 되묻지 않는다(고친 내용이 바로 보인다). */
   const [confirm, setConfirm] = useState<
-    { kind: "session"; sessionId: string; title: string } | { kind: "lastTurn" } | null
+    { sessionId: string; title: string } | null
   >(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -278,25 +386,31 @@ export function BidbotView() {
     void loadSession(sessionId);
   };
 
-  /** 확인 모달의 '삭제' — 대상에 따라 대화방 또는 마지막 턴을 지운다. */
+  /** 확인 모달의 '삭제' — 대화방을 지운다. */
   const runDelete = async () => {
     if (!confirm) return;
     setDeleting(true);
     try {
-      if (confirm.kind === "session") {
-        const ok = await removeSession(confirm.sessionId);
-        // 보고 있던 대화를 지웠으면 화면도 새 대화로. 안 그러면 사라진 session_id로
-        // 계속 질문하게 되고 매번 404가 돌아온다.
-        if (ok && confirm.sessionId === activeSessionId) reset();
-      } else {
-        await deleteLastTurn();
-        // 마지막 턴을 지우면 updated_at이 바뀐다 — 목록의 시각·정렬을 다시 받는다.
-        void refreshSessions();
-      }
+      const ok = await removeSession(confirm.sessionId);
+      // 보고 있던 대화를 지웠으면 화면도 새 대화로. 안 그러면 사라진 session_id로
+      // 계속 질문하게 되고 매번 404가 돌아온다.
+      if (ok && confirm.sessionId === activeSessionId) reset();
     } finally {
       setDeleting(false);
       setConfirm(null);
     }
+  };
+
+  /** 마지막 질문 수정 — 그 턴을 되돌리고 고친 질문을 다시 보낸다. */
+  const editLast = (next: string) => {
+    void editLastTurn(next).then(() => {
+      // 제목·정렬 기준(updated_at)이 바뀌므로 목록을 다시 받는다.
+      void refreshSessions();
+    });
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
   };
 
   return (
@@ -353,9 +467,7 @@ export function BidbotView() {
                   {/* 평소엔 숨기고 hover·포커스·열려있는 대화에서만 보인다(목록이 시끄러워지지 않게) */}
                   <button
                     type="button"
-                    onClick={() =>
-                      setConfirm({ kind: "session", sessionId: s.session_id, title })
-                    }
+                    onClick={() => setConfirm({ sessionId: s.session_id, title })}
                     aria-label={`${title} 삭제`}
                     title="대화 삭제"
                     className={`shrink-0 rounded-md p-1.5 text-slate-400 opacity-0 transition-colors hover:bg-white hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 ${
@@ -383,10 +495,8 @@ export function BidbotView() {
                 <MessageList
                   messages={messages}
                   pending={pending}
-                  // 저장된 대화에만 — 첫 답변 전엔 서버에 지울 턴이 아직 없다.
-                  onDeleteLastTurn={
-                    activeSessionId ? () => setConfirm({ kind: "lastTurn" }) : undefined
-                  }
+                  // 저장된 대화에만 — 첫 답변 전엔 서버에 되돌릴 턴이 아직 없다.
+                  onEditLastTurn={activeSessionId ? editLast : undefined}
                 />
               )}
             </div>
@@ -420,20 +530,12 @@ export function BidbotView() {
         )}
       </div>
 
-      {/* 삭제 확인 — 둘 다 되돌릴 수 없어 무엇이 사라지는지 명시한다. */}
+      {/* 삭제 확인 — 되돌릴 수 없어 무엇이 사라지는지 명시한다. */}
       {confirm && (
         <ConfirmDialog
-          title={
-            confirm.kind === "session"
-              ? "이 대화를 삭제할까요?"
-              : "마지막 질문과 답변을 지울까요?"
-          }
-          description={
-            confirm.kind === "session"
-              ? `'${confirm.title}' 대화가 목록에서 사라져요. 삭제한 대화는 복구할 수 없어요.`
-              : "방금 주고받은 질문과 답변이 지워져요. 비드봇이 기억하던 앞선 대화 맥락도 함께 초기화돼요."
-          }
-          confirmLabel={confirm.kind === "session" ? "삭제" : "지우기"}
+          title="이 대화를 삭제할까요?"
+          description={`'${confirm.title}' 대화가 목록에서 사라져요. 삭제한 대화는 복구할 수 없어요.`}
+          confirmLabel="삭제"
           pending={deleting}
           onConfirm={() => void runDelete()}
           onCancel={() => setConfirm(null)}

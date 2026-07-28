@@ -347,6 +347,23 @@ export function useBidbotChat({
     [entryBidId, pending]
   );
 
+  /**
+   * 마지막 질문을 고쳐 다시 묻는다 — 클로드/GPT의 메시지 수정과 같은 동작.
+   *
+   * 마지막 턴을 지운 뒤 고친 질문을 보낸다. 백엔드가 session_context도 함께
+   * 비우므로 봇이 고치기 전 질문을 기억한 채 답하지 않는다.
+   * 지우기에 실패하면 보내지 않는다 — 그대로 보내면 같은 질문이 두 번 쌓인다.
+   */
+  const editLastTurn = useCallback(
+    async (text: string) => {
+      const q = text.trim();
+      if (!q) return;
+      if (!(await deleteLastTurn())) return;
+      await send(q);
+    },
+    [deleteLastTurn, send]
+  );
+
   return {
     messages,
     pending,
@@ -354,6 +371,7 @@ export function useBidbotChat({
     reset,
     loadSession,
     deleteLastTurn,
+    editLastTurn,
     activeSessionId,
   };
 }
