@@ -12,17 +12,17 @@ export type { ChatMessage };
 export const BOT_DISCLAIMER =
   "비드봇의 답변은 AI 분석 기반 참고용이에요. 입찰 전 나라장터 원문에서 꼭 확인해 주세요.";
 
-const HISTORY = [
-  { title: "야생동물검역시스템 공고 자격요건", date: "방금 전" },
-  { title: "전광판 제작설치 마감 일정", date: "어제" },
-  { title: "ISMS 인증 준비 방법", date: "7월 18일" },
-  { title: "적합도 점수 기준이 궁금해요", date: "7월 15일" },
-];
+/**
+ * 지난 대화 목록 — 백엔드에 대화 기록 저장/조회 API가 아직 없다.
+ * 사이드바 골격은 그대로 두고, API가 붙으면 이 배열만 조회 결과로 갈아끼운다(#69).
+ */
+type ChatHistoryItem = { id: string; title: string; date: string };
+const HISTORY: ChatHistoryItem[] = [];
 
 const SUGGESTIONS = [
   "이 공고 참여 자격이 뭐야?",
   "마감 임박한 맞춤 공고 알려줘",
-  "적합도 82점의 의미는?",
+  "적합도 점수는 어떻게 매겨지나요?",
 ];
 
 /** 봇 아바타 */
@@ -222,16 +222,22 @@ export function BidbotView() {
         </button>
         <p className="px-2 pb-1 pt-4 text-xs text-slate-400">대화 내역</p>
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-          {HISTORY.map((h) => (
-            <button
-              key={h.title}
-              type="button"
-              className="flex flex-col rounded-lg px-2 py-2 text-left transition-colors hover:bg-slate-50"
-            >
-              <span className="truncate text-sm text-slate-700">{h.title}</span>
-              <span className="text-[11px] text-slate-400">{h.date}</span>
-            </button>
-          ))}
+          {HISTORY.length === 0 ? (
+            <p className="px-2 py-2 text-[12.5px] leading-relaxed text-slate-400">
+              아직 저장된 대화가 없어요.
+            </p>
+          ) : (
+            HISTORY.map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                className="flex flex-col rounded-lg px-2 py-2 text-left transition-colors hover:bg-slate-50"
+              >
+                <span className="truncate text-sm text-slate-700">{h.title}</span>
+                <span className="text-[11px] text-slate-400">{h.date}</span>
+              </button>
+            ))
+          )}
           </div>
         </aside>
       )}
