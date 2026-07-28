@@ -5,19 +5,30 @@ import Link from "next/link";
 import { ArrowRight, Bot, Lock, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { logEvent } from "@/lib/analytics/track";
-import { useBidbotChat, type ChatMessage } from "@/lib/bidbot";
+import { useBidbotChat, useChatSessions, type ChatMessage } from "@/lib/bidbot";
 
 export type { ChatMessage };
 
 export const BOT_DISCLAIMER =
   "비드봇의 답변은 AI 분석 기반 참고용이에요. 입찰 전 나라장터 원문에서 꼭 확인해 주세요.";
 
-/**
- * 지난 대화 목록 — 백엔드에 대화 기록 저장/조회 API가 아직 없다.
- * 사이드바 골격은 그대로 두고, API가 붙으면 이 배열만 조회 결과로 갈아끼운다(#69).
- */
-type ChatHistoryItem = { id: string; title: string; date: string };
-const HISTORY: ChatHistoryItem[] = [];
+/** 사이드바 목록의 시각 표기 — 오늘은 시각, 올해는 월/일, 그 밖은 연도까지. */
+function formatSessionDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) {
+    return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  }
+  if (d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
+  }
+  return d.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+}
 
 const SUGGESTIONS = [
   "이 공고 참여 자격이 뭐야?",
@@ -186,11 +197,18 @@ export function BidbotView() {
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, pending, send: ask, reset } = useBidbotChat({ companyId: user?.companyId });
+  const { messages, pending, send: ask, reset, loadSession, activeSessionId } =
+    useBidbotChat();
+  const { sessions, loading: sessionsLoading, refresh: refreshSessions } = useChatSessions();
 
   useEffect(() => {
     logEvent("chatbot_opened", { properties: { referrer_page: "bidbot_page" } });
   }, []);
+
+  // 로그인 확인이 끝난 뒤에 목록을 받는다 — 비회원 상태로 부르면 401만 돌아온다.
+  useEffect(() => {
+    if (isMember) void refreshSessions();
+  }, [isMember, refreshSessions]);
 
   const newChat = () => {
     reset();
@@ -199,13 +217,22 @@ export function BidbotView() {
 
   const send = (text: string) => {
     if (!text.trim() || pending) return;
+    const isFirstTurn = messages.length === 0;
     setInput("");
-    void ask(text);
+    void ask(text).then(() => {
+      // 첫 질문이면 세션이 새로 생기므로 목록을 다시 받아야 사이드바에 나타난다.
+      if (isFirstTurn) void refreshSessions();
+    });
     // 다음 페인트에서 하단으로 스크롤
     requestAnimationFrame(() => {
       const el = scrollRef.current;
       if (el) el.scrollTop = el.scrollHeight;
     });
+  };
+
+  const openSession = (sessionId: string) => {
+    if (pending || sessionId === activeSessionId) return;
+    void loadSession(sessionId);
   };
 
   return (
@@ -222,21 +249,39 @@ export function BidbotView() {
         </button>
         <p className="px-2 pb-1 pt-4 text-xs text-slate-400">대화 내역</p>
         <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-          {HISTORY.length === 0 ? (
+          {sessionsLoading ? (
+            <p className="px-2 py-2 text-[12.5px] text-slate-400">불러오는 중…</p>
+          ) : sessions.length === 0 ? (
             <p className="px-2 py-2 text-[12.5px] leading-relaxed text-slate-400">
               아직 저장된 대화가 없어요.
             </p>
           ) : (
-            HISTORY.map((h) => (
-              <button
-                key={h.id}
-                type="button"
-                className="flex flex-col rounded-lg px-2 py-2 text-left transition-colors hover:bg-slate-50"
-              >
-                <span className="truncate text-sm text-slate-700">{h.title}</span>
-                <span className="text-[11px] text-slate-400">{h.date}</span>
-              </button>
-            ))
+            sessions.map((s) => {
+              const active = s.session_id === activeSessionId;
+              return (
+                <button
+                  key={s.session_id}
+                  type="button"
+                  onClick={() => openSession(s.session_id)}
+                  aria-current={active ? "true" : undefined}
+                  className={`flex flex-col rounded-lg px-2 py-2 text-left transition-colors ${
+                    active ? "bg-indigo-50" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <span
+                    className={`truncate text-sm ${
+                      active ? "font-bold text-indigo-700" : "text-slate-700"
+                    }`}
+                  >
+                    {/* 제목은 첫 질문으로 백엔드가 자동 생성한다. 아직 없으면 대체 문구. */}
+                    {s.title || "제목 없는 대화"}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {formatSessionDate(s.updated_at)}
+                  </span>
+                </button>
+              );
+            })
           )}
           </div>
         </aside>

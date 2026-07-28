@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { Bot, Maximize2, Minimize2, Minus, X } from "lucide-react";
-import { useAuth } from "@/lib/auth";
 import { useBidbotChat } from "@/lib/bidbot";
 import { BOT_DISCLAIMER, BotBubble, PendingBubble } from "@/components/bidbot-view";
 
@@ -22,13 +21,9 @@ export function BidbotDock({
   mode: BotMode;
   onMode: (m: BotMode) => void;
 }) {
-  const { user } = useAuth();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, pending, send: ask } = useBidbotChat({
-    companyId: user?.companyId,
-    entryBidId: bidId,
-  });
+  const { messages, pending, send: ask } = useBidbotChat({ entryBidId: bidId });
 
   const send = (text: string) => {
     if (!text.trim() || pending) return;
