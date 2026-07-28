@@ -2,6 +2,8 @@
 // 설계 문서: 노션 "이벤트 로그 스키마 v0.1" / "이벤트 목록 v1" / "트리거 매핑 v1".
 // 지금은 우리 /api/events(같은 오리진)로 fire-and-forget 전송 → 백엔드 /events 준비되면 라우트에서 포워딩.
 
+import { getIdToken } from "@/lib/cognito";
+
 const ANON_KEY = "bidmate_anon_id"; // 영구(로그인 전/후 여정 연결)
 const VISIT_KEY = "bidmate_visit"; // 방문 세션 {id, last} — 30분 무활동 시 재발급
 const VISIT_TTL_MS = 30 * 60 * 1000;
@@ -34,8 +36,30 @@ type EventPayload = {
 const isClient = () => typeof window !== "undefined";
 
 function uuid(): string {
-  if (isClient() && "randomUUID" in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === "function") return cryptoApi.randomUUID();
+
+  // randomUUID는 보안 컨텍스트(HTTPS/localhost)에서만 제공될 수 있다.
+  // 공인 IP의 HTTP 환경에서도 백엔드가 요구하는 RFC 4122 UUID v4를 만든다.
+  const bytes = new Uint8Array(16);
+  if (typeof cryptoApi?.getRandomValues === "function") {
+    cryptoApi.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0"));
+  return [
+    hex.slice(0, 4).join(""),
+    hex.slice(4, 6).join(""),
+    hex.slice(6, 8).join(""),
+    hex.slice(8, 10).join(""),
+    hex.slice(10, 16).join(""),
+  ].join("-");
 }
 
 /** 새 id 발급 (예: chat_session_id). */
@@ -135,19 +159,27 @@ export function logEvent(event: EventName, payload: EventPayload = {}): void {
       device_type: deviceType(),
     });
 
-    // 페이지 이탈 중이어도 유실 없이 보내도록 sendBeacon 우선, 실패 시 fetch(keepalive)
-    const url = "/api/events";
-    if (navigator.sendBeacon) {
-      const ok = navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
-      if (ok) return;
-    }
-    fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-      keepalive: true,
-    }).catch(() => {});
+    // sendBeacon은 Authorization 헤더를 지원하지 않는다. 호출부는 기다리지 않되,
+    // 로그인 토큰을 붙인 keepalive 요청으로 페이지 이탈 중 전송도 최대한 보장한다.
+    void sendEvent(body);
   } catch {
     // 로깅 실패는 무시 (UX 우선)
+  }
+}
+
+async function sendEvent(body: string): Promise<void> {
+  try {
+    const token = await getIdToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    await fetch("/api/events", {
+      method: "POST",
+      headers,
+      body,
+      keepalive: true,
+    });
+  } catch {
+    // 이벤트 수집 실패가 사용자 동작을 막지 않도록 best-effort로 처리한다.
   }
 }
