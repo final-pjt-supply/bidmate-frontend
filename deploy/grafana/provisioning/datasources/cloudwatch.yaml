@@ -1,0 +1,16 @@
+# CloudWatch 데이터소스 — EC2 인스턴스 역할(bidmate-frontend-role)로 인증한다.
+# Access Key를 저장하지 않는다. 필요한 권한은 CloudWatchReadOnlyAccess(읽기 전용)뿐.
+#
+# 컨테이너에서 인스턴스 역할을 쓰려면 IMDS 홉 제한이 2 이상이어야 한다
+# (도커 브리지가 홉을 하나 더 소비한다). 2026-07-28 확인: HttpPutResponseHopLimit=2.
+apiVersion: 1
+
+datasources:
+  - name: CloudWatch
+    uid: cloudwatch
+    type: cloudwatch
+    isDefault: true
+    editable: false
+    jsonData:
+      authType: default
+      defaultRegion: ap-northeast-2

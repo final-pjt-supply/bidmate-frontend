@@ -1,0 +1,20 @@
+# dashboards/ 폴더의 JSON을 Grafana에 자동 등록한다.
+#
+# allowUiUpdates: true — 화면에서 수정·저장하는 걸 허용한다. 다만 저장은 Grafana DB에만
+# 남고 이 레포 파일은 바뀌지 않으므로, 계속 쓸 변경이라면 JSON을 내보내 커밋해야 한다
+# (대시보드 우측 상단 Export -> Save to file).
+apiVersion: 1
+
+providers:
+  - name: bidmate
+    orgId: 1
+    folder: BidMate
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      # 대시보드 JSON은 provisioning 폴더와 분리해서 둔다. 같은 폴더에 두면
+      # Grafana가 이 provider YAML까지 대시보드로 파싱하려 들어 오류가 난다.
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false
