@@ -61,11 +61,21 @@ function RecommendationReason({ item }: { item: RecommendationListItem }) {
         </span>
         <VerdictBadge verdict={item.match.verdict} />
       </div>
-      <p className="truncate text-xs text-slate-400">
-        <span className="font-medium text-slate-500">{item.recommendation.signal_source}</span>
-        {" · "}
-        {item.recommendation.matched_text}
-      </p>
+      {/*
+        점수를 만든 축을 그대로 보여준다. 예전에는 관심 신호 출처(스크랩 공고 등)와
+        그 원문만 띄웠는데, 추천이 축 가중합으로 바뀐 뒤로는 그게 점수의 근거가
+        아니다 — 관심도는 다섯 축 중 하나일 뿐이라, 자격·역량으로 올라온 공고에도
+        "스크랩 공고"가 붙어 오해를 준다.
+      */}
+      <p className="truncate text-xs text-slate-500">{item.recommendation.reason}</p>
+      {item.recommendation.matched_text && (
+        // 관심 신호가 실제로 걸린 공고만 무엇과 닮았는지 덧붙인다.
+        <p className="truncate text-xs text-slate-400">
+          <span className="font-medium">{item.recommendation.signal_source}</span>
+          {" · "}
+          {item.recommendation.matched_text}
+        </p>
+      )}
     </div>
   );
 }
@@ -86,7 +96,7 @@ function toView(data: RecommendationListResponse): ViewData {
   };
 }
 
-/** 자격 가능한 공고만 대상으로 회사 관심 텍스트와 제목 벡터 유사도를 계산한 목록. */
+/** 자격 가능한 공고를 관심사·자격·역량·규모·일정의 가중 합산으로 정렬한 목록. */
 export function AIRecoView() {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
@@ -223,9 +233,17 @@ export function AIRecoView() {
             <Sparkles className="size-4" aria-hidden="true" />
             추천 기준
           </span>
-          <span className="text-slate-600">{querySource ?? "회사 정보"}</span>
+          {/*
+            추천은 다섯 축(관심사·자격·역량·규모·일정)의 가중합이다. 예전처럼 관심
+            신호 출처 하나만 "추천 기준"으로 내걸면, 자격이나 면허로 올라온 공고까지
+            "스크랩 공고 기준"으로 뽑힌 것처럼 보인다.
+          */}
+          <span className="text-slate-600">
+            관심사 · 자격 · 역량 · 규모 · 일정
+          </span>
           <span className="text-slate-400">
             자격 후보 {candidateCount.toLocaleString()}건 분석
+            {querySource ? ` · 관심 신호: ${querySource}` : ""}
           </span>
         </div>
       )}
@@ -274,7 +292,7 @@ export function AIRecoView() {
       ) : null}
 
       <p className="text-xs leading-5 text-slate-400">
-        AI 추천 점수는 공고 제목과 회사 관심 정보의 유사도를 나타내는 베타 지표예요.
+        AI 추천 점수는 관심사·자격·역량·규모·일정을 함께 반영한 베타 지표예요.
         실제 참여 전에는 자격 판정과 공고 원문을 확인해 주세요.
       </p>
     </PageShell>
