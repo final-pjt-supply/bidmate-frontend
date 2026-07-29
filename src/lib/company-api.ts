@@ -28,7 +28,12 @@ type QualificationOut = { company_size: string | null; credit_rating: string | n
 type RegionOut = { region_code: string; region_name: string | null; region_type: string | null };
 type LicenseOut = { license_code: string; license_name: string | null };
 type CertOut = { cert_code: string; cert_name: string | null; valid_until: string | null };
-type PersonnelOut = { qual_code: string; qual_name: string | null; headcount: number | null };
+type PersonnelOut = {
+  qual_code: string;
+  qual_name: string | null;
+  headcount: number | null;
+  field_family: string | null;   // D-19 분야. null=분야 무관
+};
 type ItemOut = {
   item_code: string;
   item_name: string | null;
@@ -121,6 +126,7 @@ export function toProfile(r: ProfileResponse, base: CompanyProfile): CompanyProf
       code: p.qual_code,
       name: p.qual_name ?? "",
       headcount: p.headcount != null ? String(p.headcount) : "",
+      fieldFamily: p.field_family ?? null,
     })),
     performances: r.performance_records.map<PerformanceRow>((p) => ({
       contractName: p.contract_name ?? "",
@@ -157,7 +163,7 @@ type ProfileUpsertRequest = {
     direct_prod_valid_until: string | null;
   }[];
   certs: { cert_code: string; valid_until: string | null }[];
-  personnel: { qual_code: string; headcount: number }[];
+  personnel: { qual_code: string; field_family: string | null; headcount: number }[];
   capacity_evals: { license_code: string; eval_amount: number; eval_year: number | null }[];
   performance_records: {
     contract_name: string;
@@ -201,7 +207,13 @@ export function toUpsertRequest(p: CompanyProfile): ProfileUpsertRequest {
       })),
     personnel: p.personnel
       .filter((x) => x.code && (toInt(x.headcount) ?? 0) > 0)
-      .map((x) => ({ qual_code: x.code, headcount: toInt(x.headcount)! })),
+      // 같은 자격을 분야별로 여러 행 보낼 수 있다 — 서버 중복 검사 키가
+      // (qual_code, field_family)라 정당한 다중행은 422가 아니다.
+      .map((x) => ({
+        qual_code: x.code,
+        field_family: x.fieldFamily || null,
+        headcount: toInt(x.headcount)!,
+      })),
     capacity_evals: p.capacityEvals
       .filter((c) => c.code && toInt(c.evalAmount) != null)
       .map((c) => ({

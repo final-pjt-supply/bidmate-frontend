@@ -13,6 +13,7 @@ import {
   type RegionRef,
   CREDIT_RATINGS,
   EMPTY_PROFILE,
+  PERSONNEL_FIELDS,
   SIZE_LABEL,
   SIZE_OPTIONS,
   amountHint,
@@ -39,6 +40,18 @@ import type { MasterRef } from "@/lib/data/masters";
 
 // 자유텍스트(문자열) 필드 키 — 코드/객체 필드는 별도 핸들러로 처리
 type StringField = "name" | "licenses" | "certs" | "revenue" | "employees";
+
+// 인력 분야 드롭다운. 맨 앞 ""는 '분야 무관'(서버로는 null) — 기본값이자 유효한 상태다.
+const PERSONNEL_FIELD_OPTIONS = [
+  { value: "", label: "분야 무관" },
+  ...PERSONNEL_FIELDS.map((f) => ({ value: f.code, label: f.name })),
+];
+
+/** 조회 모드용 "(토목)" 꼬리표. 분야 무관이면 아무것도 붙이지 않는다. */
+function fieldSuffix(code: string | null): string {
+  const found = PERSONNEL_FIELDS.find((f) => f.code === code);
+  return found ? `(${found.name})` : "";
+}
 
 /** 조회 모드 한 칸 (라벨 + 값 + 밑줄). 값이 비면 미등록 표시 */
 function ViewField({ label, value }: { label: string; value: string }) {
@@ -271,9 +284,20 @@ export default function MyPage() {
   // 쓰다 만 행이 하나라도 있으면 저장 차단
   const perfError = draft.performances.some((p) => !perfBlank(p) && !perfComplete(p));
 
-  // 보유 인력 다중 — 자격·등급(마스터 코드) + 인원 수
+  // 보유 인력 다중 — 자격·등급(마스터 코드) + 분야(D-19) + 인원 수
   const addPersonnel = () =>
-    setDraft((d) => ({ ...d, personnel: [...d.personnel, { code: "", name: "", headcount: "" }] }));
+    setDraft((d) => ({
+      ...d,
+      personnel: [...d.personnel, { code: "", name: "", headcount: "", fieldFamily: null }],
+    }));
+  const setPersonnelField = (i: number, v: string) =>
+    setDraft((d) => ({
+      ...d,
+      // "" = 분야 무관 → null로 저장한다(서버 계약).
+      personnel: d.personnel.map((p, idx) =>
+        idx === i ? { ...p, fieldFamily: v || null } : p
+      ),
+    }));
   const setPersonnelQual = (i: number, v: MasterRef | null) =>
     setDraft((d) => ({
       ...d,
@@ -734,14 +758,24 @@ export default function MyPage() {
             <div className="flex flex-col gap-2">
               {draft.personnel.map((p, i) => (
                 <div key={i} className="flex items-start gap-2">
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <PersonnelSelect
                       ariaLabel={`인력 ${i + 1} 자격·등급`}
                       value={p.code ? { code: p.code, name: p.name } : null}
                       onChange={(v) => setPersonnelQual(i, v)}
                     />
                   </div>
-                  <div className="w-[104px] shrink-0">
+                  {/* 분야(D-19) — 미지정(분야 무관)이 기본이고 그대로 둬도 정상 판정된다. */}
+                  <div className="w-[124px] shrink-0">
+                    <SelectMenu
+                      ariaLabel={`인력 ${i + 1} 분야`}
+                      value={p.fieldFamily ?? ""}
+                      onChange={(v) => setPersonnelField(i, v)}
+                      placeholder="분야 무관"
+                      options={PERSONNEL_FIELD_OPTIONS}
+                    />
+                  </div>
+                  <div className="w-[88px] shrink-0">
                     <input
                       value={p.headcount}
                       onChange={(e) => setPersonnelCount(i, e.target.value)}
@@ -770,6 +804,10 @@ export default function MyPage() {
               </button>
               <p className="text-xs text-slate-400">
                 등급 없이 인원만 요구하는 공고에는 “일반기술자(등급무관)”로 담으세요.
+              </p>
+              <p className="text-xs text-slate-400">
+                분야를 지정하면 분야별 인력 요구 공고의 판정이 정확해집니다. 같은 자격을
+                분야별로 나눠 등록할 수 있어요(예: 중급기술자–토목 2명 / 중급기술자–건축 1명).
               </p>
               {draft.employees.trim() && draft.personnel.length === 0 && (
                 <p className="text-xs text-slate-400">
@@ -924,7 +962,7 @@ export default function MyPage() {
               label="보유 인력"
               value={
                 profile.personnel.length > 0
-                  ? profile.personnel.map((p) => `${p.name} ${p.headcount}명`).join(", ")
+                  ? profile.personnel.map((p) => `${p.name}${fieldSuffix(p.fieldFamily)} ${p.headcount}명`).join(", ")
                   : profile.employees.trim()
                     ? `상시근로자 ${profile.employees}명 (자격·등급 미입력)`
                     : ""

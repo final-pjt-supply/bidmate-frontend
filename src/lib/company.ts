@@ -30,12 +30,41 @@ export const CREDIT_RATINGS = [
   "B+", "B", "B-", "CCC", "CC", "C", "D",
 ] as const;
 
-/** 인력 한 행 — company_personnel(qual_code, qual_name, headcount)에 1:1 대응.
+/** 인력 분야(D-19) — 공고가 "책임기술인 조경 1·소방 1·토목 1"처럼 분야별로 요구한다.
+ *  분야 없이 등급·인원만 받으면 토목 1명이 조경·소방 요구까지 충족한 것으로 계산돼
+ *  과대 판정이 난다. 값은 DB CHECK(chk_cp_field_family) 15종과 1:1 —
+ *  허용값 검증은 서버가 하므로(잘못된 코드는 422) 여기 목록은 표시용이다. */
+export const PERSONNEL_FIELDS = [
+  { code: "CIVIL", name: "토목" },
+  { code: "ARCH", name: "건축" },
+  { code: "MECH", name: "기계" },
+  { code: "ELEC", name: "전기" },
+  { code: "COMM", name: "통신" },
+  { code: "LANDSCAPE", name: "조경" },
+  { code: "FIRE", name: "소방" },
+  { code: "STRUCT", name: "구조" },
+  { code: "SAFETY", name: "안전" },
+  { code: "QUALITY", name: "품질" },
+  { code: "ENV", name: "환경" },
+  { code: "RAIL", name: "철도" },
+  { code: "SURVEY", name: "측량" },
+  { code: "ICT", name: "정보기술" },
+  { code: "DESIGN", name: "디자인" },
+] as const;
+
+/** 인력 한 행 — company_personnel(qual_code, field_family, headcount)에 1:1 대응.
  *  공고가 "고급기술자 이상 2명"처럼 자격·등급별로 요구하므로 총원 하나로는 판정할 수 없다.
  *  등급 없이 인원만 요구하는 공고("기술자 5명")는 마스터의 ROLE_GEN_ENG
  *  (일반기술자(등급무관))로 담는다 — 별도 필드가 필요 없다.
+ *  fieldFamily는 null(분야 무관)이 기본이자 완전히 유효한 상태다 — 입력을 강제하지 않는다.
+ *  같은 자격을 분야별로 여러 행 등록할 수 있다(중급기술자–토목 2명 / 중급기술자–건축 1명).
  *  headcount는 입력 편의상 문자열로 들고, DB 적재 시 smallint로 변환한다. */
-export type PersonnelRow = { code: string; name: string; headcount: string };
+export type PersonnelRow = {
+  code: string;
+  name: string;
+  headcount: string;
+  fieldFamily: string | null;
+};
 
 /** 실적 한 건 — company_performance_records에 1:1 대응.
  *  공고는 "최근 5년 / 특정 분야 / 누계 5억"처럼 요구하고 매칭 시점에 기간·분야로
@@ -262,9 +291,9 @@ export const DEMO_PROFILE: CompanyProfile = {
   capacityEvals: [{ code: "0036", name: "정보통신공사업", evalAmount: "5000000000", evalYear: "2025" }],
   revenue: "5.0",
   personnel: [
-    { code: "KGRADE_SP", name: "특급기술자", headcount: "2" },
-    { code: "KGRADE_HI", name: "고급기술자", headcount: "5" },
-    { code: "ROLE_GEN_ENG", name: "일반기술자(등급무관)", headcount: "35" },
+    { code: "KGRADE_SP", name: "특급기술자", headcount: "2", fieldFamily: "COMM" },
+    { code: "KGRADE_HI", name: "고급기술자", headcount: "5", fieldFamily: null },
+    { code: "ROLE_GEN_ENG", name: "일반기술자(등급무관)", headcount: "35", fieldFamily: null },
   ],
   employees: "42",
 };
@@ -332,7 +361,9 @@ function migrate(p: StoredProfile): Partial<CompanyProfile> {
     // 구 employees(총원)·revenue(억원 단일값)는 자격·등급이나 계약명·완료일을 알 수 없어
     // 자동 이관이 불가하다. 레거시 값은 보존하고 폼에서 다시 입력받는다
     // (licenses→licenseRefs와 동일 방식).
-    personnel: rest.personnel ?? [],
+    // fieldFamily(D-19)는 이전 저장분에 없다 — null(분야 무관)로 채운다. 판정은 그 상태에서도
+    // 관대하게(모든 분야에 계상) 돌아가므로 기존 회원에게 손해가 없다.
+    personnel: (rest.personnel ?? []).map((p) => ({ ...p, fieldFamily: p.fieldFamily ?? null })),
     performances: rest.performances ?? [],
     certRefs: rest.certRefs ?? [],
     items: rest.items ?? [],
