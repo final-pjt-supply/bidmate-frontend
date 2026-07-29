@@ -1,0 +1,306 @@
+{
+  "uid": "bidmate-service",
+  "title": "BidMate 회원 지표",
+  "description": "회원 가입 현황. 출시 직후에는 '가입이 실제로 일어나는가'가 가장 중요한 신호다 — 홍보를 했는데 신규가 0이면 인기 문제가 아니라 회원가입이 깨진 것일 수 있다. 데이터는 companies 테이블(집계 컬럼만 조회 권한).",
+  "tags": [
+    "bidmate",
+    "service"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "1h"
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "총 회원수",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "description": "탈퇴(deleted_at)를 제외한 현재 활성 회원 수. 대시보드 시간 범위와 무관하게 항상 현재 값이다.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"총 회원수\"\nFROM companies\nWHERE deleted_at IS NULL",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "오늘 신규 가입",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "description": "오늘(KST) 생성된 회원 수. 탈퇴를 빼지 않는다 — 이 패널이 답하려는 질문은 '지금 몇 명인가'가 아니라 '가입이 실제로 일어났는가'이기 때문이다. companies.created_at은 KST로 저장된다(server_default가 now() AT TIME ZONE 'Asia/Seoul').",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"오늘 신규\"\nFROM companies\nWHERE created_at >= date_trunc('day', now() AT TIME ZONE 'Asia/Seoul')",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "최근 7일 가입",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "description": "최근 7일(KST) 가입 수. 하루 단위는 0이 흔해 추세를 판단하기 어렵기 때문에 주 단위도 함께 본다.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"최근 7일\"\nFROM companies\nWHERE created_at >= date_trunc('day', now() AT TIME ZONE 'Asia/Seoul') - interval '6 days'",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "누적 탈퇴",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "description": "소프트 삭제된 회원 수. 갑자기 늘면 서비스에 문제가 생겼다는 신호다.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS \"탈퇴\"\nFROM companies\nWHERE deleted_at IS NOT NULL",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "일별 신규 가입",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "description": "가입이 없는 날도 0으로 채워 그린다(generate_series) — 데이터가 없는 날을 선이 건너뛰면 '가입이 꾸준한 것'처럼 보인다.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  d AS time,\n  count(c.id) AS \"신규 가입\"\nFROM generate_series(\n       date_trunc('day', $__timeFrom()::timestamp),\n       date_trunc('day', $__timeTo()::timestamp),\n       interval '1 day'\n     ) AS d\nLEFT JOIN companies c\n  ON date_trunc('day', c.created_at) = d\nGROUP BY d\nORDER BY d",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "barAlignment": 0,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}
