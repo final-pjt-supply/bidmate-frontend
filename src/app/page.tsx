@@ -30,7 +30,12 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
-        <HomeView recommendedBids={recommendedBids} recentBids={recentBids} />
+        <HomeView
+          recommendedBids={recommendedBids}
+          recentBids={recentBids}
+          recommendedLoadFailed={recommended.status === "rejected"}
+          recentLoadFailed={latest.status === "rejected"}
+        />
       </main>
       <SiteFooter />
     </div>

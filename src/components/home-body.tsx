@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronRight, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ChevronRight, Lock, RefreshCw } from "lucide-react";
 import type { Bid, BidCategory } from "@/lib/types";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
@@ -40,6 +41,48 @@ function LoginGate() {
   );
 }
 
+function SectionError({
+  message,
+  retrying,
+  onRetry,
+}: {
+  message: string;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-10 text-center"
+    >
+      <span className="flex size-11 items-center justify-center rounded-full bg-white text-amber-600">
+        <AlertTriangle className="size-5" strokeWidth={2} />
+      </span>
+      <div>
+        <p className="font-bold text-slate-900">공고를 불러오지 못했어요</p>
+        <p className="mt-1 text-sm text-slate-600">{message}</p>
+      </div>
+      <button
+        type="button"
+        disabled={retrying}
+        onClick={onRetry}
+        className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3.5 py-2 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <RefreshCw className={`size-4 ${retrying ? "animate-spin" : ""}`} strokeWidth={2} />
+        {retrying ? "다시 불러오는 중" : "다시 시도"}
+      </button>
+    </div>
+  );
+}
+
+function EmptySection({ message }: { message: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
+      {message}
+    </div>
+  );
+}
+
 const FILTERS: { label: string; value: BidCategory | "all" }[] = [
   { label: "전체", value: "all" },
   { label: "공사", value: "cnstwk" },
@@ -51,12 +94,26 @@ const FILTERS: { label: string; value: BidCategory | "all" }[] = [
 type HomeBodyProps = {
   recommendedBids: Bid[];
   recentBids: Bid[];
+  recommendedLoadFailed: boolean;
+  recentLoadFailed: boolean;
   /** 비회원: 추천 섹션을 블러 + 로그인 유도 오버레이로 잠금 */
   gated?: boolean;
 };
 
-export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBodyProps) {
+export function HomeBody({
+  recommendedBids,
+  recentBids,
+  recommendedLoadFailed,
+  recentLoadFailed,
+  gated = false,
+}: HomeBodyProps) {
+  const router = useRouter();
   const [filter, setFilter] = useState<BidCategory | "all">("all");
+  const [retrying, startRetry] = useTransition();
+
+  const retry = () => {
+    startRetry(() => router.refresh());
+  };
 
   const MAX_CARDS = 6;
   const byFilter = (bid: Bid) => filter === "all" || bid.bid_category === filter;
@@ -79,7 +136,7 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
       </div>
 
       {gated ? (
-        <div className="relative">
+        <div className="relative min-h-64">
           <div className="pointer-events-none grid select-none grid-cols-1 gap-5 blur-[6px] md:grid-cols-2 xl:grid-cols-3">
             {recommended.map((bid) => (
               <BidCard key={bid.bid_id} bid={bid} />
@@ -89,12 +146,22 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {recommended.map((bid, i) => (
-              <BidCard key={bid.bid_id} bid={bid} position={i + 1} list="reco" />
-            ))}
-          </div>
-          {recommendedAll.length > MAX_CARDS && (
+          {recommendedLoadFailed ? (
+            <SectionError
+              message="잠시 후 다시 시도해 주세요."
+              retrying={retrying}
+              onRetry={retry}
+            />
+          ) : recommended.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {recommended.map((bid, i) => (
+                <BidCard key={bid.bid_id} bid={bid} position={i + 1} list="reco" />
+              ))}
+            </div>
+          ) : (
+            <EmptySection message="현재 조건에 맞는 추천 공고가 없어요." />
+          )}
+          {!recommendedLoadFailed && recommendedAll.length > MAX_CARDS && (
             <div className="flex justify-end">
               <MoreLink href="/recommend" />
             </div>
@@ -116,12 +183,22 @@ export function HomeBody({ recommendedBids, recentBids, gated = false }: HomeBod
         </div>
         {gated && <SyncIndicator />}
       </div>
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {recent.map((bid, i) => (
-          <BidCard key={bid.bid_id} bid={bid} position={i + 1} sort="recent" list="latest" />
-        ))}
-      </div>
-      {recentAll.length > MAX_CARDS && (
+      {recentLoadFailed ? (
+        <SectionError
+          message="최신 공고 목록을 가져오지 못했습니다."
+          retrying={retrying}
+          onRetry={retry}
+        />
+      ) : recent.length > 0 ? (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {recent.map((bid, i) => (
+            <BidCard key={bid.bid_id} bid={bid} position={i + 1} sort="recent" list="latest" />
+          ))}
+        </div>
+      ) : (
+        <EmptySection message="표시할 최신 공고가 아직 없어요." />
+      )}
+      {!recentLoadFailed && recentAll.length > MAX_CARDS && (
         <div className="flex justify-end">
           <MoreLink href="/search" />
         </div>
