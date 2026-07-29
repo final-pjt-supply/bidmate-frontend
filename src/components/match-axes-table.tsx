@@ -10,6 +10,8 @@
 import type { MatchAxis } from "@/lib/types";
 import { axisLabel, SCORED_AXIS_ORDER } from "@/lib/match-axes";
 import { VerdictBadge } from "@/components/verdict-badge";
+import Link from "next/link";
+import { ExternalLink, MessageCircleQuestion, Settings2 } from "lucide-react";
 
 const STATUS_STYLE: Record<string, string> = {
   충족: "text-emerald-700",
@@ -27,13 +29,23 @@ const STATUS_STYLE: Record<string, string> = {
  * 인력·면허는 300자까지 온다(서버가 그 길이에서 자른다) — 그대로 펼치면 한 행이
  * 표를 삼키므로 세 줄로 접고 전체는 툴팁으로 준다.
  */
-function AxisValue({ value }: { value: string }) {
+function AxisValue({ value, asList = false }: { value: string; asList?: boolean }) {
   // "(없음)"·"(미등록)" 같은 서버 placeholder는 괄호를 벗겨 자연문으로, 톤도 죽인다 —
   // 값 전체가 괄호 하나로 감싸인 경우만이라 "소프트웨어사업자(컴퓨터관련서비스사업)"은
   // 안 건드린다.
   const isPlaceholder = /^\([^()]+\)$/.test(value);
   const text = isPlaceholder ? value.slice(1, -1) : value;
-  return (
+  const items = asList ? text.split(/,\s+/).filter(Boolean) : [];
+  return items.length > 1 ? (
+    <ul className="space-y-1 leading-relaxed" title={text}>
+      {items.map((item) => (
+        <li key={item} className="flex gap-1.5">
+          <span aria-hidden="true" className="mt-[9px] size-1 shrink-0 rounded-full bg-slate-300" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  ) : (
     <span
       className={`line-clamp-3 block leading-relaxed ${isPlaceholder ? "text-slate-400" : ""}`}
       title={text}
@@ -101,12 +113,17 @@ function verdictNote(verdict: string | null, hasReviewRow: boolean): string {
 export function MatchAxesTable({
   verdict,
   axes,
+  bidUrl,
+  onAskBidbot,
 }: {
   verdict: string | null;
   axes: MatchAxis[] | null;
+  bidUrl?: string;
+  onAskBidbot?: () => void;
 }) {
   const scored = rowsFor(SCORED_AXIS_ORDER, axes ?? []);
   const hasReviewRow = scored.some((a) => a.status === "확인필요");
+  const hasUnmetRow = scored.some((a) => a.status === "미충족");
 
   if (scored.length === 0) {
     // 축이 하나도 없는데 판정이 '확인필요'면 "조건이 없다"가 아니라 "공고에서 조건을
@@ -133,7 +150,7 @@ export function MatchAxesTable({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <VerdictBadge verdict={verdict} />
+        <VerdictBadge verdict={verdict} className="font-medium opacity-80" />
         <span className="text-sm text-slate-500">{verdictNote(verdict, hasReviewRow)}</span>
       </div>
 
@@ -162,7 +179,16 @@ export function MatchAxesTable({
           </thead>
           <tbody>
             {scored.map((a) => (
-              <tr key={a.axis} className="border-b border-slate-100 last:border-0">
+              <tr
+                key={a.axis}
+                className={`border-b border-slate-100 last:border-0 ${
+                  a.status === "미충족"
+                    ? "bg-rose-50/40"
+                    : a.status === "충족"
+                      ? "bg-emerald-50/30"
+                      : ""
+                }`}
+              >
                 <td className="py-3 pr-2 align-top font-medium whitespace-nowrap text-gray-900">
                   {axisLabel(a.axis)}
                 </td>
@@ -170,10 +196,10 @@ export function MatchAxesTable({
                 {hasPair(a) ? (
                   <>
                     <td className="py-3 pr-3 align-top text-slate-600">
-                      <AxisValue value={a.required} />
+                      <AxisValue value={a.required} asList={a.axis === "cert"} />
                     </td>
                     <td className="py-3 pr-3 align-top text-slate-600">
-                      <AxisValue value={a.actual} />
+                      <AxisValue value={a.actual} asList={a.axis === "cert"} />
                     </td>
                   </>
                 ) : (
@@ -192,6 +218,39 @@ export function MatchAxesTable({
             ))}
           </tbody>
         </table>
+      )}
+
+      {(hasUnmetRow || hasReviewRow) && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <Link
+            href="/mypage?edit=1"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            <Settings2 className="size-4" strokeWidth={2} />
+            회사 정보 수정
+          </Link>
+          {onAskBidbot && (
+            <button
+              type="button"
+              onClick={onAskBidbot}
+              className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+            >
+              <MessageCircleQuestion className="size-4" strokeWidth={2} />
+              이 결과를 비드봇에 질문
+            </button>
+          )}
+          {bidUrl && (
+            <a
+              href={bidUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+            >
+              <ExternalLink className="size-4" strokeWidth={2} />
+              원문에서 조건 확인
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

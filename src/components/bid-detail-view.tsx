@@ -32,7 +32,7 @@ const DDAY_STYLE: Record<string, string> = {
 
 /** 금액(원) → "1.21억 원" / "5,660만 원" / "1,200원" */
 function formatKRW(v: number | null): string {
-  if (v == null) return "미정";
+  if (v == null || v === 0) return "정보 없음";
   if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(2)}억 원`;
   if (v >= 10_000) return `${Math.round(v / 10_000).toLocaleString()}만 원`;
   return `${v.toLocaleString()}원`;
@@ -76,6 +76,10 @@ function Field({ label, value }: { label: string; value: string }) {
       <span className="text-sm font-bold text-gray-900">{value}</span>
     </div>
   );
+}
+
+function displayValue(value: string | null | undefined): string {
+  return value?.trim() || "정보 없음";
 }
 
 export function BidDetailView({ bid }: { bid: Bid }) {
@@ -188,7 +192,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       </nav>
 
       {/* 헤더 카드 */}
-      <section className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6">
+      <section className="flex flex-col gap-3.5 rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex gap-1.5">
             <span className="rounded-md bg-indigo-50 px-[9px] py-[3px] text-xs font-bold text-indigo-800">
@@ -205,11 +209,14 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             onClick={toggleBookmark}
             aria-label={scrapped ? "스크랩 해제" : "스크랩"}
             aria-pressed={scrapped}
-            className={`transition-colors ${
-              scrapped ? "text-indigo-600" : "text-slate-300 hover:text-indigo-600"
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+              scrapped
+                ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                : "border-slate-200 text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
             }`}
           >
             <Bookmark className={`size-5 ${scrapped ? "fill-current" : ""}`} strokeWidth={2} />
+            {scrapped ? "스크랩됨" : "스크랩"}
           </button>
         </div>
 
@@ -219,13 +226,25 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           {bid.ntce_instt_nm ? ` · 공고기관 ${bid.ntce_instt_nm}` : ""}
         </p>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className={`rounded-md px-2.5 py-1 text-sm font-bold ${DDAY_STYLE[dday.kind]}`}>
-            {dday.kind === "urgent" || dday.kind === "normal" ? "입찰 마감 " : ""}
-            {dday.text}
-          </span>
-          {/* 매칭 점수 표시는 제거했다 — 백엔드는 점수가 아니라 판정(verdict) 구조다.
-              적합도 안내는 아래 적합도 블록이 담당한다. */}
+        <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-lg border border-slate-200 bg-slate-50 px-1 py-3">
+          <div className="px-3">
+            <p className="text-xs text-slate-400">투찰 마감</p>
+            <p className="mt-1 text-sm font-bold text-gray-900">
+              {formatDate(bid.bid_clse_dt, true)}
+            </p>
+          </div>
+          <div className="px-3">
+            <p className="text-xs text-slate-400">남은 기간</p>
+            <p className="mt-1">
+              <span className={`rounded-md px-2 py-1 text-sm font-bold ${DDAY_STYLE[dday.kind]}`}>
+                {dday.text}
+              </span>
+            </p>
+          </div>
+          <div className="px-3">
+            <p className="text-xs text-slate-400">추정가격</p>
+            <p className="mt-1 text-sm font-bold text-gray-900">{formatKRW(bid.presmpt_prce)}</p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -249,7 +268,11 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             </a>
           )}
         </div>
-        <p className="text-xs text-slate-400">로그인하면 이 공고에 대해 챗봇에 질문할 수 있어요.</p>
+        <p className="text-xs text-slate-400">
+          {isMember
+            ? "비드봇이 이 공고 내용을 바탕으로 답변해 드려요."
+            : "로그인하면 이 공고에 대해 챗봇에 질문할 수 있어요."}
+        </p>
       </section>
 
       {/* 적합도: 인증 확인 중 스켈레톤 / 비회원 잠금 / 회원 로딩 / 회원 표 또는 미계산 안내
@@ -283,7 +306,12 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               </button>
             </div>
           )}
-          <MatchAxesTable verdict={match.verdict} axes={match.axes} />
+          <MatchAxesTable
+            verdict={match.verdict}
+            axes={match.axes}
+            bidUrl={bid.bid_ntce_dtl_url}
+            onAskBidbot={askBidbot}
+          />
         </Section>
       ) : isMember && matchError ? (
         <section
@@ -352,12 +380,18 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
           <Field label="추정가격" value={formatKRW(bid.presmpt_prce)} />
           <Field label="배정예산" value={formatKRW(bid.bdgt_amt)} />
-          <Field label="계약방법" value={bid.cntrct_cncls_mthd_nm ?? "-"} />
-          <Field label="낙찰방법" value={bid.sucsfbid_mthd_nm?.split("-")[0] ?? "-"} />
-          <Field label="입찰방식" value={bid.bid_methd_nm ?? "-"} />
+          <Field label="계약방법" value={displayValue(bid.cntrct_cncls_mthd_nm)} />
+          <Field label="낙찰방법" value={displayValue(bid.sucsfbid_mthd_nm?.split("-")[0])} />
+          <Field label="입찰방식" value={displayValue(bid.bid_methd_nm)} />
           <Field
             label="참가제한"
-            value={bid.bid_prtcpt_lmt_yn == null ? "-" : bid.bid_prtcpt_lmt_yn ? "있음" : "없음"}
+            value={
+              bid.bid_prtcpt_lmt_yn == null
+                ? "정보 없음"
+                : bid.bid_prtcpt_lmt_yn
+                  ? "있음"
+                  : "제한 없음"
+            }
           />
         </div>
       </Section>
