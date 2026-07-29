@@ -2,7 +2,7 @@
 name: ux-researcher
 description: UI 변경 전에 사용자 목표, 정보 위계, 중복 행동을 분석하는 읽기 전용 UX 전문가. UI 작업에서 적극적으로 사용한다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 permissionMode: plan
 ---
 

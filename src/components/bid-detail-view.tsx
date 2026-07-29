@@ -22,12 +22,17 @@ import type { Match } from "@/lib/types";
 import { BidbotDock, type BotMode } from "@/components/bidbot-dock";
 import { MatchAxesTable } from "@/components/match-axes-table";
 
+// D-day 색은 긴급도 한 방향으로만 읽힌다: 경고(따뜻한) 계열은 마감 임박(urgent)에만 쓰고
+// 그때가 가장 강하다. 나머지는 중립 채움 한 단계(slate-200)로 통일하고 텍스트 톤으로만
+// 구분한다 — 회색 3단계는 흰 카드·연회색 스트립 위에서 구별되지 않고, 문구("상시"/"마감"/
+// "마감 미정")가 이미 상태를 말해준다. 특히 이 칩은 bg-slate-50 스트립 위에 놓이므로
+// 채움을 slate-200보다 옅게 두면 마감된 공고에서 칩 자체가 사라진다.
 const DDAY_STYLE: Record<string, string> = {
-  urgent: "bg-rose-50 text-orange-700",
-  normal: "bg-slate-200 text-slate-500",
-  always: "bg-orange-100 text-yellow-700",
-  closed: "bg-slate-200 text-slate-500",
-  unknown: "bg-slate-200 text-slate-500",
+  urgent: "bg-rose-100 text-rose-700",
+  normal: "bg-slate-200 text-slate-700",
+  always: "bg-slate-200 text-slate-600",
+  closed: "bg-slate-200 text-slate-600",
+  unknown: "bg-slate-200 text-slate-600",
 };
 
 /** 금액(원) → "1.21억 원" / "5,660만 원" / "1,200원" */
@@ -209,14 +214,12 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             onClick={toggleBookmark}
             aria-label={scrapped ? "스크랩 해제" : "스크랩"}
             aria-pressed={scrapped}
-            className={`inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
-              scrapped
-                ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                : "border-slate-200 text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+            className={`inline-flex size-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-slate-100 ${
+              scrapped ? "text-indigo-700" : "text-slate-400 hover:text-indigo-700"
             }`}
           >
+            {/* 상태는 아이콘 색·채움으로만 말한다 — 접근성 이름은 aria-label이 유일하다. */}
             <Bookmark className={`size-5 ${scrapped ? "fill-current" : ""}`} strokeWidth={2} />
-            {scrapped ? "스크랩됨" : "스크랩"}
           </button>
         </div>
 
@@ -251,9 +254,9 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           <button
             type="button"
             onClick={askBidbot}
-            className="flex items-center gap-1.5 rounded-md bg-indigo-700 px-3.5 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            className="flex h-8 items-center gap-1.5 rounded-md bg-indigo-700 px-2.5 text-xs font-bold text-white transition-colors hover:bg-indigo-800"
           >
-            <MessageCircleQuestion className="size-4" strokeWidth={2} />이 공고에 대해 질문하기
+            <MessageCircleQuestion className="size-3.5" strokeWidth={2} />이 공고에 대해 질문하기
           </button>
           {bid.bid_ntce_dtl_url && (
             <a
@@ -261,18 +264,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => logEvent("bid_external_link_clicked", { bid_id: bid.bid_id })}
-              className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+              className="flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50"
             >
-              <ExternalLink className="size-4" strokeWidth={2} />
+              <ExternalLink className="size-3.5" strokeWidth={2} />
               나라장터 원문 보기
             </a>
           )}
         </div>
-        <p className="text-xs text-slate-400">
-          {isMember
-            ? "비드봇이 이 공고 내용을 바탕으로 답변해 드려요."
-            : "로그인하면 이 공고에 대해 챗봇에 질문할 수 있어요."}
-        </p>
       </section>
 
       {/* 적합도: 인증 확인 중 스켈레톤 / 비회원 잠금 / 회원 로딩 / 회원 표 또는 미계산 안내
@@ -306,12 +304,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               </button>
             </div>
           )}
-          <MatchAxesTable
-            verdict={match.verdict}
-            axes={match.axes}
-            bidUrl={bid.bid_ntce_dtl_url}
-            onAskBidbot={askBidbot}
-          />
+          <MatchAxesTable verdict={match.verdict} axes={match.axes} />
         </Section>
       ) : isMember && matchError ? (
         <section
@@ -378,9 +371,8 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       {/* 공고 핵심 정보 */}
       <Section title="공고 핵심 정보">
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-          <Field label="추정가격" value={formatKRW(bid.presmpt_prce)} />
+          {/* 추정가격은 상단 스트립, 계약방법은 헤더 배지에 이미 있다 — 여기서 반복하지 않는다. */}
           <Field label="배정예산" value={formatKRW(bid.bdgt_amt)} />
-          <Field label="계약방법" value={displayValue(bid.cntrct_cncls_mthd_nm)} />
           <Field label="낙찰방법" value={displayValue(bid.sucsfbid_mthd_nm?.split("-")[0])} />
           <Field label="입찰방식" value={displayValue(bid.bid_methd_nm)} />
           <Field
@@ -447,6 +439,8 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       {/* 일정 */}
       <Section title="일정">
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+          {/* 상단 스트립은 마감 하나만 보는 3초 요약이고, 여기는 순서를 읽는 곳이다 —
+              자격등록 마감이 투찰 마감보다 앞서는지 비교하려면 투찰 마감이 같은 줄에 있어야 한다. */}
           <Field label="공고일시" value={formatDate(bid.bid_ntce_dt)} />
           <Field label="자격등록 마감" value={formatDate(bid.bid_qlfct_rgst_dt, true)} />
           <Field label="투찰 마감" value={formatDate(bid.bid_clse_dt, true)} />

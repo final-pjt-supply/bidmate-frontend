@@ -11,7 +11,7 @@ import type { MatchAxis } from "@/lib/types";
 import { axisLabel, SCORED_AXIS_ORDER } from "@/lib/match-axes";
 import { VerdictBadge } from "@/components/verdict-badge";
 import Link from "next/link";
-import { ExternalLink, MessageCircleQuestion, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 
 const STATUS_STYLE: Record<string, string> = {
   충족: "text-emerald-700",
@@ -113,17 +113,12 @@ function verdictNote(verdict: string | null, hasReviewRow: boolean): string {
 export function MatchAxesTable({
   verdict,
   axes,
-  bidUrl,
-  onAskBidbot,
 }: {
   verdict: string | null;
   axes: MatchAxis[] | null;
-  bidUrl?: string;
-  onAskBidbot?: () => void;
 }) {
   const scored = rowsFor(SCORED_AXIS_ORDER, axes ?? []);
   const hasReviewRow = scored.some((a) => a.status === "확인필요");
-  const hasUnmetRow = scored.some((a) => a.status === "미충족");
 
   if (scored.length === 0) {
     // 축이 하나도 없는데 판정이 '확인필요'면 "조건이 없다"가 아니라 "공고에서 조건을
@@ -150,7 +145,7 @@ export function MatchAxesTable({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <VerdictBadge verdict={verdict} className="font-medium opacity-80" />
+        <VerdictBadge verdict={verdict} />
         <span className="text-sm text-slate-500">{verdictNote(verdict, hasReviewRow)}</span>
       </div>
 
@@ -164,17 +159,20 @@ export function MatchAxesTable({
         // 짧다)은 28%만 갖는다.
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[64px]" />
+            {/* 행 배경 띠 안에서 글자가 끝에 붙지 않도록 첫/마지막 칸에 안쪽 여백을 준다.
+                table-fixed라 패딩만 더하면 값 칸이 쥐어짜이므로 넣은 만큼(각 12px) col
+                너비도 함께 늘렸다 — 값이 쓰는 폭은 이전과 같은 56px·60px 그대로다. */}
+            <col className="w-[76px]" />
             <col />
             <col className="w-[28%]" />
-            <col className="w-[60px]" />
+            <col className="w-[72px]" />
           </colgroup>
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-400">
-              <th className="py-2 font-medium">항목</th>
+              <th className="py-2 pl-3 font-medium">항목</th>
               <th className="py-2 font-medium">공고 요구</th>
               <th className="py-2 font-medium">우리 회사</th>
-              <th className="py-2 text-right font-medium">결과</th>
+              <th className="py-2 pr-3 text-right font-medium">결과</th>
             </tr>
           </thead>
           <tbody>
@@ -189,26 +187,26 @@ export function MatchAxesTable({
                       : ""
                 }`}
               >
-                <td className="py-3 pr-2 align-top font-medium whitespace-nowrap text-gray-900">
+                <td className="py-3.5 pl-3 pr-2 align-top font-medium whitespace-nowrap text-gray-900">
                   {axisLabel(a.axis)}
                 </td>
                 {/* detail 문장은 재료(required/actual)가 없는 옛 행에서만 — 두 열에 걸쳐 그린다. */}
                 {hasPair(a) ? (
                   <>
-                    <td className="py-3 pr-3 align-top text-slate-600">
+                    <td className="py-3.5 pr-3 align-top text-slate-600">
                       <AxisValue value={a.required} asList={a.axis === "cert"} />
                     </td>
-                    <td className="py-3 pr-3 align-top text-slate-600">
+                    <td className="py-3.5 pr-3 align-top text-slate-600">
                       <AxisValue value={a.actual} asList={a.axis === "cert"} />
                     </td>
                   </>
                 ) : (
-                  <td colSpan={2} className="py-3 pr-3 align-top text-slate-600">
+                  <td colSpan={2} className="py-3.5 pr-3 align-top text-slate-600">
                     <DetailLines detail={a.detail} />
                   </td>
                 )}
                 <td
-                  className={`py-3 text-right align-top font-bold whitespace-nowrap ${
+                  className={`py-3.5 pr-3 text-right align-top font-bold whitespace-nowrap ${
                     STATUS_STYLE[a.status] ?? ""
                   }`}
                 >
@@ -220,38 +218,19 @@ export function MatchAxesTable({
         </table>
       )}
 
-      {(hasUnmetRow || hasReviewRow) && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-          <Link
-            href="/mypage?edit=1"
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            <Settings2 className="size-4" strokeWidth={2} />
-            회사 정보 수정
-          </Link>
-          {onAskBidbot && (
-            <button
-              type="button"
-              onClick={onAskBidbot}
-              className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
-            >
-              <MessageCircleQuestion className="size-4" strokeWidth={2} />
-              이 결과를 비드봇에 질문
-            </button>
-          )}
-          {bidUrl && (
-            <a
-              href={bidUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
-            >
-              <ExternalLink className="size-4" strokeWidth={2} />
-              원문에서 조건 확인
-            </a>
-          )}
-        </div>
-      )}
+      {/* 다음 행동은 '이 표를 봐야 의미가 생기는 것'만 남긴다 — 챗봇 질문·원문 보기는
+          헤더 카드에 이미 같은 핸들러·같은 링크로 있어 중복이었다.
+          이 표는 판정 결과와 무관하게 전부 '우리 회사 정보'와의 비교라, 전 행이 충족이어도
+          회사 정보가 낡았으면 결과가 틀린다 — 표가 그려지면 항상 같이 둔다. */}
+      <div className="flex flex-wrap items-center gap-2 pt-3">
+        <Link
+          href="/mypage?edit=1"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <Settings2 className="size-3.5" strokeWidth={2} />
+          회사 정보 수정
+        </Link>
+      </div>
     </div>
   );
 }
