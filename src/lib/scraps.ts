@@ -8,6 +8,7 @@
 // useSyncExternalStore와 짝을 이룬다(구독 구조). getIdToken은 인증 토큰 획득용.
 
 import { getIdToken } from "@/lib/cognito";
+import { clearRecommendations } from "@/lib/reco-cache";
 
 // 현재 로그인 사용자의 스크랩 id 집합(메모리 캐시). 비로그인/미로딩이면 빈 집합.
 let cache = new Set<string>();
@@ -84,6 +85,17 @@ export function toggleScrap(bidId: string): boolean {
   if (had) cache.delete(bidId);
   else cache.add(bidId);
   emit();
+
+  // 스크랩은 AI 추천 결과를 바꾼다 — 서버가 스크랩한 공고를 추천 후보에서 빼고,
+  // 스크랩 제목을 1순위 관심 신호로 쓰기 때문에 순위 자체가 달라진다. 추천 캐시를
+  // 그대로 두면 방금 담은 공고가 TTL이 끝날 때까지 목록에 남는다.
+  //
+  // 보고 있는 화면을 지금 바꾸지는 않는다(카드가 발밑에서 사라지면 더 당황스럽다).
+  // 다음에 추천 화면에 들어올 때 새로 받게 하는 것이 목적이다.
+  //
+  // 서버 반영이 실패해 아래에서 되돌리더라도 캐시는 비워둔 채로 둔다. 한 번 더
+  // 받아오는 손해가, 틀린 목록을 보여주는 것보다 낫다.
+  clearRecommendations();
 
   // 2) 서버 반영(백그라운드). 실패하면 캐시를 원복하고 다시 알린다.
   void (async () => {
