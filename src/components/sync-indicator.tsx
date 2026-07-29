@@ -9,18 +9,34 @@ import { refreshList } from "@/app/actions";
  * 목록 새로고침 버튼 + 데이터 수집·표시 안내 툴팁.
  * 홈(추천 섹션)과 공고 검색 결과 헤더에서 공용으로 사용.
  *
- * 목록은 서버 컴포넌트가 가져오므로 클라이언트에서 API를 직접 부르지 않는다.
+ * 기본 동작: 목록은 서버 컴포넌트가 가져오므로 클라이언트에서 API를 직접 부르지 않는다.
  * 서버 액션으로 현재 경로의 캐시를 버리면, 그 응답에 새로 렌더된 결과가 함께 실려와
  * 페이지 깜빡임 없이 목록만 교체된다. 캐시를 안 버리면 revalidate:60 때문에 60초
  * 안에는 같은 데이터가 돌아온다.
+ *
+ * onRefresh를 넘기면 그 함수를 대신 호출한다. AI 추천처럼 목록을 클라이언트에서
+ * 직접 가져오는 화면은 경로 캐시를 버려도 목록이 바뀌지 않으므로, 재조회 함수를
+ * 받아 써야 실제로 갱신된다.
  */
-export function SyncIndicator() {
+export function SyncIndicator({
+  onRefresh,
+  pending: externalPending,
+}: {
+  onRefresh?: () => void;
+  pending?: boolean;
+} = {}) {
   const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [actionPending, startTransition] = useTransition();
   const pathname = usePathname();
+
+  const pending = onRefresh ? !!externalPending : actionPending;
 
   const refresh = () => {
     if (pending) return;
+    if (onRefresh) {
+      onRefresh();
+      return;
+    }
     // revalidatePath가 현재 경로를 무효화하면 서버 액션 응답에 새 렌더 결과가 함께
     // 실려온다. router.refresh()를 덧붙이면 같은 데이터를 한 번 더 받아온다(실측 2회).
     startTransition(() => refreshList(pathname));

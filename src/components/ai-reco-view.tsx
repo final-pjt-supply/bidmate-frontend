@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Lock, RefreshCw, Sparkles } from "lucide-react";
+import { Building2, Lock, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { hasCompanyProfile } from "@/lib/company";
 import {
   fetchRecommendations,
   type RecommendationListItem,
+  type RecommendationListResponse,
 } from "@/lib/api/recommendations";
+import { readRecommendations, writeRecommendations } from "@/lib/reco-cache";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { VerdictBadge } from "@/components/verdict-badge";
@@ -68,44 +70,82 @@ function RecommendationReason({ item }: { item: RecommendationListItem }) {
   );
 }
 
+type ViewData = {
+  items: RecommendationListItem[];
+  candidateCount: number;
+  querySource: string | null;
+};
+
+const EMPTY_VIEW: ViewData = { items: [], candidateCount: 0, querySource: null };
+
+function toView(data: RecommendationListResponse): ViewData {
+  return {
+    items: data.items,
+    candidateCount: data.candidate_count,
+    querySource: data.query_source,
+  };
+}
+
 /** 자격 가능한 공고만 대상으로 회사 관심 텍스트와 제목 벡터 유사도를 계산한 목록. */
 export function AIRecoView() {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
-  const [items, setItems] = useState<RecommendationListItem[]>([]);
-  const [candidateCount, setCandidateCount] = useState(0);
-  const [querySource, setQuerySource] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const companyId = user?.companyId ?? null;
+  // 마운트 시점에 캐시가 있으면 그 값으로 시작한다. 이펙트에서 채우면 스켈레톤이
+  // 한 프레임 스쳐 지나가는데, 재진입 때 그걸 없애는 게 이 캐시의 목적이다.
+  const [view, setView] = useState<ViewData>(() => {
+    const hit = companyId ? readRecommendations(companyId) : null;
+    return hit ? toView(hit.data) : EMPTY_VIEW;
+  });
+  const [loading, setLoading] = useState(
+    () => !(companyId && readRecommendations(companyId))
+  );
   const [error, setError] = useState("");
+  const { items, candidateCount, querySource } = view;
 
   const companyMissing = useMemo(
     () => isMember && !!user && !hasCompanyProfile(user.email),
     [isMember, user]
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await fetchRecommendations(RECOMMENDATION_LIMIT);
-      setItems(data.items);
-      setCandidateCount(data.candidate_count);
-      setQuerySource(data.query_source);
-    } catch (err) {
-      console.error("AI 추천 목록 로드 실패:", err);
-      setError(err instanceof Error ? err.message : "추천 공고를 불러오지 못했어요.");
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /** background=true면 이미 그려둔 캐시를 건드리지 않고 조용히 갱신만 한다. */
+  const load = useCallback(
+    async ({ background = false }: { background?: boolean } = {}) => {
+      if (!companyId) return;
+      if (!background) setLoading(true);
+      setError("");
+      try {
+        const data = await fetchRecommendations(RECOMMENDATION_LIMIT);
+        setView(toView(data));
+        writeRecommendations(companyId, data);
+      } catch (err) {
+        console.error("AI 추천 목록 로드 실패:", err);
+        // 백그라운드 갱신 실패는 화면을 비우지 않는다. 이미 보고 있는 캐시가
+        // 조금 낡았을 뿐인데 에러 화면으로 바꾸면 오히려 후퇴다.
+        if (!background) {
+          setError(err instanceof Error ? err.message : "추천 공고를 불러오지 못했어요.");
+          setView(EMPTY_VIEW);
+        }
+      } finally {
+        if (!background) setLoading(false);
+      }
+    },
+    [companyId]
+  );
 
   useEffect(() => {
-    if (!isMember || companyMissing) return;
-    // 인증 상태가 준비된 뒤 최초 1회 서버 추천 목록과 동기화한다.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [isMember, companyMissing, load]);
+    if (!isMember || companyMissing || !companyId) return;
+    const hit = readRecommendations(companyId);
+    if (!hit) {
+      // 캐시가 없을 때만 스켈레톤을 보여주며 받아온다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void load();
+      return;
+    }
+    setView(toView(hit.data));
+    setLoading(false);
+    if (hit.stale) void load({ background: true });
+  }, [isMember, companyMissing, companyId, load]);
 
   if (!isMember) {
     return (
@@ -174,7 +214,7 @@ export function AIRecoView() {
             자격 판정을 통과한 공고 중 회사 관심사와 가까운 공고를 먼저 보여드려요.
           </p>
         </div>
-        <SyncIndicator />
+        <SyncIndicator onRefresh={() => void load()} pending={loading} />
       </div>
 
       {!loading && !error && candidateCount > 0 && (
@@ -190,22 +230,11 @@ export function AIRecoView() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-lg font-bold text-gray-900">추천 공고</h2>
-          <span className="text-sm text-slate-400">
-            {loading ? "분석 중…" : `총 ${items.length}건`}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-          새로고침
-        </button>
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-lg font-bold text-gray-900">추천 공고</h2>
+        <span className="text-sm text-slate-400">
+          {loading ? "분석 중…" : `총 ${items.length}건`}
+        </span>
       </div>
 
       {error && (

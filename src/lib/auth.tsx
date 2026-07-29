@@ -18,6 +18,7 @@ import {
   signOut as cognitoSignOut,
   signUp as cognitoSignUp,
 } from "@/lib/cognito";
+import { clearRecommendations } from "@/lib/reco-cache";
 import { clearScraps, loadScraps } from "@/lib/scraps";
 
 export type User = {
@@ -149,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     cognitoSignOut();
     clearScraps();   // 다음 사용자에게 이전 스크랩이 새지 않게 캐시 비우기
+    clearRecommendations();
     setUser(null);
   };
 
@@ -172,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 3) 마지막으로 로그인 계정 삭제
       await deleteCurrentUser();
       clearScraps();
+      clearRecommendations();
       setUser(null);
       return { ok: true };
     } catch (err) {
