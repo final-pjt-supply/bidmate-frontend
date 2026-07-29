@@ -283,11 +283,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               </button>
             </div>
           )}
-          <MatchAxesTable
-            verdict={match.verdict}
-            axes={match.axes}
-            required={match.required}
-          />
+          <MatchAxesTable verdict={match.verdict} axes={match.axes} />
         </Section>
       ) : isMember && matchError ? (
         <section

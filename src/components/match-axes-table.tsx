@@ -18,21 +18,55 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 /**
- * 요구값·보유값 한 줄.
+ * 요구/보유 칸의 값 — 이 표의 본문.
+ *
+ * 서버 detail("인증 0/3 · 취득하면 가능: …")을 그대로 읽어주면 행 라벨과 첫 단어가
+ * 반복되고 말투도 로그처럼 남는다. 표현은 프론트 소관이다 — 구조화된 재료
+ * (required/actual)만 받아 '공고 요구 | 우리 회사' 두 열로 나란히 비교한다.
  *
  * 인력·면허는 300자까지 온다(서버가 그 길이에서 자른다) — 그대로 펼치면 한 행이
- * 표를 삼키므로 두 줄로 접고 전체는 툴팁으로 준다. 값이 없는 축(옛 계산 결과)은
- * 줄 자체를 그리지 않는다. "(없음)" 같은 문구는 서버가 정한 표현이라 손대지 않는다.
+ * 표를 삼키므로 세 줄로 접고 전체는 툴팁으로 준다.
  */
-function Compare({ label, value }: { label: string; value?: string }) {
-  if (!value) return null;
+function AxisValue({ value }: { value: string }) {
+  // "(없음)"·"(미등록)" 같은 서버 placeholder는 괄호를 벗겨 자연문으로, 톤도 죽인다 —
+  // 값 전체가 괄호 하나로 감싸인 경우만이라 "소프트웨어사업자(컴퓨터관련서비스사업)"은
+  // 안 건드린다.
+  const isPlaceholder = /^\([^()]+\)$/.test(value);
+  const text = isPlaceholder ? value.slice(1, -1) : value;
   return (
-    <p className="mt-1 flex gap-1.5 text-xs leading-relaxed text-slate-400">
-      <span className="shrink-0">{label}</span>
-      <span className="line-clamp-2 min-w-0" title={value}>
-        {value}
-      </span>
-    </p>
+    <span
+      className={`line-clamp-3 block leading-relaxed ${isPlaceholder ? "text-slate-400" : ""}`}
+      title={text}
+    >
+      {text}
+    </span>
+  );
+}
+
+/** 요구·보유가 다 있으면 쌍으로 그린다(실측 3만여 축 전부 있음 — 없는 건 방어용). */
+function hasPair(a: MatchAxis): a is MatchAxis & { required: string; actual: string } {
+  return !!a.required && !!a.actual;
+}
+
+/**
+ * 서버 detail 문장을 줄 단위로 분해.
+ *
+ * " · "(공백 있는 가운뎃점)는 서버가 detail을 조립할 때 문장 사이에 넣는 구분자다 —
+ * "인증 0/3 · 취득하면 가능: …"처럼 카운트와 안내가 한 문단으로 이어지면 어지럽다.
+ * 첫 문장(카운트·요약)은 본문 톤으로, 나머지(안내)는 한 단계 죽여 줄을 갈라 그린다.
+ * 값 안의 가운뎃점은 "적합인증·적합등록"처럼 공백 없이 붙어 오므로 쪼개지지 않는다.
+ */
+function DetailLines({ detail }: { detail: string }) {
+  const [head, ...rest] = detail.split(" · ");
+  return (
+    <>
+      <p className="leading-relaxed">{head}</p>
+      {rest.map((seg, i) => (
+        <p key={i} className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          {seg}
+        </p>
+      ))}
+    </>
   );
 }
 
@@ -48,33 +82,49 @@ function rowsFor(order: readonly string[], axes: MatchAxis[]): MatchAxis[] {
  * 판정 배지 옆 한 줄 설명.
  *
  * "확인필요"는 두 갈래이고 사용자가 할 일이 서로 다르다 — 하나로 뭉뚱그리면 두 번째
- * 경우에 "내가 뭘 해야 하나"를 알 수 없다. required(공고에서 뽑아낸 요구 조건 수)로 가른다.
+ * 경우에 "내가 뭘 해야 하나"를 알 수 없다.
+ *
+ * 가르는 기준은 MatchInfo.required가 아니라 '화면에 확인필요 행이 있는가'다. required는
+ * gate·supp 축만 세는데, 개편 전 계산된 행은 인증·신용이 info로 빠져 required=0이면서도
+ * 축은 보인다 — 그때 "확인하지 못했어요"라고 하면 바로 아래 표와 모순된다.
+ * 새 판정에서는 required=0 ⇔ 확인필요 행 없음이라 결과가 같고, 옛 데이터에서만 갈린다.
  */
-function verdictNote(verdict: string | null, required: number | null): string {
+function verdictNote(verdict: string | null, hasReviewRow: boolean): string {
   if (verdict !== "확인필요") return "회사 정보 기준으로 자동 판정한 결과예요";
-  return required === 0
-    ? "공고에서 자격요건을 확인하지 못했어요 — 공고 원문을 확인해 주세요"
-    : "일부 항목을 판정할 수 없었어요 — 아래 확인필요 항목을 봐주세요";
+  return hasReviewRow
+    ? "일부 항목을 판정할 수 없었어요 — 아래 확인필요 항목을 봐주세요"
+    : // 표에 행이 있는데 "자격요건을 확인하지 못했다"고 하면 바로 아래 표와 모순된다.
+      // (개편 전 계산분에서만 나오는 상태 — 추출 전면 실패는 빈 상태 박스가 맡는다)
+      "공고에서 일부 조건을 확인하지 못했어요 — 공고 원문을 함께 확인해 주세요";
 }
 
 export function MatchAxesTable({
   verdict,
   axes,
-  required = null,
 }: {
   verdict: string | null;
   axes: MatchAxis[] | null;
-  /** 공고에서 뽑아낸 요구 조건 수. 확인필요 사유를 가르는 데만 쓴다. */
-  required?: number | null;
 }) {
   const scored = rowsFor(SCORED_AXIS_ORDER, axes ?? []);
+  const hasReviewRow = scored.some((a) => a.status === "확인필요");
 
   if (scored.length === 0) {
+    // 축이 하나도 없는데 판정이 '확인필요'면 "조건이 없다"가 아니라 "공고에서 조건을
+    // 못 뽑아냈다"는 뜻이다(판정 함수가 축 0개를 확인필요로 처리). 정상 빈 상태와
+    // 문구를 갈라 사용자를 공고 원문으로 보낸다 — B 인수인계 문서의 required=0 안내가
+    // 실제로 놓일 자리는 표 상단이 아니라 여기다(그 경우 표 자체가 안 그려지므로).
+    const extractionFailed = verdict === "확인필요";
     return (
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-        <p className="text-sm font-bold text-slate-800">별도로 확인된 자격요건이 없어요</p>
+        <p className="text-sm font-bold text-slate-800">
+          {extractionFailed
+            ? "공고에서 자격요건을 확인하지 못했어요"
+            : "별도로 확인된 자격요건이 없어요"}
+        </p>
         <p className="mt-1 text-sm leading-6 text-slate-500">
-          이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다.
+          {extractionFailed
+            ? "자격요건을 자동으로 분석하지 못한 공고예요. 나라장터 원문에서 참가자격을 직접 확인해 주세요."
+            : "이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다."}
         </p>
       </div>
     );
@@ -84,31 +134,57 @@ export function MatchAxesTable({
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <VerdictBadge verdict={verdict} />
-        <span className="text-sm text-slate-500">{verdictNote(verdict, required)}</span>
+        <span className="text-sm text-slate-500">{verdictNote(verdict, hasReviewRow)}</span>
       </div>
 
       {scored.length > 0 && (
-        <table className="w-full text-left text-sm">
+        // 값 칸이 길어지면 자동 레이아웃이 양옆 칸을 쥐어짜 "인 증"·"미충 족"처럼
+        // 세로로 쪼개진다. 항목·결과는 너비를 고정하고 줄바꿈을 막는다.
+        //
+        // 요구·보유는 줄이 아니라 열로 나눈다 — 세로로 훑으면 "우리 회사가 뭘
+        // 갖고 있나"가 한 열로 읽히고, 행마다 반복되던 미니 라벨도 사라진다.
+        // 폭은 비대칭: 요구값(최대 300자)이 잔여 전부, 보유값(대부분 "없음"·"A"처럼
+        // 짧다)은 28%만 갖는다.
+        <table className="w-full table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[64px]" />
+            <col />
+            <col className="w-[28%]" />
+            <col className="w-[60px]" />
+          </colgroup>
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-400">
               <th className="py-2 font-medium">항목</th>
-              <th className="py-2 font-medium">내용</th>
+              <th className="py-2 font-medium">공고 요구</th>
+              <th className="py-2 font-medium">우리 회사</th>
               <th className="py-2 text-right font-medium">결과</th>
             </tr>
           </thead>
           <tbody>
             {scored.map((a) => (
               <tr key={a.axis} className="border-b border-slate-100 last:border-0">
-                <td className="py-2.5 align-top font-medium text-gray-900">{axisLabel(a.axis)}</td>
-                <td className="py-2.5 align-top text-slate-600">
-                  <p>{a.detail}</p>
-                  {/* 요약(detail)만으로는 "1/2 충족"에서 뭐가 모자란지 알 수 없다.
-                      서버가 요구값·보유값을 이미 주므로 그대로 펼친다. */}
-                  <Compare label="요구" value={a.required} />
-                  <Compare label="보유" value={a.actual} />
+                <td className="py-3 pr-2 align-top font-medium whitespace-nowrap text-gray-900">
+                  {axisLabel(a.axis)}
                 </td>
+                {/* detail 문장은 재료(required/actual)가 없는 옛 행에서만 — 두 열에 걸쳐 그린다. */}
+                {hasPair(a) ? (
+                  <>
+                    <td className="py-3 pr-3 align-top text-slate-600">
+                      <AxisValue value={a.required} />
+                    </td>
+                    <td className="py-3 pr-3 align-top text-slate-600">
+                      <AxisValue value={a.actual} />
+                    </td>
+                  </>
+                ) : (
+                  <td colSpan={2} className="py-3 pr-3 align-top text-slate-600">
+                    <DetailLines detail={a.detail} />
+                  </td>
+                )}
                 <td
-                  className={`py-2.5 text-right align-top font-bold ${STATUS_STYLE[a.status] ?? ""}`}
+                  className={`py-3 text-right align-top font-bold whitespace-nowrap ${
+                    STATUS_STYLE[a.status] ?? ""
+                  }`}
                 >
                   {a.status}
                 </td>
