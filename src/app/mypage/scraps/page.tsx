@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Bookmark } from "lucide-react";
+import { AlertTriangle, Bookmark, RefreshCw } from "lucide-react";
 import type { Bid } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { getIdToken } from "@/lib/cognito";
@@ -21,8 +21,11 @@ export default function ScrapsPage() {
   const { user, ready } = useAuth();
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
     const token = await getIdToken();
     if (!token) {
       setBids([]);
@@ -39,7 +42,7 @@ export default function ScrapsPage() {
       setBids(data.items);
     } catch (err) {
       console.error("스크랩 목록 로드 실패:", err);
-      setBids([]);
+      setError("스크랩 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -57,7 +60,28 @@ export default function ScrapsPage() {
 
   return (
     <MypageShell title="스크랩한 공고" description="북마크한 공고를 모아봤어요.">
-      {loading ? (
+      {error && (
+        <div
+          role="alert"
+          className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+        >
+          <div className="flex items-center gap-2 text-sm text-amber-900">
+            <AlertTriangle className="size-4 shrink-0 text-amber-600" strokeWidth={2} />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void load()}
+            className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} strokeWidth={2} />
+            {loading ? "불러오는 중" : "다시 시도"}
+          </button>
+        </div>
+      )}
+
+      {loading && bids.length === 0 ? (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {[0, 1].map((i) => (
             <div key={i} className="h-40 animate-pulse rounded-xl border border-slate-200 bg-slate-50" />
@@ -69,7 +93,7 @@ export default function ScrapsPage() {
             <BidCard key={bid.bid_id} bid={bid} position={i + 1} list="scraps" />
           ))}
         </div>
-      ) : (
+      ) : !error ? (
         <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
           <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
             <Bookmark className="size-[22px] text-indigo-600" strokeWidth={2} />
@@ -85,7 +109,7 @@ export default function ScrapsPage() {
             공고 검색하러 가기
           </Link>
         </div>
-      )}
+      ) : null}
     </MypageShell>
   );
 }

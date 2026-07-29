@@ -11,6 +11,8 @@ import type { Bid } from "@/lib/types";
 type HomeViewProps = {
   recommendedBids: Bid[];
   recentBids: Bid[];
+  recommendedLoadFailed: boolean;
+  recentLoadFailed: boolean;
 };
 
 /** 로그인 사용자 대시보드 건수. 로드 전엔 null — "0건"을 먼저 보여주면 오해를 준다. */
@@ -18,7 +20,12 @@ type Counts = { total: number; scraps: number } | null;
 
 const fmt = (n: number | undefined) => (n == null ? "—" : `${n.toLocaleString()}건`);
 
-export function HomeView({ recommendedBids, recentBids }: HomeViewProps) {
+export function HomeView({
+  recommendedBids,
+  recentBids,
+  recommendedLoadFailed,
+  recentLoadFailed,
+}: HomeViewProps) {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
   const [counts, setCounts] = useState<Counts>(null);
@@ -70,7 +77,12 @@ export function HomeView({ recommendedBids, recentBids }: HomeViewProps) {
           }
           stats={stats}
         />
-        <HomeBody recommendedBids={recommendedBids} recentBids={recentBids} />
+        <HomeBody
+          recommendedBids={recommendedBids}
+          recentBids={recentBids}
+          recommendedLoadFailed={recommendedLoadFailed}
+          recentLoadFailed={recentLoadFailed}
+        />
       </>
     );
   }
@@ -83,7 +95,13 @@ export function HomeView({ recommendedBids, recentBids }: HomeViewProps) {
         title="우리 회사에 맞는 공공입찰 공고를 찾아드립니다"
         subtitle="조달청 나라장터의 수천 건 공고를 분석해 기업 역량에 맞는 공고만 골라드려요"
       />
-      <HomeBody recommendedBids={recommendedBids} recentBids={recentBids} gated />
+      <HomeBody
+        recommendedBids={recommendedBids}
+        recentBids={recentBids}
+        recommendedLoadFailed={recommendedLoadFailed}
+        recentLoadFailed={recentLoadFailed}
+        gated
+      />
     </>
   );
 }

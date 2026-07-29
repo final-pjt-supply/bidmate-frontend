@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, ChevronRight, ExternalLink, Lock, MessageCircleQuestion } from "lucide-react";
+import {
+  AlertTriangle,
+  Bookmark,
+  ChevronRight,
+  ExternalLink,
+  Lock,
+  MessageCircleQuestion,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { Bid, Qualification } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
@@ -178,25 +185,29 @@ export function BidDetailView({ bid }: { bid: Bid }) {
   // 분리해서, 매칭 데이터가 다른 사용자의 캐시로 새어나가는 일을 막는다.
   const [match, setMatch] = useState<Match | null>(null);
   const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState("");
+  const [matchReloadKey, setMatchReloadKey] = useState(0);
 
   useEffect(() => {
     if (!isMember) return;
     let alive = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMatchLoading(true);
+    setMatchError("");
     (async () => {
       try {
         const token = await getIdToken();
-        if (!token) return;
+        if (!token) throw new Error("인증 토큰이 없습니다.");
         const res = await fetch(`/api/bids/${encodeURIComponent(bid.bid_id)}`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
         });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(`GET /bids/${bid.bid_id} ${res.status}`);
         const data = (await res.json()) as { match: Match | null };
         if (alive) setMatch(data.match);
       } catch (err) {
         console.error("매칭 결과 로드 실패:", err);
+        if (alive) setMatchError("적합도 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
         if (alive) setMatchLoading(false);
       }
@@ -204,7 +215,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
     return () => {
       alive = false;
     };
-  }, [isMember, bid.bid_id]);
+  }, [isMember, bid.bid_id, matchReloadKey]);
 
   // 상세 조회 + 체류시간(dwell): 진입 시점이 아니라 "이탈 시점"에 한 번 발사해
   // 얼마나 오래 봤는지(properties.dwell_ms)를 함께 기록한다. 관심도 강신호.
@@ -345,14 +356,49 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
           <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
         </section>
-      ) : isMember && matchLoading ? (
+      ) : isMember && matchLoading && !match ? (
         <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
           <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
         </section>
       ) : isMember && match ? (
         <Section title="우리 회사 적합도">
+          {matchError && (
+            <div
+              role="alert"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3"
+            >
+              <p className="text-sm text-amber-900">{matchError} 이전 결과를 표시하고 있습니다.</p>
+              <button
+                type="button"
+                disabled={matchLoading}
+                onClick={() => setMatchReloadKey((key) => key + 1)}
+                className="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {matchLoading ? "불러오는 중" : "다시 시도"}
+              </button>
+            </div>
+          )}
           <MatchAxesTable verdict={match.verdict} axes={match.axes} />
         </Section>
+      ) : isMember && matchError ? (
+        <section
+          role="alert"
+          className="flex flex-col items-center gap-3.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-8 text-center"
+        >
+          <span className="flex size-[52px] items-center justify-center rounded-full bg-white">
+            <AlertTriangle className="size-[22px] text-amber-600" strokeWidth={2} />
+          </span>
+          <p className="text-lg font-bold text-gray-900">적합도 결과를 불러오지 못했어요</p>
+          <p className="text-sm text-gray-600">{matchError}</p>
+          <button
+            type="button"
+            disabled={matchLoading}
+            onClick={() => setMatchReloadKey((key) => key + 1)}
+            className="mt-1 rounded-md bg-amber-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {matchLoading ? "다시 불러오는 중" : "다시 시도"}
+          </button>
+        </section>
       ) : (
         <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
           <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
