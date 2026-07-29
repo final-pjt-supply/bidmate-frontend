@@ -10,7 +10,7 @@ import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
 import { VerdictBadge, verdictHint } from "@/components/verdict-badge";
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 const SORTS: { key: MatchSort; label: string }[] = [
   { key: "deadline", label: "마감 임박순" },
@@ -72,6 +72,7 @@ export function RecoView() {
 
   const [items, setItems] = useState<MatchListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<MatchSort>("deadline");
   const [loading, setLoading] = useState(true);
@@ -90,6 +91,11 @@ export function RecoView() {
       const data = await fetchMatches({ sort, page });
       setItems(data.items);
       setTotal(data.total);
+      setPageSize(
+        Number.isInteger(data.page_size) && data.page_size > 0
+          ? data.page_size
+          : DEFAULT_PAGE_SIZE
+      );
     } catch (err) {
       console.error("매칭 목록 로드 실패:", err);
       setError("추천 공고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
@@ -154,7 +160,7 @@ export function RecoView() {
     );
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <PageShell>
@@ -210,7 +216,7 @@ export function RecoView() {
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {items.map((it, i) => (
             <div key={it.bid.bid_id} className="flex flex-col gap-1.5">
-              <BidCard bid={it.bid} position={(page - 1) * PAGE_SIZE + i + 1} list="reco" />
+              <BidCard bid={it.bid} position={(page - 1) * pageSize + i + 1} list="reco" />
               <div className="flex items-center gap-2 px-1">
                 <VerdictBadge verdict={it.match.verdict} />
                 <span className="text-xs text-slate-400">{verdictHint(it.match)}</span>
