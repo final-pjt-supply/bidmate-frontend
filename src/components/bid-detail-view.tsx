@@ -12,8 +12,9 @@ import {
   MessageCircleQuestion,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import type { Bid, Qualification } from "@/lib/types";
+import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
+import { qualificationFields } from "@/lib/qualification-fields";
 import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 import { logEvent } from "@/lib/analytics/track";
 import { getIdToken } from "@/lib/cognito";
@@ -28,102 +29,6 @@ const DDAY_STYLE: Record<string, string> = {
   closed: "bg-slate-200 text-slate-500",
   unknown: "bg-slate-200 text-slate-500",
 };
-
-// 기업규모 제한 — bid_table.company_size_limit 실측 5종(전 23,610건). 상류에서 이 5종
-// 외의 값은 나오지 않지만, 새 값이 생겨도 "제한 있음"으로 안전하게 흘리도록 폴백을 둔다.
-// (sme_only만 처리하던 탓에 726건이 "제한 없음"으로 잘못 표시됐다 — 참여 못 하는 공고를
-//  가능하다고 알려주는 방향의 오류라, 모르는 값은 "제한 없음"으로 흘리지 않는다.)
-const SIZE_LIMIT_LABEL: Record<string, string> = {
-  sme_only: "중소기업만 참여 가능",
-  small_only: "소기업만 참여 가능",
-  no_conglomerate: "대기업 참여 불가",
-  // TODO(#51 후속): no_large가 중견기업까지 배제하는지 원문(name_raw) 스팟체크로 확정.
-  //   확정 전까지 no_conglomerate와 같은 문구로 둔다(211건).
-  no_large: "대기업 참여 불가",
-  none: "제한 없음",
-};
-
-/** 기업규모 제한 라벨. null은 호출 전에 제외하고, 모르는 값은 안전하게 "제한 있음"으로 표시. */
-function sizeLimitLabel(v: string): string {
-  return SIZE_LIMIT_LABEL[v] ?? "제한 있음";
-}
-
-type QualificationField = { label: string; value: string };
-
-function joinNonEmpty(values: string[]): string {
-  return values.map((value) => value.trim()).filter(Boolean).join(", ");
-}
-
-/** null(미추출/확인 불가)을 "요구 없음"으로 단정하지 않고 실제 값이 있는 요건만 만든다. */
-function qualificationFields(q: Qualification | undefined): QualificationField[] {
-  if (!q) return [];
-
-  const fields: QualificationField[] = [];
-
-  if (q.company_size_limit != null) {
-    fields.push({ label: "기업규모 제한", value: sizeLimitLabel(q.company_size_limit) });
-  }
-
-  if (q.region_limit_type != null) {
-    const regionNames = joinNonEmpty(q.region_limit_names ?? []);
-    fields.push({
-      label: "지역제한",
-      value:
-        q.region_limit_type === "none"
-          ? "제한 없음"
-          : regionNames || "제한 있음 · 나라장터 원문 확인",
-    });
-  }
-
-  const licenses = joinNonEmpty(q.required_licenses?.map((license) => license.name_raw) ?? []);
-  if (licenses) fields.push({ label: "필수 면허·등록", value: licenses });
-
-  const certs = joinNonEmpty(q.required_certs ?? []);
-  if (certs) fields.push({ label: "필수 인증", value: certs });
-
-  if (q.direct_production_req != null) {
-    fields.push({
-      label: "직접생산 확인",
-      value: q.direct_production_req ? "필요" : "요구 없음",
-    });
-  }
-
-  const performance = joinNonEmpty(
-    q.performance_reqs?.map((requirement) => requirement.scope_raw) ?? []
-  );
-  if (performance) fields.push({ label: "실적요건", value: performance });
-
-  const personnel = joinNonEmpty(
-    q.personnel_reqs?.map(
-      (requirement) =>
-        `${requirement.field} ${requirement.grade} ${requirement.count}명`
-    ) ?? []
-  );
-  if (personnel) fields.push({ label: "필수 인력", value: personnel });
-
-  if (q.credit_rating_req != null) {
-    fields.push({
-      label: "신용등급 제출",
-      value: q.credit_rating_req ? "필요" : "요구 없음",
-    });
-  }
-
-  if (q.joint_venture_allowed != null) {
-    fields.push({
-      label: "공동수급",
-      value: q.joint_venture_allowed ? "허용" : "불가",
-    });
-  }
-
-  if (q.subcontract_allowed != null) {
-    fields.push({
-      label: "하도급",
-      value: q.subcontract_allowed ? "허용" : "불가",
-    });
-  }
-
-  return fields;
-}
 
 /** 금액(원) → "1.21억 원" / "5,660만 원" / "1,200원" */
 function formatKRW(v: number | null): string {
