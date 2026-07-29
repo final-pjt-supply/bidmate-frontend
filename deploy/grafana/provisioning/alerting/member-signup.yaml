@@ -1,0 +1,100 @@
+# 신규 회원 가입 알림 — 가입이 생기면 디스코드로 통보한다.
+#
+# 왜 필요한가: 출시 직후에는 "가입이 실제로 일어나는가"가 가장 중요한 신호다.
+# 홍보를 했는데 신규가 0이면 인기 문제가 아니라 회원가입이 깨진 것일 수 있는데,
+# 알림이 없으면 며칠씩 모른다.
+#
+# ── 설계: 왜 "총 회원수 > N"이 아니라 "최근 5분 가입 > 0"인가 ────────────
+# 그라파나 알림은 '사건'이 아니라 '상태'를 감지한다. 조건이 참인 동안 계속 firing
+# 상태로 머물고, 상태가 바뀔 때만 알림을 보낸다. 그래서 "총 회원수 > 6" 같은 조건은
+# 7명이 되는 순간 한 번 울린 뒤 영영 조용하다(계속 참이므로).
+# 최근 5분 창으로 물으면 가입 직후 firing → 5분 뒤 자동 해제되므로, 다음 가입 때
+# 다시 울린다. 즉 사건 알림처럼 동작한다.
+# 창(5분)보다 짧은 간격으로 두 명이 가입하면 알림은 한 번만 온다 — 초기 트래픽에서는
+# 문제가 아니고, 늘어나면 창을 좁힌다.
+#
+# ── 주의 ────────────────────────────────────────────────────────────
+# 1. 연락처(contact point)는 이 파일에 없다. 디스코드 웹훅 URL이 비밀값이라
+#    커밋하지 않는다. Grafana UI에서 이름 'discord'로 만들어 두어야 하며(아래
+#    receiver가 그 이름을 참조한다), 없으면 규칙 저장이 실패한다.
+# 2. 파일로 프로비저닝한 알림 규칙은 Grafana UI에서 수정할 수 없게 잠긴다
+#    (provenance=file). 화면에서 고쳐 쓰고 싶다면 이 파일을 두지 말고 UI/API로
+#    관리한다. 현재 운영 중인 규칙은 API로 만들어 UI 수정이 가능한 상태다
+#    (X-Disable-Provenance). 이 파일은 서버 재구축 시 복원용 기록이다.
+# 3. companies.created_at은 KST로 저장된다(server_default가
+#    now() AT TIME ZONE 'Asia/Seoul'). 그래서 비교 기준도 KST로 맞춘다 —
+#    UTC로 비교하면 9시간 어긋난다.
+# 4. 조회 권한은 grafana_ro에 집계 컬럼만 부여돼 있다
+#    (GRANT SELECT (id, created_at, deleted_at) ON companies).
+#    email·cognito_sub 등 개인정보는 대시보드·알림에서 조회할 수 없다.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: member-signup
+    folder: BidMate
+    # 1분마다 평가 — 가입 후 최대 1분 안에 알림이 간다.
+    interval: 1m
+    rules:
+      - uid: cftji0e2l7qpsc
+        title: 신규 회원 가입
+        condition: C
+        # 결과가 없어도(쿼리 실패가 아닌 무결과) 알림으로 취급하지 않는다.
+        # count(*)는 항상 한 행을 돌려주므로 실제로는 거의 발생하지 않는다.
+        noDataState: OK
+        execErrState: Error
+        # 조건이 참이 되면 지연 없이 바로 알린다.
+        for: 0s
+        isPaused: false
+        annotations:
+          summary: "새 회원이 가입했습니다 🎉"
+          description: 최근 5분 내 companies 테이블에 신규 가입이 생겼습니다. 그라파나 > BidMate 회원 지표에서 총 회원수를 확인하세요.
+        labels: {}
+        notification_settings:
+          # UI에서 만든 연락처 이름. 웹훅 URL은 여기 없다(위 주의 1 참조).
+          receiver: discord
+        data:
+          # A: 최근 5분 가입 수를 센다.
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: bidmate-rds
+            model:
+              refId: A
+              datasource:
+                type: grafana-postgresql-datasource
+                uid: bidmate-rds
+              editorMode: code
+              format: table
+              rawQuery: true
+              rawSql: |-
+                SELECT count(*) AS recent
+                FROM companies
+                WHERE created_at >= (now() AT TIME ZONE 'Asia/Seoul') - interval '5 minutes'
+          # B: 표로 온 결과를 단일 숫자로 줄인다(알림 조건은 스칼라만 비교 가능).
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+          # C: 0보다 크면 발화.
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
