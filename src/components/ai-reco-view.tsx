@@ -50,49 +50,28 @@ function CenterCard({
   );
 }
 
-function RecommendationReason({ item }: { item: RecommendationListItem }) {
-  const score = Math.max(0, Math.min(100, Math.round(item.recommendation.score * 100)));
+/** 카드 우하단 점수 배지. 근거 문구는 싣지 않는다 — 카드가 길어지고 시선이 분산된다. */
+function ScoreBadge({ score }: { score: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round(score * 100)));
   return (
-    <div className="flex flex-col gap-1.5 px-1">
-      <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700">
-          <Sparkles className="size-3.5" aria-hidden="true" />
-          AI 추천 {score}점
-        </span>
-        <VerdictBadge verdict={item.match.verdict} />
-      </div>
-      {/*
-        점수를 만든 축을 그대로 보여준다. 예전에는 관심 신호 출처(스크랩 공고 등)와
-        그 원문만 띄웠는데, 추천이 축 가중합으로 바뀐 뒤로는 그게 점수의 근거가
-        아니다 — 관심도는 다섯 축 중 하나일 뿐이라, 자격·역량으로 올라온 공고에도
-        "스크랩 공고"가 붙어 오해를 준다.
-      */}
-      <p className="truncate text-xs text-slate-500">{item.recommendation.reason}</p>
-      {item.recommendation.matched_text && (
-        // 관심 신호가 실제로 걸린 공고만 무엇과 닮았는지 덧붙인다.
-        <p className="truncate text-xs text-slate-400">
-          <span className="font-medium">{item.recommendation.signal_source}</span>
-          {" · "}
-          {item.recommendation.matched_text}
-        </p>
-      )}
-    </div>
+    <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-[3px] text-xs font-bold text-indigo-700">
+      <Sparkles className="size-3.5" aria-hidden="true" />
+      {pct}점
+    </span>
   );
 }
 
 type ViewData = {
   items: RecommendationListItem[];
   candidateCount: number;
-  querySource: string | null;
 };
 
-const EMPTY_VIEW: ViewData = { items: [], candidateCount: 0, querySource: null };
+const EMPTY_VIEW: ViewData = { items: [], candidateCount: 0 };
 
 function toView(data: RecommendationListResponse): ViewData {
   return {
     items: data.items,
     candidateCount: data.candidate_count,
-    querySource: data.query_source,
   };
 }
 
@@ -111,7 +90,7 @@ export function AIRecoView() {
     () => !(companyId && readRecommendations(companyId))
   );
   const [error, setError] = useState("");
-  const { items, candidateCount, querySource } = view;
+  const { items, candidateCount } = view;
 
   const companyMissing = useMemo(
     () => isMember && !!user && !hasCompanyProfile(user.email),
@@ -241,10 +220,6 @@ export function AIRecoView() {
           <span className="text-slate-600">
             관심사 · 자격 · 역량 · 규모 · 일정
           </span>
-          <span className="text-slate-400">
-            자격 후보 {candidateCount.toLocaleString()}건 분석
-            {querySource ? ` · 관심 신호: ${querySource}` : ""}
-          </span>
         </div>
       )}
 
@@ -272,11 +247,20 @@ export function AIRecoView() {
         </div>
       ) : items.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {/*
+            자격 판정과 점수를 카드 안으로 넣는다. 예전에는 카드 아래에 별도 줄로
+            뒀는데, 공고 정보와 떨어져 있어 무엇에 대한 판정인지 흐렸고 카드 높이도
+            들쭉날쭉했다. 근거 문구는 싣지 않는다 — 카드가 길어지고 시선이 분산된다.
+          */}
           {items.map((item, index) => (
-            <div key={item.bid.bid_id} className="flex flex-col gap-1.5">
-              <BidCard bid={item.bid} position={index + 1} list="ai_reco" />
-              <RecommendationReason item={item} />
-            </div>
+            <BidCard
+              key={item.bid.bid_id}
+              bid={item.bid}
+              position={index + 1}
+              list="ai_reco"
+              tagSlot={<VerdictBadge verdict={item.match.verdict} />}
+              cornerSlot={<ScoreBadge score={item.recommendation.score} />}
+            />
           ))}
         </div>
       ) : !error ? (

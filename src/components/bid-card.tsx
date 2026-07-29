@@ -26,9 +26,24 @@ type BidCardProps = {
   sort?: string;
   /** 로그용: 어느 목록인지 (reco/latest/search/scraps) */
   list?: string;
+  /**
+   * 업무구분·낙찰방법 태그 옆에 붙일 배지. AI 추천에서 자격 판정을 여기 놓는다 —
+   * 카드 밖에 두면 공고 정보와 분리돼 보여 무엇에 대한 판정인지 흐려진다.
+   */
+  tagSlot?: React.ReactNode;
+  /** 카드 우하단 배지. AI 추천 점수처럼 목록 성격에 따라 붙는 값. */
+  cornerSlot?: React.ReactNode;
 };
 
-export function BidCard({ bid, className = "", position, sort, list }: BidCardProps) {
+export function BidCard({
+  bid,
+  className = "",
+  position,
+  sort,
+  list,
+  tagSlot,
+  cornerSlot,
+}: BidCardProps) {
   const dday = computeDday(bid.bid_clse_dt);
   const method = shortMethod(bid.sucsfbid_mthd_nm);
   const cardRef = useRef<HTMLAnchorElement>(null);
@@ -116,7 +131,7 @@ export function BidCard({ bid, className = "", position, sort, list }: BidCardPr
 
       <p className="truncate text-sm text-gray-500">{bid.dminstt_nm}</p>
 
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="rounded-md bg-indigo-50 px-[9px] py-[3px] text-xs font-bold text-indigo-800">
           {categoryLabel(bid.bid_category)}
         </span>
@@ -125,6 +140,9 @@ export function BidCard({ bid, className = "", position, sort, list }: BidCardPr
             {method}
           </span>
         )}
+        {tagSlot}
+        {/* 우하단 배지는 태그 줄 오른쪽 끝에 붙인다 — 카드 높이를 늘리지 않는다. */}
+        {cornerSlot && <span className="ml-auto">{cornerSlot}</span>}
       </div>
     </Link>
   );
