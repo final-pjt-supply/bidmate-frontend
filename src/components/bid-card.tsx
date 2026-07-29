@@ -4,17 +4,21 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Bookmark } from "lucide-react";
 import type { Bid } from "@/lib/types";
-import { categoryLabel, shortMethod, computeDday } from "@/lib/format";
+import { categoryLabel, shortMethod, computeDday, formatAmount } from "@/lib/format";
 import { logEvent } from "@/lib/analytics/track";
 import { useAuth } from "@/lib/auth";
 import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 
+// D-day 색은 긴급도 한 방향으로만 읽힌다: 경고(따뜻한) 계열은 마감 임박(urgent)에만 쓰고
+// 그때가 가장 강하다. 나머지는 중립 채움 한 단계(slate-200)로 통일하고 텍스트 톤으로만
+// 구분한다 — 회색 3단계는 흰 카드·연회색 스트립 위에서 구별되지 않고, 문구("상시"/"마감"/
+// "마감 미정")가 이미 상태를 말해준다.
 const DDAY_STYLE: Record<string, string> = {
-  urgent: "bg-rose-50 text-orange-700",
-  normal: "bg-slate-200 text-slate-500",
-  always: "bg-orange-100 text-yellow-700",
-  closed: "bg-slate-200 text-slate-500",
-  unknown: "bg-slate-200 text-slate-500",
+  urgent: "bg-rose-100 text-rose-700",
+  normal: "bg-slate-200 text-slate-700",
+  always: "bg-slate-200 text-slate-600",
+  closed: "bg-slate-200 text-slate-600",
+  unknown: "bg-slate-200 text-slate-600",
 };
 
 type BidCardProps = {
@@ -46,6 +50,9 @@ export function BidCard({
 }: BidCardProps) {
   const dday = computeDday(bid.bid_clse_dt);
   const method = shortMethod(bid.sucsfbid_mthd_nm);
+  // 금액은 참여 여부를 가르는 1차 필터다. 예산·추정가격이 모두 없으면 빈 문자열이라
+  // 아무것도 그리지 않는다(formatAmount의 기존 규약).
+  const amount = formatAmount(bid);
   const cardRef = useRef<HTMLAnchorElement>(null);
   const { user } = useAuth();
 
@@ -141,8 +148,17 @@ export function BidCard({
           </span>
         )}
         {tagSlot}
-        {/* 우하단 배지는 태그 줄 오른쪽 끝에 붙인다 — 카드 높이를 늘리지 않는다. */}
-        {cornerSlot && <span className="ml-auto">{cornerSlot}</span>}
+        {/* 태그 줄 오른쪽 끝은 한 자리다 — 카드 높이를 늘리지 않는다. 목록이 배지를
+            내려주면(AI 추천 점수) 그쪽이 우선이고, 없으면 금액을 텍스트로 놓는다. */}
+        {cornerSlot ? (
+          <span className="ml-auto">{cornerSlot}</span>
+        ) : (
+          amount && (
+            <span className="ml-auto shrink-0 text-xs font-bold whitespace-nowrap text-slate-700">
+              {amount}
+            </span>
+          )
+        )}
       </div>
     </Link>
   );

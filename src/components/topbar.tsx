@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown, User, Bookmark, LogOut } from "lucide-react";
+import { ChevronDown, User, Bookmark, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const NAV_ITEMS: { label: string; href: string }[] = [
@@ -125,15 +125,7 @@ export function Topbar() {
         {/* 우측 액션: 로그인 상태에 따라 분기 */}
         <div className="flex items-center gap-3.5">
           {ready && user ? (
-            <>
-              <button type="button" aria-label="알림" className="relative">
-                <Bell className="size-[18px] text-gray-700" strokeWidth={2} />
-                <span className="absolute -top-2 left-2.5 flex size-[18px] items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-                  2
-                </span>
-              </button>
-              <UserMenu company={user.company} onLogout={logout} />
-            </>
+            <UserMenu company={user.company} onLogout={logout} />
           ) : ready ? (
             <>
               <Link
