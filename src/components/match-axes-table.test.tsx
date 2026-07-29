@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import { MatchAxesTable } from "@/components/match-axes-table";
 
 describe("MatchAxesTable", () => {
-  it("표시할 축이 없으면 정상 결과 대신 나라장터 원문 확인을 안내한다", () => {
+  it("표시할 축이 없으면 별도의 비교 조건이 없는 정상 빈 상태를 안내한다", () => {
     render(<MatchAxesTable verdict={null} axes={null} />);
 
+    expect(screen.getByText("별도로 확인된 자격요건이 없어요")).toBeInTheDocument();
     expect(
-      screen.getByText(/공고에서 확인된 자격요건이 없습니다/)
+      screen.getByText("이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다.")
     ).toBeInTheDocument();
+    expect(screen.queryByText(/나라장터 원문/)).not.toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 

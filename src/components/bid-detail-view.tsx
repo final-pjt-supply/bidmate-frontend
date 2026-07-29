@@ -365,7 +365,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       {/* 공고 자격요건 */}
       <Section title="공고 자격요건">
         <p className="-mt-1 text-xs text-slate-400">
-          공고문·첨부문서에서 추출한 요건이에요. 나라장터 &ldquo;공고서 원문&rdquo;을 함께 확인해 주세요.
+          공고문·첨부문서를 분석해 정리한 자격요건이에요.
         </p>
         {qualFields.length > 0 ? (
           <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
@@ -374,8 +374,11 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-            추출된 자격요건이 없습니다. 정확한 참가 조건은 나라장터 원문을 확인해 주세요.
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-sm font-bold text-slate-800">별도로 확인된 자격요건이 없어요</p>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다.
+            </p>
           </div>
         )}
       </Section>
