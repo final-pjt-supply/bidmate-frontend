@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Lock, RefreshCw, Sparkles } from "lucide-react";
+import { Building2, Lock, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { hasCompanyProfile } from "@/lib/company";
 import {
@@ -174,7 +174,7 @@ export function AIRecoView() {
             자격 판정을 통과한 공고 중 회사 관심사와 가까운 공고를 먼저 보여드려요.
           </p>
         </div>
-        <SyncIndicator />
+        <SyncIndicator onRefresh={() => void load()} pending={loading} />
       </div>
 
       {!loading && !error && candidateCount > 0 && (
@@ -190,22 +190,11 @@ export function AIRecoView() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-lg font-bold text-gray-900">추천 공고</h2>
-          <span className="text-sm text-slate-400">
-            {loading ? "분석 중…" : `총 ${items.length}건`}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-          새로고침
-        </button>
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-lg font-bold text-gray-900">추천 공고</h2>
+        <span className="text-sm text-slate-400">
+          {loading ? "분석 중…" : `총 ${items.length}건`}
+        </span>
       </div>
 
       {error && (
