@@ -29,11 +29,13 @@ export interface Qualification {
   award_cutline_value: number | null;
 }
 
-/** 매칭 판정 축 하나. axis는 9종 카테고리 고정값(license/region/size/direct_prod/
- *  item/personnel/performance/capacity/credit) + 참고용 cert. 마스터 코드가 아니다 —
+/** 매칭 판정 축 하나. axis는 10종 카테고리 고정값(license/region/size/item/
+ *  direct_prod/personnel/performance/capacity/cert/credit). 마스터 코드가 아니다 —
  *  한글 라벨은 프론트가 AXIS_LABEL로 붙인다. */
 export type MatchAxis = {
   axis: string;
+  // 2026-07-29 개편으로 신규 판정은 gate/supp만 쓴다. "info"는 그 전에 계산돼
+  // 아직 남아 있는 행 때문에 유지한다(야간 전체 재계산으로 사라진다).
   class: "gate" | "supp" | "info";
   // "해당없음"은 서버가 안 보낸다 — 요구 자체가 없는 축을 프론트가 채워 넣을 때만 쓴다.
   status: "충족" | "미충족" | "확인필요" | "해당없음";
