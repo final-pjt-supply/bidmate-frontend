@@ -2,7 +2,7 @@
 name: ui-producer
 description: 승인된 UI/UX 개선사항만 구현하는 프론트엔드 제작 전문가. 다른 제작 에이전트와 병렬로 사용하지 않는다.
 tools: Read, Grep, Glob, Edit, Write, Bash
-model: sonnet
+model: opus
 permissionMode: default
 ---
 

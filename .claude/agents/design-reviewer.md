@@ -2,7 +2,7 @@
 name: design-reviewer
 description: 구현된 UI의 정보 위계, 시각적 강조, CTA 중복과 과잉 요소를 냉정하게 검토하는 읽기 전용 디자인 리뷰어.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 permissionMode: plan
 ---
 
