@@ -60,6 +60,63 @@ describe("MatchAxesTable", () => {
     expect(screen.getByRole("table")).toHaveTextContent("인증 1/1");
   });
 
+  describe("요구값 vs 보유값", () => {
+    it("서버가 준 요구·보유를 함께 보여준다 — 요약만으로는 뭐가 모자란지 알 수 없다", () => {
+      render(
+        <MatchAxesTable
+          verdict="보완가능"
+          axes={[
+            axis({
+              status: "미충족",
+              detail: "1/2 그룹 충족",
+              required: "정보통신공사업, 소프트웨어사업자(컴퓨터관련서비스사업)",
+              actual: "정보통신공사업",
+            }),
+          ]}
+        />
+      );
+
+      expect(screen.getByText("1/2 그룹 충족")).toBeInTheDocument();
+      expect(
+        screen.getByText("정보통신공사업, 소프트웨어사업자(컴퓨터관련서비스사업)")
+      ).toBeInTheDocument();
+      expect(screen.getByText("정보통신공사업")).toBeInTheDocument();
+      expect(screen.getByText("요구")).toBeInTheDocument();
+      expect(screen.getByText("보유")).toBeInTheDocument();
+    });
+
+    it("보유값 없음 문구는 서버 표현을 그대로 쓴다", () => {
+      render(
+        <MatchAxesTable
+          verdict="불가"
+          axes={[axis({ axis: "item", status: "미충족", required: "전자교환기", actual: "(없음)" })]}
+        />
+      );
+
+      expect(screen.getByText("(없음)")).toBeInTheDocument();
+    });
+
+    // 개편 전 계산된 행에는 required/actual이 없을 수 있다 — 줄 자체를 그리지 않는다.
+    it("요구·보유가 없으면 라벨을 그리지 않는다", () => {
+      render(<MatchAxesTable verdict="가능" axes={[axis()]} />);
+
+      expect(screen.queryByText("요구")).not.toBeInTheDocument();
+      expect(screen.queryByText("보유")).not.toBeInTheDocument();
+    });
+
+    it("긴 값은 잘리지 않고 전체가 툴팁으로 남는다", () => {
+      const long = Array.from({ length: 12 }, () => "중급기술자(기계) 계 1명").join(", ");
+      render(
+        <MatchAxesTable
+          verdict="보완가능"
+          axes={[axis({ axis: "personnel", detail: "인력 요건 13/14", required: long })]}
+        />
+      );
+
+      expect(screen.getByText(long)).toHaveAttribute("title", long);
+    });
+  });
+
   describe("확인필요 사유", () => {
     it("required=0이면 공고에서 요건을 못 뽑은 것으로 안내한다", () => {
       render(<MatchAxesTable verdict="확인필요" axes={[axis({ status: "확인필요" })]} required={0} />);

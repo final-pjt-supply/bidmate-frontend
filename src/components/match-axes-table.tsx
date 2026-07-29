@@ -17,6 +17,25 @@ const STATUS_STYLE: Record<string, string> = {
   확인필요: "text-slate-400",
 };
 
+/**
+ * 요구값·보유값 한 줄.
+ *
+ * 인력·면허는 300자까지 온다(서버가 그 길이에서 자른다) — 그대로 펼치면 한 행이
+ * 표를 삼키므로 두 줄로 접고 전체는 툴팁으로 준다. 값이 없는 축(옛 계산 결과)은
+ * 줄 자체를 그리지 않는다. "(없음)" 같은 문구는 서버가 정한 표현이라 손대지 않는다.
+ */
+function Compare({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <p className="mt-1 flex gap-1.5 text-xs leading-relaxed text-slate-400">
+      <span className="shrink-0">{label}</span>
+      <span className="line-clamp-2 min-w-0" title={value}>
+        {value}
+      </span>
+    </p>
+  );
+}
+
 function rowsFor(order: readonly string[], axes: MatchAxis[]): MatchAxis[] {
   const byKey = new Map(axes.map((a) => [a.axis, a]));
   return order.flatMap((axis) => {
@@ -80,9 +99,17 @@ export function MatchAxesTable({
           <tbody>
             {scored.map((a) => (
               <tr key={a.axis} className="border-b border-slate-100 last:border-0">
-                <td className="py-2.5 font-medium text-gray-900">{axisLabel(a.axis)}</td>
-                <td className="py-2.5 text-slate-600">{a.detail}</td>
-                <td className={`py-2.5 text-right font-bold ${STATUS_STYLE[a.status] ?? ""}`}>
+                <td className="py-2.5 align-top font-medium text-gray-900">{axisLabel(a.axis)}</td>
+                <td className="py-2.5 align-top text-slate-600">
+                  <p>{a.detail}</p>
+                  {/* 요약(detail)만으로는 "1/2 충족"에서 뭐가 모자란지 알 수 없다.
+                      서버가 요구값·보유값을 이미 주므로 그대로 펼친다. */}
+                  <Compare label="요구" value={a.required} />
+                  <Compare label="보유" value={a.actual} />
+                </td>
+                <td
+                  className={`py-2.5 text-right align-top font-bold ${STATUS_STYLE[a.status] ?? ""}`}
+                >
                   {a.status}
                 </td>
               </tr>
