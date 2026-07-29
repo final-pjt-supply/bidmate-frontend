@@ -5,7 +5,7 @@
 // 미충족과 다른 색으로 구분한다.
 //
 // 백엔드는 실제 요구가 있는 축만 axes에 담아 보낸다. 요구가 없는 축은 표에 채워 넣지
-// 않고, 표시할 축이 하나도 없으면 나라장터 원문 확인 안내를 보여준다.
+// 않고, 표시할 축이 하나도 없으면 별도의 비교 조건이 없다는 정상 빈 상태를 보여준다.
 
 import type { MatchAxis } from "@/lib/types";
 import { axisLabel, INFO_AXIS_ORDER, SCORED_AXIS_ORDER } from "@/lib/match-axes";
@@ -37,8 +37,11 @@ export function MatchAxesTable({
 
   if (scored.length === 0 && info.length === 0) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-        공고에서 확인된 자격요건이 없습니다. 정확한 참가 조건은 나라장터 원문을 확인해 주세요.
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+        <p className="text-sm font-bold text-slate-800">별도로 확인된 자격요건이 없어요</p>
+        <p className="mt-1 text-sm leading-6 text-slate-500">
+          이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다.
+        </p>
       </div>
     );
   }
