@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bookmark, ChevronRight, ExternalLink, Lock, MessageCircleQuestion } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import type { Bid } from "@/lib/types";
+import type { Bid, Qualification } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
 import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 import { logEvent } from "@/lib/analytics/track";
@@ -36,10 +36,86 @@ const SIZE_LIMIT_LABEL: Record<string, string> = {
   none: "제한 없음",
 };
 
-/** 기업규모 제한 라벨. 빈값·null은 제한 없음, 모르는 값은 "제한 있음"으로 폴백. */
-function sizeLimitLabel(v: string | null | undefined): string {
-  if (!v) return "제한 없음";
+/** 기업규모 제한 라벨. null은 호출 전에 제외하고, 모르는 값은 안전하게 "제한 있음"으로 표시. */
+function sizeLimitLabel(v: string): string {
   return SIZE_LIMIT_LABEL[v] ?? "제한 있음";
+}
+
+type QualificationField = { label: string; value: string };
+
+function joinNonEmpty(values: string[]): string {
+  return values.map((value) => value.trim()).filter(Boolean).join(", ");
+}
+
+/** null(미추출/확인 불가)을 "요구 없음"으로 단정하지 않고 실제 값이 있는 요건만 만든다. */
+function qualificationFields(q: Qualification | undefined): QualificationField[] {
+  if (!q) return [];
+
+  const fields: QualificationField[] = [];
+
+  if (q.company_size_limit != null) {
+    fields.push({ label: "기업규모 제한", value: sizeLimitLabel(q.company_size_limit) });
+  }
+
+  if (q.region_limit_type != null) {
+    const regionNames = joinNonEmpty(q.region_limit_names ?? []);
+    fields.push({
+      label: "지역제한",
+      value:
+        q.region_limit_type === "none"
+          ? "제한 없음"
+          : regionNames || "제한 있음 · 나라장터 원문 확인",
+    });
+  }
+
+  const licenses = joinNonEmpty(q.required_licenses?.map((license) => license.name_raw) ?? []);
+  if (licenses) fields.push({ label: "필수 면허·등록", value: licenses });
+
+  const certs = joinNonEmpty(q.required_certs ?? []);
+  if (certs) fields.push({ label: "필수 인증", value: certs });
+
+  if (q.direct_production_req != null) {
+    fields.push({
+      label: "직접생산 확인",
+      value: q.direct_production_req ? "필요" : "요구 없음",
+    });
+  }
+
+  const performance = joinNonEmpty(
+    q.performance_reqs?.map((requirement) => requirement.scope_raw) ?? []
+  );
+  if (performance) fields.push({ label: "실적요건", value: performance });
+
+  const personnel = joinNonEmpty(
+    q.personnel_reqs?.map(
+      (requirement) =>
+        `${requirement.field} ${requirement.grade} ${requirement.count}명`
+    ) ?? []
+  );
+  if (personnel) fields.push({ label: "필수 인력", value: personnel });
+
+  if (q.credit_rating_req != null) {
+    fields.push({
+      label: "신용등급 제출",
+      value: q.credit_rating_req ? "필요" : "요구 없음",
+    });
+  }
+
+  if (q.joint_venture_allowed != null) {
+    fields.push({
+      label: "공동수급",
+      value: q.joint_venture_allowed ? "허용" : "불가",
+    });
+  }
+
+  if (q.subcontract_allowed != null) {
+    fields.push({
+      label: "하도급",
+      value: q.subcontract_allowed ? "허용" : "불가",
+    });
+  }
+
+  return fields;
 }
 
 /** 금액(원) → "1.21억 원" / "5,660만 원" / "1,200원" */
@@ -177,31 +253,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
 
   const dday = computeDday(bid.bid_clse_dt);
   const q = bid.qualification;
-
-  // 자격요건 항목 라벨 매핑
-  const licenses =
-    q?.required_licenses && q.required_licenses.length > 0
-      ? q.required_licenses.map((l) => l.name_raw).join(", ")
-      : "제한 없음";
-  const certs =
-    q?.required_certs && q.required_certs.length > 0 ? q.required_certs.join(", ") : "요구 없음";
-  const perf =
-    q?.performance_reqs && q.performance_reqs.length > 0
-      ? q.performance_reqs.map((p) => p.scope_raw).join(", ")
-      : "요구 없음";
-
-  const qualFields: { label: string; value: string }[] = q
-    ? [
-        { label: "기업규모 제한", value: sizeLimitLabel(q.company_size_limit) },
-        { label: "지역제한", value: q.region_limit_type ? (q.region_limit_names?.join(", ") ?? "제한 있음") : "제한 없음" },
-        { label: "필수 면허·등록", value: licenses },
-        { label: "필수 인증", value: certs },
-        { label: "직접생산 확인", value: q.direct_production_req ? "필요" : "요구 없음" },
-        { label: "실적요건", value: perf },
-        { label: "공동수급", value: q.joint_venture_allowed ? "허용" : "불가" },
-        { label: "하도급", value: q.subcontract_allowed ? "허용" : "불가" },
-      ]
-    : [];
+  const qualFields = qualificationFields(q);
 
   const techWeight = q?.tech_weight ?? null;
   const priceWeight = q?.price_weight ?? null;
@@ -360,18 +412,22 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       </Section>
 
       {/* 공고 자격요건 */}
-      {q && (
-        <Section title="공고 자격요건">
-          <p className="-mt-1 text-xs text-slate-400">
-            공고문·첨부문서에서 추출한 요건이에요. 나라장터 &ldquo;공고서 원문&rdquo;을 함께 확인해 주세요.
-          </p>
+      <Section title="공고 자격요건">
+        <p className="-mt-1 text-xs text-slate-400">
+          공고문·첨부문서에서 추출한 요건이에요. 나라장터 &ldquo;공고서 원문&rdquo;을 함께 확인해 주세요.
+        </p>
+        {qualFields.length > 0 ? (
           <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
             {qualFields.map((f) => (
               <Field key={f.label} label={f.label} value={f.value} />
             ))}
           </div>
-        </Section>
-      )}
+        ) : (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            추출된 자격요건이 없습니다. 정확한 참가 조건은 나라장터 원문을 확인해 주세요.
+          </div>
+        )}
+      </Section>
 
       {/* 평가 기준 */}
       {techWeight != null && priceWeight != null && (
