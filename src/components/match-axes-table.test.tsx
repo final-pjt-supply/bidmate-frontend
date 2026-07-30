@@ -1,7 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MatchAxesTable } from "@/components/match-axes-table";
 import type { MatchAxis } from "@/lib/types";
+
+// 좁은 화면용 카드와 데스크톱 표를 함께 렌더하고 CSS로 하나만 보인다(#142).
+// jsdom은 Tailwind를 적용하지 않아 양쪽이 모두 DOM에 있으므로, 표를 검사할 때는
+// 범위를 표로 좁힌다 — 안 좁히면 같은 문자열이 두 번 잡힌다.
+const inTable = () => within(screen.getByRole("table"));
+/** 모바일 카드 목록(표가 아닌 쪽) */
+const inCards = () => within(screen.getByRole("list"));
 
 const axis = (over: Partial<MatchAxis> = {}): MatchAxis => ({
   axis: "license",
@@ -27,8 +34,8 @@ describe("MatchAxesTable", () => {
     render(<MatchAxesTable verdict="가능" axes={[axis()]} />);
 
     expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getByText("정보통신공사업")).toBeInTheDocument();
-    expect(screen.getByText("충족")).toBeInTheDocument();
+    expect(inTable().getByText("정보통신공사업")).toBeInTheDocument();
+    expect(inTable().getByText("충족")).toBeInTheDocument();
   });
 
   // 2026-07-29 개편: 인증이 참고용(info)에서 판정 대상(supp)으로 격상됐다.
@@ -78,9 +85,11 @@ describe("MatchAxesTable", () => {
     );
 
     // 별도 요소로 갈라졌고, 값 안의 가운뎃점(공백 없음)은 쪼개지지 않았다.
-    expect(screen.getByText("인증 0/3")).toBeInTheDocument();
+    expect(inTable().getByText("인증 0/3")).toBeInTheDocument();
     expect(
-      screen.getByText("취득하면 가능: 방송통신기자재 적합성평가(적합인증·적합등록), KC인증(국가통합인증마크)")
+      inTable().getByText(
+        "취득하면 가능: 방송통신기자재 적합성평가(적합인증·적합등록), KC인증(국가통합인증마크)"
+      )
     ).toBeInTheDocument();
   });
 
@@ -103,12 +112,12 @@ describe("MatchAxesTable", () => {
         />
       );
 
-      expect(screen.getByText("공고 요구")).toBeInTheDocument();
-      expect(screen.getByText("우리 회사")).toBeInTheDocument();
+      expect(inTable().getByText("공고 요구")).toBeInTheDocument();
+      expect(inTable().getByText("우리 회사")).toBeInTheDocument();
       expect(
-        screen.getByText("정보통신공사업, 소프트웨어사업자(컴퓨터관련서비스사업)")
+        inTable().getByText("정보통신공사업, 소프트웨어사업자(컴퓨터관련서비스사업)")
       ).toBeInTheDocument();
-      expect(screen.getByText("정보통신공사업")).toBeInTheDocument();
+      expect(inTable().getByText("정보통신공사업")).toBeInTheDocument();
       expect(screen.queryByText("1/2 그룹 충족")).not.toBeInTheDocument();
     });
 
@@ -136,10 +145,10 @@ describe("MatchAxesTable", () => {
       );
 
       // 두 행 모두 요구·보유 값이 각자 칸에 나온다
-      expect(screen.getByText("KC인증(국가통합인증마크)")).toBeInTheDocument();
-      expect(screen.getByText("없음")).toBeInTheDocument();
-      expect(screen.getByText("신용평가등급 보유")).toBeInTheDocument();
-      expect(screen.getByText("A")).toBeInTheDocument();
+      expect(inTable().getByText("KC인증(국가통합인증마크)")).toBeInTheDocument();
+      expect(inTable().getByText("없음")).toBeInTheDocument();
+      expect(inTable().getByText("신용평가등급 보유")).toBeInTheDocument();
+      expect(inTable().getByText("A")).toBeInTheDocument();
       // 로그투의 detail 문장은 어디에도 없다
       expect(screen.queryByText(/취득하면 가능/)).not.toBeInTheDocument();
       expect(screen.queryByText("신용평가 보유(A)")).not.toBeInTheDocument();
@@ -153,9 +162,9 @@ describe("MatchAxesTable", () => {
         />
       );
 
-      expect(screen.getByText("없음")).toBeInTheDocument();
+      expect(inTable().getByText("없음")).toBeInTheDocument();
       // 값 안의 괄호는 벗기지 않는다 — 전체가 괄호 하나로 감싸인 placeholder만
-      expect(screen.getByText("전자교환기")).toBeInTheDocument();
+      expect(inTable().getByText("전자교환기")).toBeInTheDocument();
     });
 
     // 개편 전 계산된 행에는 required/actual이 없을 수 있다 — 그때만 detail 문장이
@@ -163,7 +172,7 @@ describe("MatchAxesTable", () => {
     it("요구·보유가 없으면 detail 문장을 두 열에 걸쳐 보여준다", () => {
       render(<MatchAxesTable verdict="가능" axes={[axis({ detail: "정보통신공사업 보유" })]} />);
 
-      const cell = screen.getByText("정보통신공사업 보유").closest("td");
+      const cell = inTable().getByText("정보통신공사업 보유").closest("td");
       expect(cell).toHaveAttribute("colspan", "2");
     });
 
@@ -183,7 +192,58 @@ describe("MatchAxesTable", () => {
         />
       );
 
-      expect(screen.getByText(long)).toHaveAttribute("title", long);
+      expect(inTable().getByText(long)).toHaveAttribute("title", long);
+    });
+  });
+
+  // 표는 열 폭이 고정돼 있어 375px에서 "공고 요구" 칸이 약 64px까지 쥐어짜인다.
+  // 좁은 화면에서는 같은 데이터를 축별 카드로 그린다(#142).
+  describe("좁은 화면 카드", () => {
+    it("표와 같은 데이터를 축별 카드로 그린다", () => {
+      render(
+        <MatchAxesTable
+          verdict="보완가능"
+          axes={[
+            axis({
+              status: "미충족",
+              required: "정보통신공사업, 소프트웨어사업자(컴퓨터관련서비스사업)",
+              actual: "정보통신공사업",
+            }),
+          ]}
+        />
+      );
+
+      const cards = inCards();
+      expect(cards.getByText("면허")).toBeInTheDocument();
+      expect(cards.getByText("미충족")).toBeInTheDocument();
+      expect(cards.getByText("공고 요구")).toBeInTheDocument();
+      expect(cards.getByText("우리 회사")).toBeInTheDocument();
+      expect(
+        cards.getByText("정보통신공사업, 소프트웨어사업자(컴퓨터관련서비스사업)")
+      ).toBeInTheDocument();
+      expect(cards.getByText("정보통신공사업")).toBeInTheDocument();
+    });
+
+    // 데스크톱 표에서 세 줄로 접는 건 한 행이 표를 삼키지 않게 하려는 제약이다.
+    // 카드에는 그 제약이 없고, 잘린 값을 보여줄 title 툴팁이 모바일에서 안 뜬다.
+    it("카드에서는 값을 세 줄로 접지 않는다", () => {
+      const long = Array.from({ length: 12 }, () => "중급기술자(기계) 계 1명").join(", ");
+      render(
+        <MatchAxesTable
+          verdict="보완가능"
+          axes={[axis({ axis: "personnel", required: long, actual: "특급기술자(토목) 계 1명" })]}
+        />
+      );
+
+      expect(inCards().getByText(long)).not.toHaveClass("line-clamp-3");
+      expect(inTable().getByText(long)).toHaveClass("line-clamp-3");
+    });
+
+    it("요구·보유가 없는 옛 행은 카드에서도 detail 문장으로 대체한다", () => {
+      render(<MatchAxesTable verdict="가능" axes={[axis({ detail: "정보통신공사업 보유" })]} />);
+
+      expect(inCards().getByText("정보통신공사업 보유")).toBeInTheDocument();
+      expect(inCards().queryByText("공고 요구")).not.toBeInTheDocument();
     });
   });
 
