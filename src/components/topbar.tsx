@@ -101,14 +101,20 @@ export function Topbar() {
 
   return (
     <header className="w-full border-b border-slate-200 bg-white">
-      <div className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
+      {/* 좁은 화면에서는 내비게이션을 두 번째 줄로 내린다(#143).
+          md 이상에서만 절대 위치로 중앙 정렬한다 — 절대 위치는 left만 주면 쓸 수 있는
+          폭이 컨테이너 절반으로 제한돼, 375px에서 항목 4개가 밀려들어가며 글자가 한 글자씩
+          쪼개졌다. flex 흐름에서 빠져 있어 로고·프로필을 밀어내지도 못해 그대로 겹쳤다.
+          order로 줄을 가르고 마크업은 하나만 둔다 — 복제하면 링크가 두 개씩 잡혀 테스트와
+          스크린리더가 모두 어긋난다. */}
+      <div className="relative mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-y-2 px-4 py-4 sm:px-6 lg:px-10">
         {/* 브랜드 */}
-        <Link href="/" className="flex items-center">
-          <span className="text-2xl font-bold text-indigo-700">비드메이트</span>
+        <Link href="/" className="order-1 flex items-center">
+          <span className="text-xl font-bold text-indigo-700 sm:text-2xl">비드메이트</span>
         </Link>
 
         {/* 내비게이션 */}
-        <nav className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
+        <nav className="order-3 -mx-1 flex w-full items-center gap-1 overflow-x-auto px-1 md:order-none md:absolute md:left-1/2 md:mx-0 md:w-auto md:-translate-x-1/2 md:gap-2 md:overflow-visible md:px-0">
           {NAV_ITEMS.map(({ label, href }) => {
             const active =
               href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
@@ -116,7 +122,9 @@ export function Topbar() {
               <Link
                 key={label}
                 href={href}
-                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                // 폭이 부족하면 줄바꿈이 아니라 스크롤로 처리한다 — 글자 단위 줄바꿈은
+                // 메뉴를 읽을 수 없게 만든다.
+                className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors md:px-4 ${
                   active ? "bg-indigo-50 text-indigo-700" : "text-gray-700 hover:bg-slate-100"
                 }`}
               >
@@ -127,7 +135,7 @@ export function Topbar() {
         </nav>
 
         {/* 우측 액션: 로그인 상태에 따라 분기 */}
-        <div className="flex items-center gap-3.5">
+        <div className="order-2 flex items-center gap-3.5">
           {ready && user ? (
             <UserMenu company={user.company} onLogout={logout} />
           ) : ready ? (
