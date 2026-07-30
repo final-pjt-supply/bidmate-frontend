@@ -104,6 +104,9 @@ run_slot() {
 validate_nginx_source() {
   local candidate="${STATE_DIR}/nginx.conf.candidate"
 
+  # Let’s Encrypt의 HTTP-01 검증 파일을 Nginx가 항상 읽을 수 있게 한다.
+  # 신규 도메인 발급뿐 아니라 이후 certbot renew에도 같은 경로를 사용한다.
+  install -d -m 0755 /var/www/certbot
   install -m 0644 "${NGINX_SOURCE}" "${candidate}"
   nginx -t -c "${candidate}"
   install -m 0644 "${candidate}" "${NGINX_CONFIG}"
