@@ -6,6 +6,8 @@ build
 
 .git
 .github
+.claude
+CLAUDE.md
 .vscode
 .idea
 
