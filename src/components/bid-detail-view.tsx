@@ -121,7 +121,10 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         if (alive) setMatch(data.match);
       } catch (err) {
         console.error("매칭 결과 로드 실패:", err);
-        if (alive) setMatchError("적합도 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        // 상태 한 문장만 담는다 — 뒤에 붙일 안내는 문맥마다 다르다(배너는 "이전 결과를
+        // 보여준다", 카드는 "나머지 정보는 아래에 있다"). 여기서 "다시 시도해 주세요"까지
+        // 넣으면 제목이 같은 말을 한 오류 카드에서 문장이 두 번 반복됐다.
+        if (alive) setMatchError("적합도 결과를 불러오지 못했어요.");
       } finally {
         if (alive) setMatchLoading(false);
       }
@@ -187,8 +190,10 @@ export function BidDetailView({ bid }: { bid: Bid }) {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 pb-16 pt-6 sm:px-6 lg:px-10">
       {/* breadcrumb */}
       <nav className="flex items-center gap-1 text-xs text-slate-400">
+        {/* 목적지가 /search이므로 상단 내비게이션과 같은 이름으로 부른다(topbar: "공고 검색").
+            "공고"라고만 쓰면 공고 목록이 따로 있는 것처럼 읽힌다. */}
         <Link href="/search" className="transition-colors hover:text-slate-600">
-          공고
+          공고 검색
         </Link>
         <ChevronRight className="size-3 shrink-0" strokeWidth={2} />
         <span className="max-w-[420px] truncate text-slate-600" title={bid.bid_ntce_nm}>
@@ -293,7 +298,9 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               role="alert"
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3"
             >
-              <p className="text-sm text-amber-900">{matchError} 이전 결과를 표시하고 있습니다.</p>
+              <p className="text-sm text-amber-900">
+                {matchError} 먼저 불러온 결과를 보여드리고 있어요.
+              </p>
               <button
                 type="button"
                 disabled={matchLoading}
@@ -314,8 +321,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           <span className="flex size-[52px] items-center justify-center rounded-full bg-white">
             <AlertTriangle className="size-[22px] text-amber-600" strokeWidth={2} />
           </span>
+          {/* 본문에 matchError를 그대로 두면 제목과 같은 문장이 두 번 나온다 — 제목은 상태,
+              본문은 '그래서 지금 무엇을 할 수 있는가'를 말한다. 적합도만 실패했고 아래
+              공고 정보·자격요건 섹션은 그대로 그려지므로 그 사실이 실제로 도움이 된다. */}
           <p className="text-lg font-bold text-gray-900">적합도 결과를 불러오지 못했어요</p>
-          <p className="text-sm text-gray-600">{matchError}</p>
+          <p className="text-sm text-gray-600">
+            공고 정보와 자격요건은 아래에서 그대로 확인할 수 있어요.
+          </p>
           <button
             type="button"
             disabled={matchLoading}
@@ -332,9 +344,11 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           </span>
           {isMember ? (
             <>
+              {/* 제목이 상태, 본문이 얻는 것 — 두 상태(비회원/미계산)의 본문은 같은 값을
+                  약속하므로 문구를 맞추고, 다른 점은 제목과 버튼으로만 말한다. */}
               <p className="text-lg font-bold text-gray-900">아직 적합도가 계산되지 않았어요</p>
               <p className="text-sm text-gray-500">
-                회사 정보를 등록하면 이 공고가 우리 회사와 맞는지 항목별로 확인할 수 있어요.
+                회사 정보를 등록하면 이 공고의 자격요건과 항목별로 비교해 드려요.
               </p>
               <Link
                 href="/mypage?edit=1"
@@ -345,9 +359,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             </>
           ) : (
             <>
-              <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 적합도를 확인할 수 있어요</p>
+              {/* 제목이 "확인할 수 있어요", 본문이 "보여드려요"로 같은 말을 두 번 하고
+                  있었다. 본문은 로그인 다음에 무엇이 더 필요한지(회사 정보 등록)를 말한다. */}
+              <p className="text-lg font-bold text-gray-900">
+                로그인하면 우리 회사 적합도를 볼 수 있어요
+              </p>
               <p className="text-sm text-gray-500">
-                회사 정보를 등록하면 이 공고가 우리 회사와 얼마나 맞는지 항목별로 보여드려요.
+                회사 정보를 등록하면 이 공고의 자격요건과 항목별로 비교해 드려요.
               </p>
               <div className="mt-1 flex gap-2">
                 <Link
