@@ -19,6 +19,12 @@ const STATUS_STYLE: Record<string, string> = {
   확인필요: "text-slate-400",
 };
 
+// 모바일 카드의 테두리·배경 — 데스크톱 표의 행 배경색과 같은 신호를 유지한다.
+const CARD_STYLE: Record<string, string> = {
+  충족: "border-emerald-200 bg-emerald-50/30",
+  미충족: "border-rose-200 bg-rose-50/40",
+};
+
 /**
  * 요구/보유 칸의 값 — 이 표의 본문.
  *
@@ -29,7 +35,18 @@ const STATUS_STYLE: Record<string, string> = {
  * 인력·면허는 300자까지 온다(서버가 그 길이에서 자른다) — 그대로 펼치면 한 행이
  * 표를 삼키므로 세 줄로 접고 전체는 툴팁으로 준다.
  */
-function AxisValue({ value, asList = false }: { value: string; asList?: boolean }) {
+function AxisValue({
+  value,
+  asList = false,
+  clamp = true,
+}: {
+  value: string;
+  asList?: boolean;
+  // 데스크톱 표에서 세 줄로 접는 건 한 행이 표를 삼키지 않게 하려는 제약이다.
+  // 모바일 카드에는 그 제약이 없고, 잘린 값을 보여줄 title 툴팁도 모바일에서는
+  // 뜨지 않으므로 접지 않는다.
+  clamp?: boolean;
+}) {
   // "(없음)"·"(미등록)" 같은 서버 placeholder는 괄호를 벗겨 자연문으로, 톤도 죽인다 —
   // 값 전체가 괄호 하나로 감싸인 경우만이라 "소프트웨어사업자(컴퓨터관련서비스사업)"은
   // 안 건드린다.
@@ -47,7 +64,9 @@ function AxisValue({ value, asList = false }: { value: string; asList?: boolean 
     </ul>
   ) : (
     <span
-      className={`line-clamp-3 block leading-relaxed ${isPlaceholder ? "text-slate-400" : ""}`}
+      className={`block leading-relaxed ${clamp ? "line-clamp-3" : ""} ${
+        isPlaceholder ? "text-slate-400" : ""
+      }`}
       title={text}
     >
       {text}
@@ -149,6 +168,53 @@ export function MatchAxesTable({
         <span className="text-sm text-slate-500">{verdictNote(verdict, hasReviewRow)}</span>
       </div>
 
+      {/* 모바일(sm 미만): 표를 축별 세로 카드로 그린다.
+          표는 열 폭이 고정돼 있어 375px에서 "공고 요구" 칸이 약 64px까지 쥐어짜인다 —
+          요구값이 300자까지 오는 칸이라 사실상 못 읽는다. 카드는 폭을 거의 다 쓴다.
+          화면 폭을 JS로 재서 분기하지 않고 CSS로 하나만 보이게 한다 — SSR에서
+          하이드레이션 불일치와 깜빡임이 생기기 때문이다(#142). */}
+      {scored.length > 0 && (
+        <ul className="flex flex-col gap-2.5 sm:hidden">
+          {scored.map((a) => (
+            <li
+              key={a.axis}
+              className={`rounded-lg border px-3.5 py-3 ${
+                CARD_STYLE[a.status] ?? "border-slate-200 bg-white"
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-bold text-gray-900">{axisLabel(a.axis)}</span>
+                <span
+                  className={`shrink-0 text-sm font-bold ${STATUS_STYLE[a.status] ?? ""}`}
+                >
+                  {a.status}
+                </span>
+              </div>
+              {hasPair(a) ? (
+                <dl className="mt-2.5 flex flex-col gap-2 text-sm text-slate-600">
+                  <div>
+                    <dt className="text-xs text-slate-400">공고 요구</dt>
+                    <dd className="mt-0.5">
+                      <AxisValue value={a.required} asList={a.axis === "cert"} clamp={false} />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400">우리 회사</dt>
+                    <dd className="mt-0.5">
+                      <AxisValue value={a.actual} asList={a.axis === "cert"} clamp={false} />
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <div className="mt-2 text-sm text-slate-600">
+                  <DetailLines detail={a.detail} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {scored.length > 0 && (
         // 값 칸이 길어지면 자동 레이아웃이 양옆 칸을 쥐어짜 "인 증"·"미충 족"처럼
         // 세로로 쪼개진다. 항목·결과는 너비를 고정하고 줄바꿈을 막는다.
@@ -157,7 +223,7 @@ export function MatchAxesTable({
         // 갖고 있나"가 한 열로 읽히고, 행마다 반복되던 미니 라벨도 사라진다.
         // 폭은 비대칭: 요구값(최대 300자)이 잔여 전부, 보유값(대부분 "없음"·"A"처럼
         // 짧다)은 28%만 갖는다.
-        <table className="w-full table-fixed text-left text-sm">
+        <table className="hidden w-full table-fixed text-left text-sm sm:table">
           <colgroup>
             {/* 행 배경 띠 안에서 글자가 끝에 붙지 않도록 첫/마지막 칸에 안쪽 여백을 준다.
                 table-fixed라 패딩만 더하면 값 칸이 쥐어짜이므로 넣은 만큼(각 12px) col
