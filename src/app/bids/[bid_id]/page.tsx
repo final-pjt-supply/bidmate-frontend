@@ -12,9 +12,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { bid_id } = await params;
   const bid = await getBid(bid_id);
-  if (!bid) return { title: "공고를 찾을 수 없어요 · 비드메이트" };
+  if (!bid) return { title: "공고를 찾을 수 없어요 · 비드프렌드" };
   return {
-    title: `${bid.bid_ntce_nm} · 비드메이트`,
+    title: `${bid.bid_ntce_nm} · 비드프렌드`,
     description: `${bid.dminstt_nm}이(가) 공고한 ${bid.bid_ntce_nm}의 공고 정보와 자격요건을 확인하세요.`,
   };
 }

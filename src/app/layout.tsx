@@ -9,7 +9,8 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "비드메이트 — 나라장터 공공입찰 공고 추천",
+  metadataBase: new URL("https://bidfriend.ai.kr"),
+  title: "비드프렌드 — 나라장터 공공입찰 공고 추천",
   description: "회사 조건에 맞는 나라장터 공공입찰 공고를 추천해 드립니다.",
 };
 

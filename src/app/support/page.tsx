@@ -4,8 +4,8 @@ import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
-  title: "고객센터 · 비드메이트",
-  description: "비드메이트 고객센터는 준비 중입니다. 급한 문의는 bidmatefinal@gmail.com 로 보내주세요.",
+  title: "고객센터 · 비드프렌드",
+  description: "비드프렌드 고객센터는 준비 중입니다. 급한 문의는 고객센터 이메일로 보내주세요.",
 };
 
 export default function SupportPage() {

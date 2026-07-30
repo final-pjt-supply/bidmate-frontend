@@ -201,7 +201,7 @@ export default function SignupPage() {
                 type="text"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                placeholder="(주)비드메이트"
+                placeholder="(주)비드프렌드"
                 className={inputClass}
               />
             </Field>
@@ -215,7 +215,7 @@ export default function SignupPage() {
                     setEmail(e.target.value);
                     setEmailStatus("idle");
                   }}
-                  placeholder="kim@bidmate.co.kr"
+                  placeholder="kim@bidfriend.ai.kr"
                   autoComplete="email"
                   className={`${inputClass} flex-1`}
                 />

@@ -247,7 +247,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
 
 /** 데모/테스트 계정에서만 보여줄 예시 회사 정보 */
 export const DEMO_PROFILE: CompanyProfile = {
-  name: "(주)비드메이트",
+  name: "(주)비드프렌드",
   bizNo: "1234567891", // 체크섬 유효값 (표시는 123-45-67891)
   hqRegion: { code: "11", name: "서울특별시" },
   branchRegions: [{ code: "26", name: "부산광역시" }],

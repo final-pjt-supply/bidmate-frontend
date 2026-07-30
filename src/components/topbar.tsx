@@ -110,7 +110,7 @@ export function Topbar() {
       <div className="relative mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-y-2 px-4 py-4 sm:px-6 lg:px-10">
         {/* 브랜드 */}
         <Link href="/" className="order-1 flex items-center">
-          <span className="text-xl font-bold text-indigo-700 sm:text-2xl">비드메이트</span>
+          <span className="text-xl font-bold text-indigo-700 sm:text-2xl">비드프렌드</span>
         </Link>
 
         {/* 내비게이션 */}

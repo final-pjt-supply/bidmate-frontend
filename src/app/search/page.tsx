@@ -13,7 +13,7 @@ export type SearchSort = "deadline" | "recent";
 const toSort = (v?: string): SearchSort => (v === "recent" ? "recent" : "deadline");
 
 export const metadata: Metadata = {
-  title: "공고 검색 · 비드메이트",
+  title: "공고 검색 · 비드프렌드",
   description: "나라장터 공공입찰 공고를 공고명·발주기관으로 검색하고 마감·등록순으로 확인하세요.",
 };
 

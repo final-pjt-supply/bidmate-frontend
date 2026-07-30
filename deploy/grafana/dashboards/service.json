@@ -1,6 +1,6 @@
 {
   "uid": "bidmate-service",
-  "title": "BidMate 회원 지표",
+  "title": "BidFriend 회원 지표",
   "description": "회원 가입 현황. 출시 직후에는 '가입이 실제로 일어나는가'가 가장 중요한 신호다 — 홍보를 했는데 신규가 0이면 인기 문제가 아니라 회원가입이 깨진 것일 수 있다. 데이터는 companies 테이블(집계 컬럼만 조회 권한).",
   "tags": [
     "bidmate",

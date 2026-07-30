@@ -34,7 +34,7 @@ export type User = {
  * 비밀번호는 여기 두지 않는다. 클라이언트 번들은 누구나 열어볼 수 있어, 상수로만
  * 두어도 실제 계정의 자격증명이 공개된다(로그인 화면 노출과 함께 제거, #72).
  */
-export const DEMO_ACCOUNT_EMAIL = "dev@bidmate.co.kr";
+export const DEMO_ACCOUNT_EMAIL = "dev@bidfriend.ai.kr";
 
 type Result = { ok: true } | { ok: false; error: string };
 /** 가입은 이메일 인증코드 단계가 남으므로 별도 결과 타입 */

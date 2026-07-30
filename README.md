@@ -1,6 +1,6 @@
-# BidMate Frontend
+# BidFriend Frontend
 
-회사 자격조건과 관심사를 바탕으로 나라장터 공고를 탐색·추천하는 BidMate의 Next.js
+회사 자격조건과 관심사를 바탕으로 나라장터 공고를 탐색·추천하는 BidFriend의 Next.js
 프론트엔드입니다.
 
 ## 기술 스택
