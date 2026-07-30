@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, User, Bookmark, LogOut } from "lucide-react";
+import { ChevronDown, User, Bookmark, Settings, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { BIDBOT_ENABLED } from "@/lib/features";
 
@@ -75,6 +75,12 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
           <Link href="/mypage/scraps" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             <Bookmark className="size-4 text-slate-500" strokeWidth={2} />
             스크랩한 공고
+          </Link>
+          {/* 마이페이지 사이드바가 max-md:hidden이라 모바일에선 여기가 계정 설정의
+              유일한 진입 경로다. */}
+          <Link href="/mypage/account" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+            <Settings className="size-4 text-slate-500" strokeWidth={2} />
+            계정 설정
           </Link>
           <div className="my-1 h-px bg-slate-100" />
           <button

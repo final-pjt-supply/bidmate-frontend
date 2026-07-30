@@ -8,10 +8,27 @@ const notoSansKr = Noto_Sans_KR({
   subsets: ["latin"],
 });
 
+const SITE_TITLE = "비드프렌드 — 나라장터 공공입찰 공고 추천";
+const SITE_DESCRIPTION = "회사 조건에 맞는 나라장터 공공입찰 공고를 추천해 드립니다.";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://bidfriend.ai.kr"),
-  title: "비드프렌드 — 나라장터 공공입찰 공고 추천",
-  description: "회사 조건에 맞는 나라장터 공공입찰 공고를 추천해 드립니다.",
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  // SNS 공유 시 미리보기 카드. 이미지는 app/opengraph-image.tsx가 자동으로 붙는다.
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    siteName: "비드프렌드",
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
