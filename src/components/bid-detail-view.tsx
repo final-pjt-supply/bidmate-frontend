@@ -375,14 +375,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           <Field label="배정예산" value={formatKRW(bid.bdgt_amt)} />
           <Field label="낙찰방법" value={displayValue(bid.sucsfbid_mthd_nm?.split("-")[0])} />
           <Field label="입찰방식" value={displayValue(bid.bid_methd_nm)} />
+          {/* "있음"의 짝은 "없음"이다 — 한쪽만 "제한 없음"이면 두 값이 같은 축으로 읽히지
+              않는다. null은 '제한이 없다'가 아니라 '공고에서 값을 못 받았다'는 뜻이라
+              "없음"과 반드시 구분해 둔다. */}
           <Field
             label="참가제한"
             value={
-              bid.bid_prtcpt_lmt_yn == null
-                ? "정보 없음"
-                : bid.bid_prtcpt_lmt_yn
-                  ? "있음"
-                  : "제한 없음"
+              bid.bid_prtcpt_lmt_yn == null ? "정보 없음" : bid.bid_prtcpt_lmt_yn ? "있음" : "없음"
             }
           />
         </div>
@@ -400,10 +399,16 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             ))}
           </div>
         ) : (
+          // 이 섹션은 공고문에서 뽑아낸 요건을 그대로 보여주는 곳이다 — 회사 정보와
+          // 비교하는 건 위쪽 적합도 표의 일이라, 여기서 "회사 정보와 비교할 조건"을
+          // 말하면 비회원·회사정보 미입력 사용자에게 틀린 안내가 된다.
+          // 값이 비었다는 건 요건이 없다는 뜻이 아니라 못 뽑았을 수도 있다는 뜻이므로
+          // (qualificationFields가 null을 "요구 없음"으로 단정하지 않는다) 원문으로 보낸다.
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-sm font-bold text-slate-800">별도로 확인된 자격요건이 없어요</p>
+            <p className="text-sm font-bold text-slate-800">자격요건을 확인하지 못했어요</p>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다.
+              공고문·첨부문서에서 참가자격 조건을 찾지 못했어요. 나라장터 원문에서 직접 확인해
+              주세요.
             </p>
           </div>
         )}
@@ -413,24 +418,33 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       {techWeight != null && priceWeight != null && (
         <Section title="이 공고의 평가 기준">
           <p className="-mt-1 text-xs text-slate-400">발주기관이 정한 낙찰자 심사 기준이에요.</p>
+          {/* 가격 쪽도 기술 쪽과 같은 형식으로 읽혀야 한다 — 숫자만 두면 "기술 90점 / 10"이
+              되어 10이 무엇인지 알 수 없었다.
+              라벨이 길어진 만큼 좁은 쪽(보통 가격 10~20%)에서 칸이 글자에 밀려 비율이
+              틀어질 수 있으므로 min-w-0으로 줄어들 수 있게 하고 넘치면 잘라낸다 —
+              막대의 몫 자체가 정보라 비율이 글자보다 우선한다. */}
           <div className="flex h-9 w-full overflow-hidden rounded-md">
             <div
-              className="flex items-center justify-center bg-indigo-600 text-xs font-bold text-white"
+              className="flex min-w-0 items-center justify-center overflow-hidden whitespace-nowrap bg-indigo-600 text-xs font-bold text-white"
               style={{ width: `${techWeight}%` }}
             >
               기술 {techWeight}점
             </div>
             <div
-              className="flex items-center justify-center bg-slate-200 text-xs font-bold text-slate-600"
+              className="flex min-w-0 items-center justify-center overflow-hidden whitespace-nowrap bg-slate-200 text-xs font-bold text-slate-600"
               style={{ width: `${priceWeight}%` }}
             >
-              {priceWeight}
+              가격 {priceWeight}점
             </div>
           </div>
-          {q?.award_cutline_value != null && (
+          {/* "점수제"를 문구에 박아두고 있었지만 종류는 award_cutline_type(score/rate/
+              lowest_price)에 따로 온다 — rate 공고(실측 있음, 값이 84.245처럼 점수가 아닌
+              비율)에도 "84.245점"이라고 쓰게 되어 있었다. 단위를 단정할 수 있는 score만
+              문장으로 쓰고, 나머지 종류는 의미를 백엔드와 확인한 뒤 붙인다. */}
+          {q?.award_cutline_type === "score" && q.award_cutline_value != null && (
             <p className="text-sm text-gray-700">
-              <span className="font-bold text-indigo-700">낙찰 커트라인</span> 점수제 · 종합{" "}
-              {q.award_cutline_value}점 이상 시 협상 적격
+              <span className="font-bold text-indigo-700">낙찰 커트라인</span> 종합{" "}
+              {q.award_cutline_value}점 이상이면 협상 대상이 돼요
             </p>
           )}
         </Section>
