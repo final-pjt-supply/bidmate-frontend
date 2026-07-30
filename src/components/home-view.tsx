@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { hasCompanyProfile } from "@/lib/company";
 import { logEvent } from "@/lib/analytics/track";
-import { fetchMatchSummary, fetchScrapCount } from "@/lib/api/matches";
+import {
+  fetchMatches,
+  fetchMatchSummary,
+  fetchScrapCount,
+  type MatchListItem,
+} from "@/lib/api/matches";
 import { HomeHero, type HeroStat } from "@/components/home-hero";
 import { HomeBody } from "@/components/home-body";
 import type { Bid } from "@/lib/types";
 
 type HomeViewProps = {
+  /** 인증 없는 공용 목록 — 비회원 블러 미리보기 전용 */
   recommendedBids: Bid[];
   recentBids: Bid[];
-  recommendedLoadFailed: boolean;
   recentLoadFailed: boolean;
 };
 
@@ -23,16 +29,53 @@ const fmt = (n: number | undefined) => (n == null ? "—" : `${n.toLocaleString(
 export function HomeView({
   recommendedBids,
   recentBids,
-  recommendedLoadFailed,
   recentLoadFailed,
 }: HomeViewProps) {
   const { user, ready } = useAuth();
   const isMember = ready && !!user;
   const [counts, setCounts] = useState<Counts>(null);
 
+  // "내 조건 맞춤 추천" 섹션은 회원일 때 실제 매칭 결과(match_results)를 보여준다.
+  // 서버가 준 recommendedBids는 인증 없는 공용 목록이라 회원 조건과 무관하다 —
+  // 비회원 블러 미리보기 용도로만 남긴다.
+  const [matches, setMatches] = useState<MatchListItem[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [matchesFailed, setMatchesFailed] = useState(false);
+
   useEffect(() => {
     logEvent("home_viewed", { page: "home" });
   }, []);
+
+  // 회원의 회사 정보 입력 여부 (SSR·비회원 시 isMember=false로 localStorage 미접근)
+  const companyMissing = useMemo(
+    () => isMember && !!user && !hasCompanyProfile(user.email),
+    [isMember, user]
+  );
+
+  // 재시도 중에도 실패 상태를 유지한다 — 여기서 먼저 지우면 오류 카드가 스켈레톤으로
+  // 바뀌었다 다시 오류로 돌아와 깜빡이고, "다시 시도" 버튼의 진행 표시도 사라진다.
+  const loadMatches = useCallback(async () => {
+    setMatchesLoading(true);
+    try {
+      const data = await fetchMatches({ sort: "recommended", page: 1 });
+      setMatches(data.items);
+      setMatchesFailed(false);
+    } catch (err) {
+      console.error("맞춤 추천 로드 실패:", err);
+      setMatchesFailed(true);
+      setMatches([]);
+    } finally {
+      setMatchesLoading(false);
+    }
+  }, []);
+
+  // 매칭 목록은 토큰이 있어야 부를 수 있고 토큰은 브라우저에만 있다 — 서버에서 미리
+  // 못 받으므로 마운트 후 여기서 로드한다(맞춤 추천 페이지와 같은 규칙).
+  useEffect(() => {
+    if (!isMember || companyMissing) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadMatches();
+  }, [isMember, companyMissing, loadMatches]);
 
   // 건수는 로그인 토큰이 있어야 부를 수 있어 서버에서 미리 못 받는다.
   // 하나가 실패해도 나머지는 살린다(allSettled) — 타일 하나 때문에 전부 "—"가 되면 안 된다.
@@ -67,21 +110,33 @@ export function HomeView({
     const total = safe(counts?.total);
     return (
       <>
+        {/* 회사 정보가 없으면 맞춤 공고 건수 자체가 성립하지 않는다 — 아래 섹션이
+            "회사 정보를 입력해 주세요"라고 말하는데 위에서 대시보드를 흉내내면 모순이다. */}
         <HomeHero
           badge="MY · 맞춤 공고 대시보드"
-          title={`${user.company}님, 오늘의 맞춤 공고예요`}
-          subtitle={
-            total == null
-              ? "회사 조건에 맞는 공고를 확인하고 있어요."
-              : `회사 조건으로 참가할 수 있는 공고가 ${total.toLocaleString()}건 있어요.`
+          title={
+            companyMissing
+              ? `${user.company}님, 반가워요`
+              : `${user.company}님, 오늘의 맞춤 공고예요`
           }
-          stats={stats}
+          subtitle={
+            companyMissing
+              ? "회사 정보를 입력하면 우리 회사 조건에 맞는 공고를 추천해드려요."
+              : total == null
+                ? "회사 조건에 맞는 공고를 확인하고 있어요."
+                : `회사 조건으로 참가할 수 있는 공고가 ${total.toLocaleString()}건 있어요.`
+          }
+          stats={companyMissing ? undefined : stats}
         />
         <HomeBody
           recommendedBids={recommendedBids}
           recentBids={recentBids}
-          recommendedLoadFailed={recommendedLoadFailed}
           recentLoadFailed={recentLoadFailed}
+          memberMatches={matches}
+          memberMatchesLoading={matchesLoading}
+          memberMatchesFailed={matchesFailed}
+          companyMissing={companyMissing}
+          onRetryMemberMatches={() => void loadMatches()}
         />
       </>
     );
@@ -98,7 +153,6 @@ export function HomeView({
       <HomeBody
         recommendedBids={recommendedBids}
         recentBids={recentBids}
-        recommendedLoadFailed={recommendedLoadFailed}
         recentLoadFailed={recentLoadFailed}
         gated
       />

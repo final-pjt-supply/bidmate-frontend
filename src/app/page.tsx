@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   // 카드 목록은 비회원도 보는 화면이라 서버에서 미리 받는다(로그인 불필요).
-  // 회원 대시보드 건수는 토큰이 필요해 HomeView가 마운트 후 따로 부른다.
+  // 회원 대시보드 건수와 맞춤 추천 목록은 토큰이 필요해 HomeView가 마운트 후 따로 부른다
+  // — 그래서 아래 recommended는 비회원 미리보기 전용이다.
   //
   // 최신: 등록이 최근인 순. today=true(오늘 등록분)로 두면 신규 유입이 없는 저녁·주말에
   //       섹션이 비거나 몇 건만 떴다 — 실측상 신규는 KST 업무시간에 몰린다.
@@ -33,7 +34,6 @@ export default async function Home() {
         <HomeView
           recommendedBids={recommendedBids}
           recentBids={recentBids}
-          recommendedLoadFailed={recommended.status === "rejected"}
           recentLoadFailed={latest.status === "rejected"}
         />
       </main>
