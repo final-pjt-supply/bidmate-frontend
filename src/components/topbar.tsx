@@ -5,12 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, User, Bookmark, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { BIDBOT_ENABLED } from "@/lib/features";
 
+// 비드봇은 미완성이라 스위치가 꺼져 있으면 내비게이션에서 아예 빼둔다(#140).
+// 눌러도 안 되는 항목이나 "구현 중입니다" 안내를 남기지 않는다 — 업무 도구에서
+// 동작하지 않는 메뉴는 "미완성 서비스"로 읽힌다.
 const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "공고 검색", href: "/search" },
   { label: "맞춤 추천", href: "/recommend" },
   { label: "AI 추천", href: "/ai-recommend" },
-  { label: "비드봇", href: "/bidbot" },
+  ...(BIDBOT_ENABLED ? [{ label: "비드봇", href: "/bidbot" }] : []),
   { label: "이용안내", href: "/guide" },
 ];
 

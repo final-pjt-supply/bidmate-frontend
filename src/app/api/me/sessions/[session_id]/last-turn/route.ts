@@ -6,6 +6,7 @@
 // 404는 두 경우다 — 세션이 없거나(존재 은닉), 취소할 턴이 없는 빈 대화방.
 
 import { NextResponse } from "next/server";
+import { BIDBOT_ENABLED } from "@/lib/features";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 
@@ -13,6 +14,9 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ session_id: string }> }
 ) {
+  // 비드봇 스위치가 꺼져 있으면 없는 경로로 응답한다(#140).
+  if (!BIDBOT_ENABLED) return NextResponse.json({ detail: "Not Found" }, { status: 404 });
+
   const auth = req.headers.get("Authorization");
   if (!auth) {
     return NextResponse.json({ detail: "로그인이 필요합니다" }, { status: 401 });

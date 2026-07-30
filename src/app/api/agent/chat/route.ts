@@ -9,6 +9,7 @@
 // 그전까지 이 라우트만 Authorization을 넘기지 않아 401이 나고 있었다.
 
 import { NextResponse } from "next/server";
+import { BIDBOT_ENABLED } from "@/lib/features";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 
@@ -17,6 +18,11 @@ const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 const TIMEOUT_MS = 60_000;
 
 export async function POST(req: Request) {
+  // 비드봇 스위치가 꺼져 있으면 없는 경로로 응답한다(#140). 이 경로는 Bedrock
+  // 동기 호출로 이어져 과금이 발생하므로, 화면에서 버튼을 숨기는 것만으로는
+  // 부족하다 — URL을 아는 사람이 직접 호출할 수 있다.
+  if (!BIDBOT_ENABLED) return NextResponse.json({ detail: "Not Found" }, { status: 404 });
+
   const auth = req.headers.get("Authorization");
   if (!auth) {
     return NextResponse.json({ detail: "로그인이 필요합니다" }, { status: 401 });
