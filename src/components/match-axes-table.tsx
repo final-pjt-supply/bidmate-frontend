@@ -136,7 +136,7 @@ export function MatchAxesTable({
         <p className="mt-1 text-sm leading-6 text-slate-500">
           {extractionFailed
             ? "자격요건을 자동으로 분석하지 못한 공고예요. 나라장터 원문에서 참가자격을 직접 확인해 주세요."
-            : "이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다."}
+            : "이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았어요."}
         </p>
       </div>
     );

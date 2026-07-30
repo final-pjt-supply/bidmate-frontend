@@ -121,7 +121,10 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         if (alive) setMatch(data.match);
       } catch (err) {
         console.error("매칭 결과 로드 실패:", err);
-        if (alive) setMatchError("적합도 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        // 상태 한 문장만 담는다 — 뒤에 붙일 안내는 문맥마다 다르다(배너는 "이전 결과를
+        // 보여준다", 카드는 "나머지 정보는 아래에 있다"). 여기서 "다시 시도해 주세요"까지
+        // 넣으면 제목이 같은 말을 한 오류 카드에서 문장이 두 번 반복됐다.
+        if (alive) setMatchError("적합도 결과를 불러오지 못했어요.");
       } finally {
         if (alive) setMatchLoading(false);
       }
@@ -187,8 +190,10 @@ export function BidDetailView({ bid }: { bid: Bid }) {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 pb-16 pt-6 sm:px-6 lg:px-10">
       {/* breadcrumb */}
       <nav className="flex items-center gap-1 text-xs text-slate-400">
+        {/* 목적지가 /search이므로 상단 내비게이션과 같은 이름으로 부른다(topbar: "공고 검색").
+            "공고"라고만 쓰면 공고 목록이 따로 있는 것처럼 읽힌다. */}
         <Link href="/search" className="transition-colors hover:text-slate-600">
-          공고
+          공고 검색
         </Link>
         <ChevronRight className="size-3 shrink-0" strokeWidth={2} />
         <span className="max-w-[420px] truncate text-slate-600" title={bid.bid_ntce_nm}>
@@ -293,7 +298,9 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               role="alert"
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3"
             >
-              <p className="text-sm text-amber-900">{matchError} 이전 결과를 표시하고 있습니다.</p>
+              <p className="text-sm text-amber-900">
+                {matchError} 먼저 불러온 결과를 보여드리고 있어요.
+              </p>
               <button
                 type="button"
                 disabled={matchLoading}
@@ -314,8 +321,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           <span className="flex size-[52px] items-center justify-center rounded-full bg-white">
             <AlertTriangle className="size-[22px] text-amber-600" strokeWidth={2} />
           </span>
+          {/* 본문에 matchError를 그대로 두면 제목과 같은 문장이 두 번 나온다 — 제목은 상태,
+              본문은 '그래서 지금 무엇을 할 수 있는가'를 말한다. 적합도만 실패했고 아래
+              공고 정보·자격요건 섹션은 그대로 그려지므로 그 사실이 실제로 도움이 된다. */}
           <p className="text-lg font-bold text-gray-900">적합도 결과를 불러오지 못했어요</p>
-          <p className="text-sm text-gray-600">{matchError}</p>
+          <p className="text-sm text-gray-600">
+            공고 정보와 자격요건은 아래에서 그대로 확인할 수 있어요.
+          </p>
           <button
             type="button"
             disabled={matchLoading}
@@ -332,9 +344,11 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           </span>
           {isMember ? (
             <>
+              {/* 제목이 상태, 본문이 얻는 것 — 두 상태(비회원/미계산)의 본문은 같은 값을
+                  약속하므로 문구를 맞추고, 다른 점은 제목과 버튼으로만 말한다. */}
               <p className="text-lg font-bold text-gray-900">아직 적합도가 계산되지 않았어요</p>
               <p className="text-sm text-gray-500">
-                회사 정보를 등록하면 이 공고가 우리 회사와 맞는지 항목별로 확인할 수 있어요.
+                회사 정보를 등록하면 이 공고의 자격요건과 항목별로 비교해 드려요.
               </p>
               <Link
                 href="/mypage?edit=1"
@@ -345,9 +359,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             </>
           ) : (
             <>
-              <p className="text-lg font-bold text-gray-900">로그인하면 우리 회사 적합도를 확인할 수 있어요</p>
+              {/* 제목이 "확인할 수 있어요", 본문이 "보여드려요"로 같은 말을 두 번 하고
+                  있었다. 본문은 로그인 다음에 무엇이 더 필요한지(회사 정보 등록)를 말한다. */}
+              <p className="text-lg font-bold text-gray-900">
+                로그인하면 우리 회사 적합도를 볼 수 있어요
+              </p>
               <p className="text-sm text-gray-500">
-                회사 정보를 등록하면 이 공고가 우리 회사와 얼마나 맞는지 항목별로 보여드려요.
+                회사 정보를 등록하면 이 공고의 자격요건과 항목별로 비교해 드려요.
               </p>
               <div className="mt-1 flex gap-2">
                 <Link
@@ -375,14 +393,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           <Field label="배정예산" value={formatKRW(bid.bdgt_amt)} />
           <Field label="낙찰방법" value={displayValue(bid.sucsfbid_mthd_nm?.split("-")[0])} />
           <Field label="입찰방식" value={displayValue(bid.bid_methd_nm)} />
+          {/* "있음"의 짝은 "없음"이다 — 한쪽만 "제한 없음"이면 두 값이 같은 축으로 읽히지
+              않는다. null은 '제한이 없다'가 아니라 '공고에서 값을 못 받았다'는 뜻이라
+              "없음"과 반드시 구분해 둔다. */}
           <Field
             label="참가제한"
             value={
-              bid.bid_prtcpt_lmt_yn == null
-                ? "정보 없음"
-                : bid.bid_prtcpt_lmt_yn
-                  ? "있음"
-                  : "제한 없음"
+              bid.bid_prtcpt_lmt_yn == null ? "정보 없음" : bid.bid_prtcpt_lmt_yn ? "있음" : "없음"
             }
           />
         </div>
@@ -400,10 +417,16 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             ))}
           </div>
         ) : (
+          // 이 섹션은 공고문에서 뽑아낸 요건을 그대로 보여주는 곳이다 — 회사 정보와
+          // 비교하는 건 위쪽 적합도 표의 일이라, 여기서 "회사 정보와 비교할 조건"을
+          // 말하면 비회원·회사정보 미입력 사용자에게 틀린 안내가 된다.
+          // 값이 비었다는 건 요건이 없다는 뜻이 아니라 못 뽑았을 수도 있다는 뜻이므로
+          // (qualificationFields가 null을 "요구 없음"으로 단정하지 않는다) 원문으로 보낸다.
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-sm font-bold text-slate-800">별도로 확인된 자격요건이 없어요</p>
+            <p className="text-sm font-bold text-slate-800">자격요건을 확인하지 못했어요</p>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다.
+              공고문·첨부문서에서 참가자격 조건을 찾지 못했어요. 나라장터 원문에서 직접 확인해
+              주세요.
             </p>
           </div>
         )}
@@ -413,24 +436,33 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       {techWeight != null && priceWeight != null && (
         <Section title="이 공고의 평가 기준">
           <p className="-mt-1 text-xs text-slate-400">발주기관이 정한 낙찰자 심사 기준이에요.</p>
+          {/* 가격 쪽도 기술 쪽과 같은 형식으로 읽혀야 한다 — 숫자만 두면 "기술 90점 / 10"이
+              되어 10이 무엇인지 알 수 없었다.
+              라벨이 길어진 만큼 좁은 쪽(보통 가격 10~20%)에서 칸이 글자에 밀려 비율이
+              틀어질 수 있으므로 min-w-0으로 줄어들 수 있게 하고 넘치면 잘라낸다 —
+              막대의 몫 자체가 정보라 비율이 글자보다 우선한다. */}
           <div className="flex h-9 w-full overflow-hidden rounded-md">
             <div
-              className="flex items-center justify-center bg-indigo-600 text-xs font-bold text-white"
+              className="flex min-w-0 items-center justify-center overflow-hidden whitespace-nowrap bg-indigo-600 text-xs font-bold text-white"
               style={{ width: `${techWeight}%` }}
             >
               기술 {techWeight}점
             </div>
             <div
-              className="flex items-center justify-center bg-slate-200 text-xs font-bold text-slate-600"
+              className="flex min-w-0 items-center justify-center overflow-hidden whitespace-nowrap bg-slate-200 text-xs font-bold text-slate-600"
               style={{ width: `${priceWeight}%` }}
             >
-              {priceWeight}
+              가격 {priceWeight}점
             </div>
           </div>
-          {q?.award_cutline_value != null && (
+          {/* "점수제"를 문구에 박아두고 있었지만 종류는 award_cutline_type(score/rate/
+              lowest_price)에 따로 온다 — rate 공고(실측 있음, 값이 84.245처럼 점수가 아닌
+              비율)에도 "84.245점"이라고 쓰게 되어 있었다. 단위를 단정할 수 있는 score만
+              문장으로 쓰고, 나머지 종류는 의미를 백엔드와 확인한 뒤 붙인다. */}
+          {q?.award_cutline_type === "score" && q.award_cutline_value != null && (
             <p className="text-sm text-gray-700">
-              <span className="font-bold text-indigo-700">낙찰 커트라인</span> 점수제 · 종합{" "}
-              {q.award_cutline_value}점 이상 시 협상 적격
+              <span className="font-bold text-indigo-700">낙찰 커트라인</span> 종합{" "}
+              {q.award_cutline_value}점 이상이면 협상 대상이 돼요
             </p>
           )}
         </Section>

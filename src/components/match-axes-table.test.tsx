@@ -17,7 +17,7 @@ describe("MatchAxesTable", () => {
 
     expect(screen.getByText("별도로 확인된 자격요건이 없어요")).toBeInTheDocument();
     expect(
-      screen.getByText("이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았습니다.")
+      screen.getByText("이 공고에서는 회사 정보와 비교할 별도의 필수 조건이 확인되지 않았어요.")
     ).toBeInTheDocument();
     expect(screen.queryByText(/나라장터 원문/)).not.toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
