@@ -219,7 +219,13 @@ export function RecoView() {
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {items.map((it, i) => (
             <div key={it.bid.bid_id} className="flex flex-col gap-1.5">
-              <BidCard bid={it.bid} position={(page - 1) * pageSize + i + 1} list="reco" />
+              {/* h-full: 카드 높이를 행에 맞춰 판정 배지 줄을 가로로 정렬한다 */}
+              <BidCard
+                bid={it.bid}
+                position={(page - 1) * pageSize + i + 1}
+                list="reco"
+                className="h-full"
+              />
               <div className="flex items-center gap-2 px-1">
                 <VerdictBadge verdict={it.match.verdict} />
                 <span className="text-xs text-slate-400">{verdictHint(it.match)}</span>

@@ -9,6 +9,11 @@ import type { Bid, BidCategory, BidListResponse } from "@/lib/types";
 // 환경변수 누락이 '설정 실수'가 아니라 '타임아웃'으로 나타나 원인 파악을 늦췄다.
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 
+// 응답이 없으면 무한정 기다린다 — sitemap.ts가 빌드 중 이 함수들을 호출하므로
+// 백엔드가 멈춰 있으면 빌드 자체가 끝나지 않는다. 10초에서 끊고 호출부의
+// 에러 처리(빈 목록·404)로 넘긴다.
+const TIMEOUT_MS = 10_000;
+
 export type BidsQuery = {
   page?: number;
   category?: BidCategory;
@@ -25,7 +30,10 @@ export async function getBids(query: BidsQuery = {}): Promise<BidListResponse> {
   if (query.today) qs.set("today", "true");
   const suffix = qs.toString() ? `?${qs}` : "";
 
-  const res = await fetch(`${API_BASE}/bids${suffix}`, { next: { revalidate: 60 } });
+  const res = await fetch(`${API_BASE}/bids${suffix}`, {
+    next: { revalidate: 60 },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`GET /bids 실패: ${res.status}`);
   return res.json() as Promise<BidListResponse>;
 }
@@ -56,7 +64,10 @@ export async function searchBids(query: SearchQuery = {}): Promise<BidListRespon
   if (query.includeClosed) qs.set("include_closed", "true");
   const suffix = qs.toString() ? `?${qs}` : "";
 
-  const res = await fetch(`${API_BASE}/bids/search${suffix}`, { next: { revalidate: 60 } });
+  const res = await fetch(`${API_BASE}/bids/search${suffix}`, {
+    next: { revalidate: 60 },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`GET /bids/search 실패: ${res.status}`);
   return res.json() as Promise<BidListResponse>;
 }
@@ -65,6 +76,7 @@ export async function searchBids(query: SearchQuery = {}): Promise<BidListRespon
 export async function getBid(bidId: string): Promise<Bid | null> {
   const res = await fetch(`${API_BASE}/bids/${encodeURIComponent(bidId)}`, {
     next: { revalidate: 60 },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`GET /bids/${bidId} 실패: ${res.status}`);

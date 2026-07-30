@@ -3,6 +3,7 @@ import { DownloadCloud, FileSearch, Target } from "lucide-react";
 import { GuideCta } from "@/components/guide-cta";
 import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
+import { BIDBOT_ENABLED } from "@/lib/features";
 
 export const metadata: Metadata = {
   title: "이용안내 · 비드프렌드",
@@ -27,7 +28,13 @@ const STEPS = [
   },
 ];
 
-const USE_STEPS = ["① 무료 회원가입", "② 회사 정보 등록", "③ 맞춤 공고·적합도 확인", "④ 챗봇 질문·스크랩"];
+// 비드봇 스위치가 꺼진 상태에서 챗봇을 안내하면 없는 기능을 약속하는 셈이 된다(#140).
+const USE_STEPS = [
+  "① 무료 회원가입",
+  "② 회사 정보 등록",
+  "③ 맞춤 공고·적합도 확인",
+  ...(BIDBOT_ENABLED ? ["④ 챗봇 질문·스크랩"] : []),
+];
 
 const FAQS = [
   {
@@ -44,7 +51,9 @@ const FAQS = [
   },
   {
     q: "Q. 이용 요금이 있나요?",
-    a: "회원가입과 맞춤 추천, 적합도 확인, 챗봇까지 모두 무료로 이용할 수 있어요.",
+    a: BIDBOT_ENABLED
+      ? "회원가입과 맞춤 추천, 적합도 확인, 챗봇까지 모두 무료로 이용할 수 있어요."
+      : "회원가입과 맞춤 추천, 적합도 확인까지 모두 무료로 이용할 수 있어요.",
   },
 ];
 

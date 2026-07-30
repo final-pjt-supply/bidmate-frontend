@@ -40,7 +40,45 @@ export function MypageShell({
     logEvent("mypage_viewed", { page: "mypage" });
   }, []);
 
-  if (!ready || !user) return null;
+  // 세션 확인 중이거나 미로그인(→ /login 리다이렉트 대기) 구간. null을 돌려주면
+  // Topbar까지 사라져 화면이 완전히 백지가 된다 — 아래 실제 레이아웃과 같은 골격
+  // (제목 + w-60 사이드바 + 콘텐츠)을 그려 로그인 완료 시 자리가 튀지 않게 한다.
+  // 뼈대 색은 skeletons.tsx 관례대로 흰 카드 위 bg-slate-100.
+  if (!ready || !user) {
+    return (
+      <div className="flex min-h-screen flex-col bg-slate-50">
+        <Topbar />
+        <main className="mx-auto flex w-full max-w-7xl flex-1 animate-pulse flex-col gap-5 px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+          <div className="h-8 w-40 rounded bg-slate-100" />
+
+          <div className="flex items-start gap-6">
+            {/* 사이드바 자리 — 실제 aside와 같은 폭·여백 */}
+            <aside className="flex w-60 shrink-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-[18px] max-md:hidden">
+              <div className="flex items-center gap-2.5 px-2 py-1.5">
+                <div className="size-10 shrink-0 rounded-full bg-slate-100" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <div className="h-4 w-24 rounded bg-slate-100" />
+                  <div className="h-3 w-32 rounded bg-slate-100" />
+                </div>
+              </div>
+              <div className="h-px w-full bg-slate-200" />
+              {MENU.map(({ href }) => (
+                <div key={href} className="mx-1 h-4 w-28 rounded bg-slate-100" />
+              ))}
+            </aside>
+
+            {/* 콘텐츠 자리 */}
+            <section className="flex min-w-0 flex-1 flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6">
+              <div className="h-5 w-32 rounded bg-slate-100" />
+              <div className="h-4 w-full rounded bg-slate-100" />
+              <div className="h-4 w-2/3 rounded bg-slate-100" />
+            </section>
+          </div>
+        </main>
+        <SiteFooter />
+      </div>
+    );
+  }
 
   const initial = user.company.replace(/^\(주\)/, "").charAt(0);
 
