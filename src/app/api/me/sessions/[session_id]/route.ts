@@ -6,6 +6,7 @@
 // 삭제는 소프트 삭제(백엔드가 deleted_at만 기록)라 204에 본문이 없다.
 
 import { NextResponse } from "next/server";
+import { BIDBOT_ENABLED } from "@/lib/features";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 
@@ -14,6 +15,10 @@ async function proxy(
   params: Promise<{ session_id: string }>,
   method: "GET" | "DELETE"
 ) {
+  // 비드봇이 꺼져 있으면 이 경로는 없는 것으로 응답한다 — 화면에서 버튼만 숨기면
+  // URL을 아는 사람은 그대로 호출할 수 있다(#140). 인증 확인보다 먼저 막는다.
+  if (!BIDBOT_ENABLED) return NextResponse.json({ detail: "Not Found" }, { status: 404 });
+
   const auth = req.headers.get("Authorization");
   if (!auth) {
     return NextResponse.json({ detail: "로그인이 필요합니다" }, { status: 401 });

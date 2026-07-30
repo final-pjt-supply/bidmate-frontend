@@ -14,6 +14,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import type { Bid } from "@/lib/types";
 import { categoryLabel, computeDday } from "@/lib/format";
+import { BIDBOT_ENABLED } from "@/lib/features";
 import { qualificationFields } from "@/lib/qualification-fields";
 import { isScrapped, subscribeScraps, toggleScrap } from "@/lib/scraps";
 import { logEvent } from "@/lib/analytics/track";
@@ -255,21 +256,30 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           </div>
         </div>
 
+        {/* 비드봇이 꺼져 있으면 질문하기 버튼이 사라지고 이 영역의 주요 CTA가 비어버린다 —
+            그동안은 "나라장터 원문 보기"가 주요 행동이므로 강조를 넘겨준다(#140).
+            한 영역의 주요 CTA는 하나만 둔다는 규칙을 양쪽 상태에서 모두 지킨다. */}
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={askBidbot}
-            className="flex h-8 items-center gap-1.5 rounded-md bg-indigo-700 px-2.5 text-xs font-bold text-white transition-colors hover:bg-indigo-800"
-          >
-            <MessageCircleQuestion className="size-3.5" strokeWidth={2} />이 공고에 대해 질문하기
-          </button>
+          {BIDBOT_ENABLED && (
+            <button
+              type="button"
+              onClick={askBidbot}
+              className="flex h-8 items-center gap-1.5 rounded-md bg-indigo-700 px-2.5 text-xs font-bold text-white transition-colors hover:bg-indigo-800"
+            >
+              <MessageCircleQuestion className="size-3.5" strokeWidth={2} />이 공고에 대해 질문하기
+            </button>
+          )}
           {bid.bid_ntce_dtl_url && (
             <a
               href={bid.bid_ntce_dtl_url}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => logEvent("bid_external_link_clicked", { bid_id: bid.bid_id })}
-              className="flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50"
+              className={
+                BIDBOT_ENABLED
+                  ? "flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                  : "flex h-8 items-center gap-1.5 rounded-md bg-indigo-700 px-2.5 text-xs font-bold text-white transition-colors hover:bg-indigo-800"
+              }
             >
               <ExternalLink className="size-3.5" strokeWidth={2} />
               나라장터 원문 보기
@@ -480,8 +490,10 @@ export function BidDetailView({ bid }: { bid: Bid }) {
         </div>
       </Section>
 
-      {/* 플로팅 비드봇 (회원) */}
-      <BidbotDock bidName={bid.bid_ntce_nm} bidId={bid.bid_id} mode={botMode} onMode={setBotMode} />
+      {/* 플로팅 비드봇 (회원) — 스위치가 꺼져 있으면 플로팅 버튼도 띄우지 않는다(#140) */}
+      {BIDBOT_ENABLED && (
+        <BidbotDock bidName={bid.bid_ntce_nm} bidId={bid.bid_id} mode={botMode} onMode={setBotMode} />
+      )}
     </div>
   );
 }
