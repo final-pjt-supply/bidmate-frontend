@@ -81,6 +81,39 @@ describe("RecoView 페이지 크기", () => {
     await user.click(screen.getByRole("button", { name: "2" }));
 
     expect(await screen.findByText("카드 순번 25")).toBeInTheDocument();
-    expect(fetchMatchesMock).toHaveBeenLastCalledWith({ sort: "deadline", page: 2 });
+    // 추천순이 기본 정렬이다(#104) — 페이지를 넘겨도 선택된 정렬이 유지된다.
+    expect(fetchMatchesMock).toHaveBeenLastCalledWith({ sort: "recommended", page: 2 });
+  });
+});
+
+describe("RecoView 정렬", () => {
+  beforeEach(() => {
+    fetchMatchesMock.mockReset();
+    fetchMatchesMock.mockImplementation(async () => ({
+      total: 1,
+      page: 1,
+      page_size: 24,
+      items: [itemFor(1)],
+    }));
+  });
+
+  it("맞춤 추천 탭은 추천순을 기본으로 부른다(#104)", async () => {
+    render(<RecoView />);
+
+    await screen.findByText("카드 순번 1");
+    expect(fetchMatchesMock).toHaveBeenCalledWith({ sort: "recommended", page: 1 });
+    expect(screen.getByRole("button", { name: "추천순" })).toHaveClass("text-indigo-700");
+  });
+
+  it("정렬을 바꾸면 선택된 버튼과 요청이 함께 바뀐다", async () => {
+    const user = userEvent.setup();
+    render(<RecoView />);
+    await screen.findByText("카드 순번 1");
+
+    await user.click(screen.getByRole("button", { name: "마감 임박순" }));
+
+    expect(fetchMatchesMock).toHaveBeenLastCalledWith({ sort: "deadline", page: 1 });
+    expect(screen.getByRole("button", { name: "마감 임박순" })).toHaveClass("text-indigo-700");
+    expect(screen.getByRole("button", { name: "추천순" })).not.toHaveClass("text-indigo-700");
   });
 });

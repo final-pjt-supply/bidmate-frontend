@@ -12,7 +12,10 @@ import { VerdictBadge, verdictHint } from "@/components/verdict-badge";
 
 const DEFAULT_PAGE_SIZE = 20;
 
+// 추천순을 맨 앞·기본값으로 둔다 — "맞춤 추천" 탭의 정체성과 맞고, 백엔드가
+// 갓 추가한 정렬이라 눈에 띄어야 한다(#104).
 const SORTS: { key: MatchSort; label: string }[] = [
+  { key: "recommended", label: "추천순" },
   { key: "deadline", label: "마감 임박순" },
   { key: "recent", label: "최신순" },
 ];
@@ -74,7 +77,7 @@ export function RecoView() {
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<MatchSort>("deadline");
+  const [sort, setSort] = useState<MatchSort>("recommended");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
