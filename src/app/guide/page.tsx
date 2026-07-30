@@ -5,8 +5,8 @@ import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
-  title: "이용안내 · 비드메이트",
-  description: "비드메이트가 나라장터 공고를 수집·분석해 회사 맞춤 공고를 추천하는 방식과 자주 묻는 질문을 안내합니다.",
+  title: "이용안내 · 비드프렌드",
+  description: "비드프렌드가 나라장터 공고를 수집·분석해 회사 맞춤 공고를 추천하는 방식과 자주 묻는 질문을 안내합니다.",
 };
 
 const STEPS = [
@@ -55,7 +55,7 @@ export default function GuidePage() {
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center px-4 sm:px-6 lg:px-10">
         {/* hero */}
         <section className="flex flex-col items-center gap-2.5 pb-6 pt-16 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">비드메이트 이용안내</h1>
+          <h1 className="text-2xl font-bold text-gray-900">비드프렌드 이용안내</h1>
           <p className="text-sm text-gray-500">
             나라장터의 방대한 공고 속에서, 우리 회사가 참여할 수 있는 공고만 골라 보여드려요.
           </p>
@@ -63,7 +63,7 @@ export default function GuidePage() {
 
         {/* 일하는 방식 */}
         <section className="flex w-full flex-col items-center gap-5 pb-6 pt-8">
-          <h2 className="text-lg font-bold text-gray-900">비드메이트가 일하는 방식</h2>
+          <h2 className="text-lg font-bold text-gray-900">비드프렌드가 일하는 방식</h2>
           <div className="flex flex-wrap justify-center gap-6">
             {STEPS.map(({ icon: Icon, title, desc }) => (
               <div

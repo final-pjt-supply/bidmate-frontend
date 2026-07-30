@@ -14,7 +14,7 @@
 apiVersion: 1
 
 datasources:
-  - name: BidMate RDS
+  - name: BidFriend RDS
     uid: bidmate-rds
     type: postgres
     url: bidmate-postgres.cv8i80gskzwz.ap-northeast-2.rds.amazonaws.com:5432

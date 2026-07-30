@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import { LegalDoc, type LegalSection } from "@/components/legal-doc";
 
 export const metadata: Metadata = {
-  title: "이용약관 · 비드메이트",
-  description: "비드메이트 공공입찰 공고 추천 서비스 이용약관입니다.",
+  title: "이용약관 · 비드프렌드",
+  description: "비드프렌드 공공입찰 공고 추천 서비스 이용약관입니다.",
 };
 
 const SECTIONS: LegalSection[] = [
   {
     heading: "제1조 (목적)",
     lines: [
-      '이 약관은 비드메이트(이하 "회사")가 제공하는 공공입찰 공고 추천 서비스(이하 "서비스")의 이용 조건 및 절차, 회사와 이용자 간의 권리·의무와 책임사항을 규정함을 목적으로 합니다.',
+      '이 약관은 비드프렌드(이하 "회사")가 제공하는 공공입찰 공고 추천 서비스(이하 "서비스")의 이용 조건 및 절차, 회사와 이용자 간의 권리·의무와 책임사항을 규정함을 목적으로 합니다.',
     ],
   },
   {

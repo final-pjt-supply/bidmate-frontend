@@ -1,6 +1,6 @@
 {
   "uid": "bidmate-pipeline",
-  "title": "BidMate 파이프라인 상태",
+  "title": "BidFriend 파이프라인 상태",
   "description": "SQS + Lambda ETL 운영 대시보드. 장애 탐지는 CloudWatch Alarm이 담당하고 이 화면은 진단용이다.",
   "tags": [
     "bidmate",

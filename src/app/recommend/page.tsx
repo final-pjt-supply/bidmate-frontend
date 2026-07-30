@@ -4,7 +4,7 @@ import { RecoView } from "@/components/reco-view";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
-  title: "맞춤 추천 · 비드메이트",
+  title: "맞춤 추천 · 비드프렌드",
   description: "회사 조건에 맞춰 자격 적합도를 판정한 공공입찰 공고 목록입니다.",
 };
 

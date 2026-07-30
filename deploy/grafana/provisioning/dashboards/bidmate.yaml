@@ -8,7 +8,7 @@ apiVersion: 1
 providers:
   - name: bidmate
     orgId: 1
-    folder: BidMate
+    folder: BidFriend
     type: file
     disableDeletion: false
     allowUiUpdates: true

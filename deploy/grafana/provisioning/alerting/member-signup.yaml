@@ -32,7 +32,7 @@ apiVersion: 1
 groups:
   - orgId: 1
     name: member-signup
-    folder: BidMate
+    folder: BidFriend
     # 1분마다 평가 — 가입 후 최대 1분 안에 알림이 간다.
     interval: 1m
     rules:
@@ -48,7 +48,7 @@ groups:
         isPaused: false
         annotations:
           summary: "새 회원이 가입했습니다 🎉"
-          description: 최근 5분 내 companies 테이블에 신규 가입이 생겼습니다. 그라파나 > BidMate 회원 지표에서 총 회원수를 확인하세요.
+          description: 최근 5분 내 companies 테이블에 신규 가입이 생겼습니다. 그라파나 > BidFriend 회원 지표에서 총 회원수를 확인하세요.
         labels: {}
         notification_settings:
           # UI에서 만든 연락처 이름. 웹훅 URL은 여기 없다(위 주의 1 참조).
