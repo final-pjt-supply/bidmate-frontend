@@ -28,7 +28,10 @@ export type MatchListResponse = {
   items: MatchListItem[];
 };
 
-export type MatchSort = "deadline" | "recent";
+// recommended: 자격 충족 비율(satisfied/required) 내림차순 — 백엔드 #104.
+// 검색 화면(SearchSortKey)과 계약이 분리돼 있다 — recommended는 회사별 사전계산
+// 결과(match_results)가 있어야 계산되므로, 검색에도 통과해버리면 안 되기 때문이다.
+export type MatchSort = "recommended" | "deadline" | "recent";
 
 /** 홈 대시보드용 건수 요약 — 목록을 받지 않으므로 가볍다. */
 export type MatchSummary = { total: number };
