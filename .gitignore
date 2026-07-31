@@ -49,3 +49,9 @@ next-env.d.ts
 
 # 마스터 테이블 원본 CSV 덤프(중간 재료) — 변환본은 src/lib/data/*-master.json에 커밋됨
 /data/
+
+# codex 런타임 로그 — 산출물 아님
+/.codex-runtime/
+
+# 부하 테스트 실행 결과 — 재현할 스크립트가 아직 없어 커밋해도 재현 불가
+/load-tests/results/
