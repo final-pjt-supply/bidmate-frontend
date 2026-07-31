@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, User, Bookmark, Settings, LogOut } from "lucide-react";
+import { ChevronDown, Menu, User, Bookmark, Settings, LogOut, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { BIDBOT_ENABLED } from "@/lib/features";
 
@@ -17,6 +17,69 @@ const NAV_ITEMS: { label: string; href: string }[] = [
   ...(BIDBOT_ENABLED ? [{ label: "비드봇", href: "/bidbot" }] : []),
   { label: "이용안내", href: "/guide" },
 ];
+
+/** 모바일 전용 내비게이션 — 가로 스크롤 대신 햄버거로 연다.
+ *  가로 스크롤엔 스크롤 가능 표시가 없어 "화면에 안 보이는 메뉴"로 오인되고,
+ *  사이드바가 없는 페이지(마이페이지 등)에서는 그게 유일한 이동 경로라 막힌 것처럼
+ *  느껴졌다(사용자 리포트). md 이상에서는 기존 가운데 정렬 내비게이션을 그대로 쓴다. */
+function MobileNav({ items, active }: { items: typeof NAV_ITEMS; active: (href: string) => boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative md:hidden" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="메뉴 열기"
+        className="flex size-9 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-slate-100"
+      >
+        {open ? <X className="size-5" strokeWidth={2} /> : <Menu className="size-5" strokeWidth={2} />}
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 top-full z-20 mt-2 w-[200px] rounded-md border border-slate-100 bg-white p-[5px] shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
+        >
+          {items.map(({ label, href }) => (
+            <Link
+              key={label}
+              href={href}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={`flex w-full items-center rounded-[4px] px-3 py-2 text-sm transition-colors ${
+                active(href)
+                  ? "bg-indigo-50 font-bold text-indigo-700"
+                  : "font-medium text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** 회원 유저 pill + 드롭다운 메뉴 (Figma user-menu 248:1012) */
 function UserMenu({ company, onLogout }: { company: string; onLogout: () => void }) {
@@ -104,44 +167,40 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
 export function Topbar() {
   const pathname = usePathname();
   const { user, ready, logout } = useAuth();
+  const isActive = (href: string) =>
+    href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
 
   return (
     <header className="w-full border-b border-slate-200 bg-white">
-      {/* 좁은 화면에서는 내비게이션을 두 번째 줄로 내린다(#143).
-          md 이상에서만 절대 위치로 중앙 정렬한다 — 절대 위치는 left만 주면 쓸 수 있는
-          폭이 컨테이너 절반으로 제한돼, 375px에서 항목 4개가 밀려들어가며 글자가 한 글자씩
-          쪼개졌다. flex 흐름에서 빠져 있어 로고·프로필을 밀어내지도 못해 그대로 겹쳤다.
-          order로 줄을 가르고 마크업은 하나만 둔다 — 복제하면 링크가 두 개씩 잡혀 테스트와
-          스크린리더가 모두 어긋난다. */}
-      <div className="relative mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-y-2 px-4 py-4 sm:px-6 lg:px-10">
-        {/* 브랜드 */}
-        <Link href="/" className="order-1 flex items-center">
-          <span className="text-xl font-bold text-indigo-700 sm:text-2xl">비드프렌드</span>
-        </Link>
+      <div className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
+        {/* 브랜드 + 모바일 메뉴 버튼 */}
+        <div className="flex items-center gap-1">
+          {/* 좁은 화면엔 가로 스크롤 대신 햄버거로 연다 — 스크롤은 이동 가능 표시가
+              없어 "메뉴가 이게 다인 줄" 오인되고, 사이드바가 없는 페이지(마이페이지 등)
+              에서는 그게 유일한 이동 경로라 막힌 것처럼 느껴졌다. */}
+          <MobileNav items={NAV_ITEMS} active={isActive} />
+          <Link href="/" className="flex items-center">
+            <span className="text-xl font-bold text-indigo-700 sm:text-2xl">비드프렌드</span>
+          </Link>
+        </div>
 
-        {/* 내비게이션 */}
-        <nav className="order-3 -mx-1 flex w-full items-center gap-1 overflow-x-auto px-1 md:order-none md:absolute md:left-1/2 md:mx-0 md:w-auto md:-translate-x-1/2 md:gap-2 md:overflow-visible md:px-0">
-          {NAV_ITEMS.map(({ label, href }) => {
-            const active =
-              href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
-            return (
-              <Link
-                key={label}
-                href={href}
-                // 폭이 부족하면 줄바꿈이 아니라 스크롤로 처리한다 — 글자 단위 줄바꿈은
-                // 메뉴를 읽을 수 없게 만든다.
-                className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors md:px-4 ${
-                  active ? "bg-indigo-50 text-indigo-700" : "text-gray-700 hover:bg-slate-100"
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
+        {/* 내비게이션 — md 이상에서만, 가운데 절대 정렬 */}
+        <nav className="hidden items-center gap-2 md:absolute md:left-1/2 md:flex md:-translate-x-1/2">
+          {NAV_ITEMS.map(({ label, href }) => (
+            <Link
+              key={label}
+              href={href}
+              className={`shrink-0 whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                isActive(href) ? "bg-indigo-50 text-indigo-700" : "text-gray-700 hover:bg-slate-100"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
         </nav>
 
         {/* 우측 액션: 로그인 상태에 따라 분기 */}
-        <div className="order-2 flex items-center gap-3.5">
+        <div className="flex items-center gap-3.5">
           {ready && user ? (
             <UserMenu company={user.company} onLogout={logout} />
           ) : ready ? (
