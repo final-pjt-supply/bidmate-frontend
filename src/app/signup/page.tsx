@@ -97,7 +97,9 @@ export default function SignupPage() {
   const handleResend = async () => {
     setError(null);
     setNotice(null);
+    setSubmitting(true);
     const result = await resendCode(email);
+    setSubmitting(false);
     if (result.ok) setNotice("인증코드를 다시 보냈어요. 메일함을 확인해 주세요.");
     else setError(result.error);
   };
@@ -149,7 +151,8 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={handleResend}
-              className="font-medium text-indigo-700 hover:underline"
+              disabled={submitting}
+              className="font-medium text-indigo-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
             >
               다시 보내기
             </button>
@@ -315,10 +318,10 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              disabled={!canSubmit}
+              disabled={!canSubmit || submitting}
               className="rounded-[10px] py-3 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
             >
-              회원가입
+              {submitting ? "가입 중…" : "회원가입"}
             </button>
           </form>
 
