@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { hasCompanyProfile } from "@/lib/company";
+import { useCompanyStatus } from "@/lib/company-api";
 import { logEvent } from "@/lib/analytics/track";
 import {
   fetchMatches,
@@ -26,6 +26,33 @@ type Counts = { total: number; scraps: number } | null;
 
 const fmt = (n: number | undefined) => (n == null ? "—" : `${n.toLocaleString()}건`);
 
+/** 세션 확인/회사정보 서버 재확인 중 보여줄 중립 스켈레톤 — 뼈대 색은
+ *  mypage-shell.tsx 관례대로 흰 카드 위 bg-slate-100. */
+function HomeSkeleton() {
+  return (
+    <>
+      <section className="w-full animate-pulse bg-white px-4 py-[72px] sm:px-6 lg:px-10">
+        <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-8">
+          <div className="h-8 w-64 rounded-full bg-slate-100" />
+          <div className="flex w-full flex-col items-center gap-3">
+            <div className="h-10 w-3/4 max-w-[560px] rounded bg-slate-100" />
+            <div className="h-5 w-2/3 max-w-[440px] rounded bg-slate-100" />
+          </div>
+          <div className="h-14 w-full max-w-[800px] rounded-xl bg-slate-100" />
+        </div>
+      </section>
+      <main className="mx-auto w-full max-w-7xl flex-1 animate-pulse px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+        <div className="mb-6 h-7 w-40 rounded bg-slate-100" />
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="h-52 rounded-xl border border-slate-200 bg-white" />
+          ))}
+        </div>
+      </main>
+    </>
+  );
+}
+
 export function HomeView({
   recommendedBids,
   recentBids,
@@ -46,11 +73,9 @@ export function HomeView({
     logEvent("home_viewed", { page: "home" });
   }, []);
 
-  // 회원의 회사 정보 입력 여부 (SSR·비회원 시 isMember=false로 localStorage 미접근)
-  const companyMissing = useMemo(
-    () => isMember && !!user && !hasCompanyProfile(user.email),
-    [isMember, user]
-  );
+  // 회원의 회사 정보 입력 여부 — 로컬 우선, 로컬에 없으면 서버로 재확인(#169)
+  const companyStatus = useCompanyStatus(user?.email, isMember);
+  const companyMissing = companyStatus === "missing";
 
   // 재시도 중에도 실패 상태를 유지한다 — 여기서 먼저 지우면 오류 카드가 스켈레톤으로
   // 바뀌었다 다시 오류로 돌아와 깜빡이고, "다시 시도" 버튼의 진행 표시도 사라진다.
@@ -72,10 +97,10 @@ export function HomeView({
   // 매칭 목록은 토큰이 있어야 부를 수 있고 토큰은 브라우저에만 있다 — 서버에서 미리
   // 못 받으므로 마운트 후 여기서 로드한다(맞춤 추천 페이지와 같은 규칙).
   useEffect(() => {
-    if (!isMember || companyMissing) return;
+    if (!isMember || companyStatus !== "filled") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadMatches();
-  }, [isMember, companyMissing, loadMatches]);
+  }, [isMember, companyStatus, loadMatches]);
 
   // 건수는 로그인 토큰이 있어야 부를 수 있어 서버에서 미리 못 받는다.
   // 하나가 실패해도 나머지는 살린다(allSettled) — 타일 하나 때문에 전부 "—"가 되면 안 된다.
@@ -102,33 +127,15 @@ export function HomeView({
 
   // 세션 확인 중(ready=false)엔 회원/비회원 히어로 중 어느 쪽도 아직 확정이 아니다 —
   // 로그인된 사용자가 새로고침할 때마다 비회원 마케팅 히어로가 잠깐 깜빡이는 문제가
-  // 있었다. 뼈대 색은 mypage-shell.tsx 관례대로 흰 카드 위 bg-slate-100.
-  if (!ready) {
-    return (
-      <>
-        <section className="w-full animate-pulse bg-white px-4 py-[72px] sm:px-6 lg:px-10">
-          <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-8">
-            <div className="h-8 w-64 rounded-full bg-slate-100" />
-            <div className="flex w-full flex-col items-center gap-3">
-              <div className="h-10 w-3/4 max-w-[560px] rounded bg-slate-100" />
-              <div className="h-5 w-2/3 max-w-[440px] rounded bg-slate-100" />
-            </div>
-            <div className="h-14 w-full max-w-[800px] rounded-xl bg-slate-100" />
-          </div>
-        </section>
-        <main className="mx-auto w-full max-w-7xl flex-1 animate-pulse px-4 pb-16 pt-8 sm:px-6 lg:px-10">
-          <div className="mb-6 h-7 w-40 rounded bg-slate-100" />
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="h-52 rounded-xl border border-slate-200 bg-white" />
-            ))}
-          </div>
-        </main>
-      </>
-    );
-  }
+  // 있었다.
+  if (!ready) return <HomeSkeleton />;
 
   if (isMember) {
+    // 로컬엔 없어 서버로 재확인하는 중 — 결과가 나올 때까지는 회사정보 미입력
+    // 문구를 먼저 보여주지 않는다(다른 기기·시크릿창에서 실제로 채워져 있으면
+    // 오탐이 된다).
+    if (companyStatus === "checking") return <HomeSkeleton />;
+
     const safe = (n: number | undefined) => (n == null || Number.isNaN(n) ? undefined : n);
     // 건수를 누르면 그 목록으로 바로 간다.
     const stats: HeroStat[] = [

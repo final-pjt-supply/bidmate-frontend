@@ -1,3 +1,5 @@
+"use client";
+
 // 회사 프로필 서버 연동 — 백엔드 GET/PUT /me/profile 과 CompanyProfile 사이의 변환 계층.
 //
 // 저장 정본은 서버(company_* 8테이블)다. 다만 8테이블에 대응 컬럼이 없는 항목
@@ -10,6 +12,7 @@
 //  - 숫자는 정수로(폼은 입력 편의상 문자열로 들고 있다).
 //  - PUT은 전체 교체(full replace) — 보내지 않은 섹션은 삭제된다. 항상 전부 보낸다.
 
+import { useEffect, useState } from "react";
 import { getIdToken } from "@/lib/cognito";
 import type {
   CapacityRow,
@@ -20,7 +23,7 @@ import type {
   PerformanceRow,
   PersonnelRow,
 } from "@/lib/company";
-import { EMPTY_PROFILE } from "@/lib/company";
+import { EMPTY_PROFILE, hasCompanyProfile } from "@/lib/company";
 
 /* ── 서버 응답 형태 (GET /me/profile) ───────────────────────────── */
 
@@ -286,4 +289,45 @@ export async function putProfile(p: CompanyProfile): Promise<CompanyProfile> {
   }
   const data = (await res.json()) as ProfileResponse;
   return toProfile(data, p);
+}
+
+/* ── 회사정보 채움 여부 ────────────────────────────────────────── */
+
+export type CompanyStatus = "checking" | "missing" | "filled";
+
+/**
+ * 회사정보가 채워져 있는지 — 로컬을 먼저 보고, 로컬에 없을 때만 서버로 재확인한다.
+ *
+ * hasCompanyProfile(company.ts)은 localStorage만 본다. 다른 기기·시크릿창처럼
+ * 로컬엔 없지만 서버(정본)엔 이미 채워져 있는 경우를 "미입력"으로 오탐해 왔다
+ * (#169 핸드오프). 로컬에 있으면 그대로 믿어 네트워크 호출을 안 하고(흔한 경로),
+ * 로컬이 비어 있을 때만 서버를 한 번 더 확인해 오탐을 없앤다.
+ */
+export function useCompanyStatus(
+  email: string | undefined,
+  isMember: boolean
+): CompanyStatus {
+  const [status, setStatus] = useState<CompanyStatus>("checking");
+
+  useEffect(() => {
+    if (!isMember || !email) return;
+    if (hasCompanyProfile(email)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatus("filled");
+      return;
+    }
+    let alive = true;
+    fetchProfile()
+      .then(({ serverEmpty }) => {
+        if (alive) setStatus(serverEmpty ? "missing" : "filled");
+      })
+      .catch(() => {
+        if (alive) setStatus("missing"); // 확인 실패 시 기존(로컬 기준) 동작과 동일하게
+      });
+    return () => {
+      alive = false;
+    };
+  }, [email, isMember]);
+
+  return status;
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { hasCompanyProfile } from "@/lib/company";
+import { useCompanyStatus } from "@/lib/company-api";
 import { fetchMatches, type MatchListItem, type MatchSort } from "@/lib/api/matches";
 import { BidCard } from "@/components/bid-card";
 import { SyncIndicator } from "@/components/sync-indicator";
@@ -19,6 +19,19 @@ const SORTS: { key: MatchSort; label: string }[] = [
   { key: "deadline", label: "마감 임박순" },
   { key: "recent", label: "최신순" },
 ];
+
+/** 세션 확인/회사정보 서버 재확인 중 보여줄 중립 스켈레톤 — 로그인 요구 카드나
+ *  회사정보 미입력 카드를 먼저 보여주면 안 되는 두 구간(ready 대기, 서버 재확인
+ *  대기)에서 같은 모양을 쓴다. */
+function GridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
+      ))}
+    </div>
+  );
+}
 
 /** 페이지네이션에 노출할 페이지 번호(많으면 말줄임) */
 function buildPages(total: number, current: number): (number | "ellipsis")[] {
@@ -81,11 +94,8 @@ export function RecoView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 회원의 회사 정보 입력 여부 (SSR·비회원 시 isMember=false로 localStorage 미접근)
-  const companyMissing = useMemo(
-    () => isMember && !!user && !hasCompanyProfile(user.email),
-    [isMember, user]
-  );
+  // 회원의 회사 정보 입력 여부 — 로컬 우선, 로컬에 없으면 서버로 재확인(#169)
+  const companyStatus = useCompanyStatus(user?.email, isMember);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,21 +122,17 @@ export function RecoView() {
   // 매칭 목록은 토큰이 있어야 부를 수 있고 토큰은 브라우저에만 있다 — 서버에서 미리
   // 못 받으므로 마운트 후 여기서 로드한다(mypage와 같은 규칙 예외).
   useEffect(() => {
-    if (!isMember || companyMissing) return;
+    if (!isMember || companyStatus !== "filled") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-  }, [isMember, companyMissing, load]);
+  }, [isMember, companyStatus, load]);
 
   // 세션 확인 중(ready=false)엔 로그인 요구 카드를 먼저 보여주면 안 된다 —
   // 실제로는 로그인된 사용자가 새로고침할 때마다 잠깐 그 카드가 깜빡인다.
   if (!ready) {
     return (
       <PageShell>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
-          ))}
-        </div>
+        <GridSkeleton />
       </PageShell>
     );
   }
@@ -158,7 +164,17 @@ export function RecoView() {
     );
   }
 
-  if (companyMissing) {
+  // 로컬엔 없어 서버로 재확인하는 중 — 결과가 나올 때까지는 "미입력" 카드를
+  // 먼저 보여주지 않는다(다른 기기·시크릿창에서 실제로 채워져 있으면 오탐이 된다).
+  if (companyStatus === "checking") {
+    return (
+      <PageShell>
+        <GridSkeleton />
+      </PageShell>
+    );
+  }
+
+  if (companyStatus === "missing") {
     return (
       <PageShell>
         <CenterCard
@@ -224,11 +240,7 @@ export function RecoView() {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
-          ))}
-        </div>
+        <GridSkeleton />
       ) : items.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {items.map((it, i) => (
