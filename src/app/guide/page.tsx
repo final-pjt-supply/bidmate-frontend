@@ -14,7 +14,7 @@ const STEPS = [
   {
     icon: DownloadCloud,
     title: "1. 나라장터 자동 수집",
-    desc: "새로 올라오는 입찰공고를 5분 주기로 수집해요. 공고 본문은 물론 첨부문서까지 모두 가져와요.",
+    desc: "공고 건수가 많은 상위 10개 발주기관(한국전력공사·조달청·LH 등)의 새 입찰공고를 5분 주기로 수집해요. 공고 본문은 물론 첨부문서까지 모두 가져와요.",
   },
   {
     icon: FileSearch,
@@ -66,7 +66,7 @@ export default function GuidePage() {
         <section className="flex flex-col items-center gap-2.5 pb-6 pt-16 text-center">
           <h1 className="text-2xl font-bold text-gray-900">비드프렌드 이용안내</h1>
           <p className="text-sm text-gray-500">
-            나라장터의 방대한 공고 속에서, 우리 회사가 참여할 수 있는 공고만 골라 보여드려요.
+            나라장터 주요 발주기관 공고 중에서, 우리 회사가 참여할 수 있는 공고만 골라 보여드려요.
           </p>
         </section>
 
