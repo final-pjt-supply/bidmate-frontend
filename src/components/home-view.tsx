@@ -100,6 +100,34 @@ export function HomeView({
     };
   }, [isMember]);
 
+  // 세션 확인 중(ready=false)엔 회원/비회원 히어로 중 어느 쪽도 아직 확정이 아니다 —
+  // 로그인된 사용자가 새로고침할 때마다 비회원 마케팅 히어로가 잠깐 깜빡이는 문제가
+  // 있었다. 뼈대 색은 mypage-shell.tsx 관례대로 흰 카드 위 bg-slate-100.
+  if (!ready) {
+    return (
+      <>
+        <section className="w-full animate-pulse bg-white px-4 py-[72px] sm:px-6 lg:px-10">
+          <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-8">
+            <div className="h-8 w-64 rounded-full bg-slate-100" />
+            <div className="flex w-full flex-col items-center gap-3">
+              <div className="h-10 w-3/4 max-w-[560px] rounded bg-slate-100" />
+              <div className="h-5 w-2/3 max-w-[440px] rounded bg-slate-100" />
+            </div>
+            <div className="h-14 w-full max-w-[800px] rounded-xl bg-slate-100" />
+          </div>
+        </section>
+        <main className="mx-auto w-full max-w-7xl flex-1 animate-pulse px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+          <div className="mb-6 h-7 w-40 rounded bg-slate-100" />
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="h-52 rounded-xl border border-slate-200 bg-white" />
+            ))}
+          </div>
+        </main>
+      </>
+    );
+  }
+
   if (isMember) {
     const safe = (n: number | undefined) => (n == null || Number.isNaN(n) ? undefined : n);
     // 건수를 누르면 그 목록으로 바로 간다.
