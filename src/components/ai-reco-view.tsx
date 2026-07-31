@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, Lock, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { hasCompanyProfile } from "@/lib/company";
+import { useCompanyStatus } from "@/lib/company-api";
 import {
   fetchRecommendations,
   type RecommendationListItem,
@@ -16,6 +16,17 @@ import { SyncIndicator } from "@/components/sync-indicator";
 import { VerdictBadge } from "@/components/verdict-badge";
 
 const RECOMMENDATION_LIMIT = 12;
+
+/** 세션 확인/회사정보 서버 재확인 중 보여줄 중립 스켈레톤 */
+function GridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
+      ))}
+    </div>
+  );
+}
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -92,10 +103,8 @@ export function AIRecoView() {
   const [error, setError] = useState("");
   const { items, candidateCount } = view;
 
-  const companyMissing = useMemo(
-    () => isMember && !!user && !hasCompanyProfile(user.email),
-    [isMember, user]
-  );
+  // 회원의 회사 정보 입력 여부 — 로컬 우선, 로컬에 없으면 서버로 재확인(#169)
+  const companyStatus = useCompanyStatus(user?.email, isMember);
 
   /** background=true면 이미 그려둔 캐시를 건드리지 않고 조용히 갱신만 한다. */
   const load = useCallback(
@@ -123,7 +132,7 @@ export function AIRecoView() {
   );
 
   useEffect(() => {
-    if (!isMember || companyMissing || !companyId) return;
+    if (!isMember || companyStatus !== "filled" || !companyId) return;
     const hit = readRecommendations(companyId);
     if (!hit) {
       // 캐시가 없을 때만 스켈레톤을 보여주며 받아온다.
@@ -134,18 +143,14 @@ export function AIRecoView() {
     setView(toView(hit.data));
     setLoading(false);
     if (hit.stale) void load({ background: true });
-  }, [isMember, companyMissing, companyId, load]);
+  }, [isMember, companyStatus, companyId, load]);
 
   // 세션 확인 중(ready=false)엔 로그인 요구 카드를 먼저 보여주면 안 된다 —
   // 실제로는 로그인된 사용자가 새로고침할 때마다 잠깐 그 카드가 깜빡인다.
   if (!ready) {
     return (
       <PageShell>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
-          ))}
-        </div>
+        <GridSkeleton />
       </PageShell>
     );
   }
@@ -183,7 +188,17 @@ export function AIRecoView() {
     );
   }
 
-  if (companyMissing) {
+  // 로컬엔 없어 서버로 재확인하는 중 — 결과가 나올 때까지는 "미입력" 카드를
+  // 먼저 보여주지 않는다(다른 기기·시크릿창에서 실제로 채워져 있으면 오탐이 된다).
+  if (companyStatus === "checking") {
+    return (
+      <PageShell>
+        <GridSkeleton />
+      </PageShell>
+    );
+  }
+
+  if (companyStatus === "missing") {
     return (
       <PageShell>
         <div>
@@ -254,11 +269,7 @@ export function AIRecoView() {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
-          ))}
-        </div>
+        <GridSkeleton />
       ) : items.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {/*
