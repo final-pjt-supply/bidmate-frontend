@@ -31,8 +31,12 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();
-    if (q) logEvent("search_submitted", { properties: { query_len: q.length } });
-    router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+    // 검색어 없이 누르면 이동하지 않는다 — 둘러보기는 아래 최신 공고·업종 칩이
+    // 이미 담당한다. 여기서까지 전체 목록으로 조용히 넘기면 "검색"을 눌렀는데
+    // 검색이 안 된 것처럼 보인다.
+    if (!q) return;
+    logEvent("search_submitted", { properties: { query_len: q.length } });
+    router.push(`/search?q=${encodeURIComponent(q)}`);
   };
 
   return (
