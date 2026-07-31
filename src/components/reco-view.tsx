@@ -117,6 +117,20 @@ export function RecoView() {
     void load();
   }, [isMember, companyMissing, load]);
 
+  // 세션 확인 중(ready=false)엔 로그인 요구 카드를 먼저 보여주면 안 된다 —
+  // 실제로는 로그인된 사용자가 새로고침할 때마다 잠깐 그 카드가 깜빡인다.
+  if (!ready) {
+    return (
+      <PageShell>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
+          ))}
+        </div>
+      </PageShell>
+    );
+  }
+
   if (!isMember) {
     return (
       <PageShell>
