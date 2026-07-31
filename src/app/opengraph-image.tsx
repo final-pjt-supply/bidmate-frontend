@@ -31,6 +31,8 @@ export const alt = "비드프렌드 — 나라장터 공공입찰 공고 추천"
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+// 실제 홈 히어로(home-hero.tsx)를 축소 재현한 목업. 로고 카드 대신 검색창까지
+// 보여줘야 SNS에서 "무슨 서비스인지" 한눈에 전달돼 클릭률이 오른다.
 export default async function Image() {
   return new ImageResponse(
     (
@@ -42,15 +44,69 @@ export default async function Image() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          // 푸터와 같은 slate-800. 브랜드 톤을 링크 카드까지 이어붙인다.
-          backgroundColor: "#1e293b",
+          gap: 28,
+          padding: "0 80px",
+          // home-hero.tsx와 동일한 인디고→바이올렛 그라데이션
+          backgroundImage: "linear-gradient(to right, #3730a3, #4f46e5, #6d28d9)",
         }}
       >
-        <div style={{ fontSize: 128, fontWeight: 700, color: "#ffffff", letterSpacing: -2 }}>
-          BidFriend
+        <div
+          style={{
+            display: "flex",
+            borderRadius: 999,
+            border: "1px solid rgba(255,255,255,0.25)",
+            backgroundColor: "rgba(255,255,255,0.15)",
+            padding: "8px 20px",
+            fontSize: 22,
+            fontWeight: 700,
+            color: "#e0e7ff",
+          }}
+        >
+          나라장터 연동 · 자동 공고 업데이트
         </div>
-        <div style={{ marginTop: 24, fontSize: 40, color: "#94a3b8" }}>
-          나라장터 공공입찰 공고 추천
+        <div
+          style={{
+            display: "flex",
+            fontSize: 46,
+            fontWeight: 700,
+            color: "#ffffff",
+            textAlign: "center",
+            lineHeight: 1.3,
+            whiteSpace: "nowrap",
+          }}
+        >
+          우리 회사에 맞는 공공입찰 공고를 찾아드립니다
+        </div>
+        <div style={{ display: "flex", fontSize: 26, color: "#c7d2fe" }}>
+          나라장터 주요 발주기관 공고를 분석해 기업 역량에 맞는 공고만 골라드려요
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: 760,
+            borderRadius: 16,
+            backgroundColor: "#ffffff",
+            padding: "10px 10px 10px 24px",
+          }}
+        >
+          <div style={{ display: "flex", flex: 1, fontSize: 24, color: "#94a3b8" }}>
+            공고명을 입력하세요
+          </div>
+          <div
+            style={{
+              display: "flex",
+              borderRadius: 10,
+              backgroundColor: "#4338ca",
+              padding: "12px 24px",
+              fontSize: 20,
+              fontWeight: 600,
+              color: "#ffffff",
+            }}
+          >
+            공고 검색
+          </div>
         </div>
       </div>
     ),
