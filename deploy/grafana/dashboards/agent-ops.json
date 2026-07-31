@@ -1,0 +1,274 @@
+{
+  "uid": "bidmate-agent-ops",
+  "title": "BidMate 챗봇 — 운영",
+  "description": "챗봇 에이전트 운영 개요. 데이터 소스는 전부 Bidmate/Agent 커스텀 메트릭(로그 메트릭 필터 — monitoring/metric_filters_spec.md)이라 조회 비용이 없다. L2(로그 그룹 /bidmate/agent 수집)·L3(필터 생성) 완료 전까지는 빈 화면이 정상이다.",
+  "tags": ["bidmate", "agent"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["1m", "5m", "15m", "1h"] },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "대화 수 (기간 합)",
+      "description": "turn_end 이벤트 합계 = 정상 종료한 턴 수. 서비스 요청 수(L2 미들웨어)와의 차이가 곧 크래시 건수다.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "metricQueryType": 1,
+          "metricEditorMode": 1,
+          "expression": "SUM(SEARCH('{Bidmate/Agent,route} MetricName=\"TurnCount\"', 'Sum', 300))",
+          "label": "대화",
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "턴 지연 p95 (route별, 최근)",
+      "description": "route마다 정상 범위가 다르다 — 기타는 ~1.5s(라우터만), 검색·자격은 수 초대. 전 route가 함께 오르면 공용 구간(LLM·DB) 문제.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "TurnLatencyMs",
+          "statistic": "p95",
+          "dimensions": { "route": ["*"] },
+          "label": "",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10000 }, { "color": "red", "value": 15000 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "LLM 재시도 (기간 합)",
+      "description": "0이 정상. 늘면 Bedrock 스로틀·장애 신호 — D3(LLM 대시보드)의 스로틀 패널과 대조.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "metricQueryType": 1,
+          "metricEditorMode": 1,
+          "expression": "SUM(SEARCH('{Bidmate/Agent,code,tier} MetricName=\"LlmRetry\"', 'Sum', 300))",
+          "label": "재시도",
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "text",
+      "title": "대기 중 패널 (선행 작업 필요)",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "- **오류율** — 서비스 층 error 이벤트 필요 (L2, 분리 서비스의 전역 예외 핸들러)\n- **grounding 폴백** — respond 이벤트 코드화 (A, 로깅 PR 리뷰에서 요청)\n- **검색 0건율** — bid_search·scope 이벤트 코드화 (〃)\n\n명세: `bidmate-ai-agent/monitoring/metric_filters_spec.md`"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "시간대별 대화량 (route)",
+      "description": "route별 스택. 특정 route만 급감하면 그 갈래의 장애(예: 자격 갈래만 0 = DB·캐시 문제), 전체가 0이면 서비스 다운.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "TurnCount",
+          "statistic": "Sum",
+          "dimensions": { "route": ["*"] },
+          "label": "",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "턴 지연 p50 / p95 (route별)",
+      "description": "p50과 p95의 간격이 벌어지면 일부 턴만 느려지는 것(재시도·긴 검색), 함께 오르면 전반 저하.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "TurnLatencyMs",
+          "statistic": "p50",
+          "dimensions": { "route": ["*"] },
+          "label": "p50",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "TurnLatencyMs",
+          "statistic": "p95",
+          "dimensions": { "route": ["*"] },
+          "label": "p95",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "route 분포 (기간)",
+      "description": "라우터 분류 결과의 구성비. '기타' 비율이 갑자기 늘면 라우터 프롬프트 회귀 의심(과거 실측: 기타 과잉 분류 이슈).",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "TurnCount",
+          "statistic": "Sum",
+          "dimensions": { "route": ["*"] },
+          "label": "",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "pieType": "pie",
+        "legend": { "displayMode": "list", "placement": "right" }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM 재시도 추이 (티어·원인)",
+      "description": "code 차원으로 원인(Throttling/Timeout/...)이 갈린다. 특정 code가 지속되면 쿼터·리전 점검.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "LlmRetry",
+          "statistic": "Sum",
+          "dimensions": { "tier": ["*"], "code": ["*"] },
+          "label": "",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

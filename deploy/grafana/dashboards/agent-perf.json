@@ -1,0 +1,301 @@
+{
+  "uid": "bidmate-agent-perf",
+  "title": "BidMate 챗봇 — LLM 사용량·성능",
+  "description": "챗봇 에이전트의 Bedrock 사용량(네이티브 메트릭 — 코드 계측 불필요, 지금 동작). 노드별 지연·턴 지연 패널은 L3(로그 메트릭 필터) 이후 이 대시보드에 추가한다. 계정의 Bedrock 사용처는 사실상 챗봇뿐이라(배치 추출은 NVIDIA 경로) 수치 오염이 적다 — 단 eval 하네스 실행분은 섞인다.",
+  "tags": ["bidmate", "agent"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["1m", "5m", "15m", "1h"] },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "LLM 호출 수 (기간 합)",
+      "description": "대시보드 시간 범위 내 Bedrock 호출 합계. 대화 1턴 ≈ 2회(라우터+합성).",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "Invocations",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "호출",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "입력 토큰 (기간 합)",
+      "description": "프롬프트 크기의 총량. 라우터 프롬프트 비대화가 여기서 먼저 보인다.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "InputTokenCount",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "입력 토큰",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "decimals": 0, "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "출력 토큰 (기간 합)",
+      "description": "생성량 총합 — 비용의 주 변수(출력 단가가 입력의 수 배).",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "OutputTokenCount",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "출력 토큰",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "decimals": 0, "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "스로틀·서버 오류",
+      "description": "0이 정상. 1 이상이면 재시도가 돌고 있다는 뜻 — llm_retry 로그와 대조.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "InvocationThrottles",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "스로틀",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "InvocationServerErrors",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "서버 오류",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "모델별 호출 수",
+      "description": "ModelId 차원 분해. 라우터(Haiku)와 합성(Sonnet)이 나뉘어 보인다 — 턴당 비율이 2:2에서 벗어나면 재시도·이상 호출 신호.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "Invocations",
+          "statistic": "Sum",
+          "dimensions": { "ModelId": ["*"] },
+          "label": "",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "decimals": 0, "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "모델별 토큰 사용량 (입력+출력)",
+      "description": "비용 추정: (입력 합 × 입력 단가) + (출력 합 × 출력 단가)를 티어별로. 단가는 코드가 아니라 여기서 계산한다 — 가격이 바뀌면 패널만 고친다.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "InputTokenCount",
+          "statistic": "Sum",
+          "dimensions": { "ModelId": ["*"] },
+          "label": "입력",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "OutputTokenCount",
+          "statistic": "Sum",
+          "dimensions": { "ModelId": ["*"] },
+          "label": "출력",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "decimals": 0, "unit": "short", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 15 } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Bedrock 지연 (평균·최대)",
+      "description": "InvocationLatency. 평균이 느는데 최대가 그대로면 전반 저하, 최대만 튀면 개별 이상 호출. 턴 전체 지연(p95)은 L3의 turn_end 메트릭이 담당.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "InvocationLatency",
+          "statistic": "Average",
+          "dimensions": { "ModelId": ["*"] },
+          "label": "평균",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Bedrock",
+          "metricName": "InvocationLatency",
+          "statistic": "Maximum",
+          "dimensions": { "ModelId": ["*"] },
+          "label": "최대",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 10 } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "text",
+      "title": "L3 이후 추가될 패널",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 15 },
+      "options": {
+        "mode": "markdown",
+        "content": "**로그 메트릭 필터(L3) 배선 후 이 대시보드에 추가:**\n\n- 노드별 p95 지연 (router / scope / bid_search / eligibility / retrieval / respond)\n- 턴 전체 지연 p50/p95 (`turn_end.total_ms`)\n- 티어별 재시도율 (`llm_retry`)\n\n메트릭 정의: `bidmate-ai-agent/docs/metric_filters_spec.md`\n(로그 그룹 `/bidmate/agent` — 서비스 분리 배포에 포함)"
+      }
+    }
+  ]
+}

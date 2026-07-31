@@ -1,0 +1,211 @@
+{
+  "uid": "bidmate-agent-quality",
+  "title": "BidMate 챗봇 — 품질",
+  "description": "답변 품질·판정 건강도. 상시 패널은 Bidmate/Agent 커스텀 메트릭(조회 비용 0), 원문 확인은 맨 아래 접힌 row(Insights — 조회 비용 발생)로 격리. L2·L3 완료 전까지 메트릭 패널이 비는 것이 정상. RDS 패널은 grafana_ro의 match_results SELECT 권한 필요(요청 중).",
+  "tags": ["bidmate", "agent"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["1m", "5m", "15m", "1h"] },
+  "panels": [
+    {
+      "type": "piechart",
+      "title": "결과 유형 분포 (기간)",
+      "description": "answer가 대부분이어야 정상. not_found(공고 특정 실패)·no_verdict(판정 없음) 비율이 품질의 1차 지표다. out_of_scope는 업무 밖 질의라 많아도 무방.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "TurnResult",
+          "statistic": "Sum",
+          "dimensions": { "result": ["*"] },
+          "label": "",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "pieType": "pie",
+        "legend": { "displayMode": "list", "placement": "right" }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "결과 유형 추이 (스택)",
+      "description": "특정 유형의 급증 시점을 배포·판정 함수 변경 시각과 대조한다 — 예: no_eligible 급증 = 캐시 재계산 누락 의심.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "TurnResult",
+          "statistic": "Sum",
+          "dimensions": { "result": ["*"] },
+          "label": "",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "판정 미제공 사유 분포 (마감 / 공고없음 / 판정미산출)",
+      "description": "N-2a 진단 로그 기반. '판정미산출'(라이브인데 상류 요구조건 데이터 미비 — 실측 151/1,470건 갈래)이 사용자 발화에서 실제로 얼마나 밟히는지 여기서 계량된다 — run.py 안내 문구 3갈래 분기(N-2b)의 근거 데이터.",
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "NoVerdictClosed",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "마감",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "NoVerdictNotFound",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "공고없음",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "Bidmate/Agent",
+          "metricName": "NoVerdictNoData",
+          "statistic": "Sum",
+          "dimensions": {},
+          "label": "판정미산출",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "period": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "라이브 공고 verdict 분포 (현재)",
+      "description": "match_results 캐시의 현재 상태(전 회원 합산). 판정 함수 재배포 뒤 분포가 급변하면 여기서 먼저 보인다 — 캐시 정합 감시 겸용. ※ grafana_ro에 match_results SELECT 권한 필요(요청 중 — 권한 전까지 이 패널만 오류 표시).",
+      "datasource": { "type": "postgres", "uid": "bidmate-rds" },
+      "gridPos": { "h": 8, "w": 8, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "bidmate-rds" },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "-- ⚠ 라이브 정의 사본(4번째): compute live_bids / bid_info._OPEN_CONDITION /\n-- match_results.py 와 같은 의미의 하드코딩이다. live_bid 뷰로 단일화되면 교체할 것.\nSELECT m.verdict AS \"판정\", count(*) AS \"건수\"\nFROM match_results m\nJOIN bid_table bt USING (bid_ntce_no, bid_ntce_ord)\nWHERE (bt.bid_clse_dt IS NULL\n       OR bt.bid_clse_dt > (now() AT TIME ZONE 'Asia/Seoul'))\nGROUP BY m.verdict\nORDER BY count(*) DESC"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
+        "pieType": "pie",
+        "legend": { "displayMode": "list", "placement": "right" }
+      }
+    },
+    {
+      "type": "text",
+      "title": "대기 중 패널 (선행 작업 필요)",
+      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 8 },
+      "options": {
+        "mode": "markdown",
+        "content": "- **grounding 깔때기** (위반→재생성→폴백) — respond 이벤트 코드화 (A)\n- **검색 0건율 · 자격 0건율** — bid_search·scope 코드화 (A)\n- **임베딩 재시도** — print→logger 전환 (C)\n\n명세: `monitoring/metric_filters_spec.md`"
+      }
+    },
+    {
+      "type": "row",
+      "title": "최근 문제 로그 (펼치면 조회 — 비용 발생)",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "panels": [
+        {
+          "type": "logs",
+          "title": "최근 판정 미제공 (no_verdict)",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 17 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+              "queryMode": "Logs",
+              "region": "default",
+              "expression": "fields @timestamp, request_id, msg, n_closed, n_not_found, n_no_data | filter event = \"no_verdict\" | sort @timestamp desc | limit 20",
+              "logGroupNames": ["/bidmate/agent"]
+            }
+          ],
+          "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true }
+        },
+        {
+          "type": "logs",
+          "title": "최근 LLM 재시도 소진 (llm_retry_exhausted)",
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 17 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+              "queryMode": "Logs",
+              "region": "default",
+              "expression": "fields @timestamp, request_id, msg, tier, code | filter event = \"llm_retry_exhausted\" | sort @timestamp desc | limit 20",
+              "logGroupNames": ["/bidmate/agent"]
+            }
+          ],
+          "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true }
+        }
+      ]
+    }
+  ]
+}
