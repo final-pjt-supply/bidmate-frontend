@@ -148,7 +148,7 @@ export function HomeView({
       <HomeHero
         badge="나라장터 연동 · 자동 공고 업데이트"
         title="우리 회사에 맞는 공공입찰 공고를 찾아드립니다"
-        subtitle="조달청 나라장터의 수천 건 공고를 분석해 기업 역량에 맞는 공고만 골라드려요"
+        subtitle="나라장터 주요 발주기관 공고를 분석해 기업 역량에 맞는 공고만 골라드려요"
       />
       <HomeBody
         recommendedBids={recommendedBids}
