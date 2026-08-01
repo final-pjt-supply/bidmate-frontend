@@ -10,7 +10,7 @@ import { ChevronDown, Check } from "lucide-react";
 export type SelectOption = { value: string; label: string };
 
 const triggerClass =
-  "flex h-[46px] w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3.5 text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400";
+  "flex h-[46px] w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-surface px-3.5 text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400";
 
 export function SelectMenu({
   value,
@@ -93,7 +93,7 @@ export function SelectMenu({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-surface py-1 shadow-[0px_4px_12px_0px_var(--shadow-10)]"
         >
           {options.length === 0 ? (
             <li className="px-3 py-1.5 text-sm text-slate-400">선택할 항목이 없어요</li>

@@ -2058,6 +2058,176 @@
       }
     },
     {
+      "type": "timeseries",
+      "title": "일자별 수집·완료 추이",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
+      "description": "두 선이 벌어지면 처리가 밀리는 것. 붙어 있으면 건강하다.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT date_trunc('day', bid_ntce_dt) AS time,\n       count(*) AS \"수집\",\n       count(*) FILTER (WHERE qual_status = 'merged') AS \"완료\"\nFROM bid_table\nWHERE bid_ntce_dt >= now() - interval '30 days'\nGROUP BY 1\nORDER BY 1",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "전체 처리 완료율",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 47
+      },
+      "description": "완료 / 전체(누적). 오늘 처리 완료율과 달리 날짜 필터 없이 bid_table 전체 기준.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE qual_status = 'merged')\n             / nullif(count(*), 0), 1) AS \"완료율\"\nFROM bid_table",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "green",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "전체 처리 상태 분포",
+      "datasource": {
+        "type": "postgres",
+        "uid": "bidmate-rds"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 47
+      },
+      "description": "오늘 처리 상태 분포와 달리 날짜 필터 없이 bid_table 전체 기준.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "bidmate-rds"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(qual_status, '미설정') AS \"상태\", count(*) AS \"건수\"\nFROM bid_table\nGROUP BY 1\nORDER BY 2 DESC",
+          "editorMode": "code"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "pieType": "donut",
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
       "type": "row",
       "title": "최근 실패 로그 (펼치면 조회 — 비용 발생)",
       "collapsed": true,
@@ -2065,7 +2235,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 53
       },
       "panels": [
         {
@@ -2079,7 +2249,7 @@
             "h": 12,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 54
           },
           "description": "Logs Insights는 조회할 때마다 스캔 비용이 붙는다. 접어두면 대시보드를 열 때 실행되지 않는다.",
           "options": {
@@ -2135,57 +2305,6 @@
           ]
         }
       ]
-    },
-    {
-      "type": "timeseries",
-      "title": "일자별 수집·완료 추이",
-      "datasource": {
-        "type": "postgres",
-        "uid": "bidmate-rds"
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 60
-      },
-      "description": "두 선이 벌어지면 처리가 밀리는 것. 붙어 있으면 건강하다.",
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "postgres",
-            "uid": "bidmate-rds"
-          },
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "SELECT date_trunc('day', bid_ntce_dt) AS time,\n       count(*) AS \"수집\",\n       count(*) FILTER (WHERE qual_status = 'merged') AS \"완료\"\nFROM bid_table\nWHERE bid_ntce_dt >= now() - interval '30 days'\nGROUP BY 1\nORDER BY 1",
-          "editorMode": "code"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "auto",
-            "spanNulls": true
-          }
-        },
-        "overrides": []
-      }
     }
   ]
 }

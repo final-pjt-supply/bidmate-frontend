@@ -42,7 +42,7 @@ export function LegalDoc({ title, effectiveDate, intro, sections }: LegalDocProp
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
-      <main className="w-full flex-1 bg-white">
+      <main className="w-full flex-1 bg-surface">
         <div className="mx-auto flex w-full max-w-[800px] flex-col px-4 pb-[72px] pt-14 sm:px-6">
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           <p className="mt-3 text-[11.5px] text-gray-500">{effectiveDate}</p>

@@ -65,7 +65,7 @@ export function BotBubble({ message, compact = false }: { message: ChatMessage; 
       {message.kind === "redirect" && message.href && (
         <Link
           href={message.href}
-          className="flex w-fit items-center gap-1 rounded-md bg-indigo-700 px-3 py-1.5 text-[13px] font-bold text-white transition-colors hover:bg-indigo-800"
+          className="flex w-fit items-center gap-1 rounded-md bg-brand px-3 py-1.5 text-[13px] font-bold text-white transition-colors hover:bg-brand-hover"
         >
           목록에서 보기
           <ArrowRight className="size-3.5" strokeWidth={2} />
@@ -80,7 +80,7 @@ export function BotBubble({ message, compact = false }: { message: ChatMessage; 
               key={`${c.bid_id}-${c.chunk_idx}-${i}`}
               href={`/bids/${c.bid_id}`}
               title={c.text}
-              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11.5px] text-slate-500 transition-colors hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-surface px-2 py-1 text-[11.5px] text-slate-500 transition-colors hover:bg-slate-50"
             >
               근거 {i + 1}
             </Link>
@@ -148,7 +148,7 @@ function UserBubble({
   if (editing) {
     return (
       <div className="flex flex-col items-end gap-1">
-        <div className="w-full max-w-[80%] rounded-2xl border border-indigo-300 bg-white p-2">
+        <div className="w-full max-w-[80%] rounded-2xl border border-indigo-300 bg-surface p-2">
           <textarea
             value={draft}
             autoFocus
@@ -175,7 +175,7 @@ function UserBubble({
               type="button"
               onClick={submit}
               disabled={draft.trim() === ""}
-              className="rounded-md bg-indigo-700 px-2.5 py-1 text-[12.5px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              className="rounded-md bg-brand px-2.5 py-1 text-[12.5px] font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400"
             >
               보내기
             </button>
@@ -187,7 +187,7 @@ function UserBubble({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white">
+      <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-brand-accent px-4 py-2.5 text-sm leading-relaxed text-white">
         {text}
       </p>
       {actionable && (
@@ -283,7 +283,7 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
             key={s}
             type="button"
             onClick={() => onPick(s)}
-            className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            className="rounded-full border border-slate-200 bg-surface px-3.5 py-1.5 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50"
           >
             {s}
           </button>
@@ -297,7 +297,7 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
 function GuestGate() {
   return (
     <div className="flex h-full items-center justify-center px-4">
-      <div className="flex w-full max-w-md flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+      <div className="flex w-full max-w-md flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-surface px-4 py-16 text-center">
         <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
           <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
         </span>
@@ -308,13 +308,13 @@ function GuestGate() {
         <div className="mt-1 flex gap-2">
           <Link
             href="/login"
-            className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
           >
             로그인
           </Link>
           <Link
             href="/signup"
-            className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            className="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
           >
             회원가입
           </Link>
@@ -417,7 +417,7 @@ export function BidbotView() {
     <div className="flex min-h-0 flex-1">
       {/* 대화 내역 사이드바 (회원만) */}
       {isMember && (
-        <aside className="hidden w-[260px] shrink-0 flex-col border-r border-slate-200 bg-white px-3 py-4 md:flex">
+        <aside className="hidden w-[260px] shrink-0 flex-col border-r border-slate-200 bg-surface px-3 py-4 md:flex">
         <button
           type="button"
           onClick={newChat}
@@ -470,7 +470,7 @@ export function BidbotView() {
                     onClick={() => setConfirm({ sessionId: s.session_id, title })}
                     aria-label={`${title} 삭제`}
                     title="대화 삭제"
-                    className={`shrink-0 rounded-md p-1.5 text-slate-400 opacity-0 transition-colors hover:bg-white hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 ${
+                    className={`shrink-0 rounded-md p-1.5 text-slate-400 opacity-0 transition-colors hover:bg-surface hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 ${
                       active ? "opacity-100" : ""
                     }`}
                   >
@@ -513,12 +513,12 @@ export function BidbotView() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="비드봇에게 질문하기…"
-                  className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+                  className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-surface px-4 py-2.5 text-sm text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
                 />
                 <button
                   type="submit"
                   disabled={input.trim() === "" || pending}
-                  className="shrink-0 rounded-lg bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  className="shrink-0 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400"
                 >
                   전송
                 </button>

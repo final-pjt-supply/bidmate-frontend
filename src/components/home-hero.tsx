@@ -24,6 +24,9 @@ type HomeHeroProps = {
   stats?: HeroStat[];
 };
 
+// 배경 그라데이션과 그 위 글자는 band-* 토큰을 쓴다. 두 모드 모두 어두운 밴드지만
+// 다크에서는 페이지 배경에 맞춰 더 어두워진다(globals.css 참고).
+// 검색 form은 밴드가 아니라 일반 카드 표면이라 bg-surface를 그대로 따라간다.
 export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -40,7 +43,7 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
   };
 
   return (
-    <section className="relative w-full overflow-hidden bg-gradient-to-r from-indigo-800 via-indigo-600 to-violet-700 px-4 py-[72px] sm:px-6 lg:px-10">
+    <section className="relative w-full overflow-hidden bg-gradient-to-r from-band-start via-band-mid to-band-end px-4 py-[72px] sm:px-6 lg:px-10">
       {/* 40px 그리드 오버레이 */}
       <div
         aria-hidden
@@ -52,19 +55,19 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
       />
 
       <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center gap-8">
-        <span className="rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-xs font-bold text-indigo-100">
+        <span className="rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-xs font-bold text-band-fg">
           {badge}
         </span>
 
         <div className="flex w-full flex-col items-center gap-3 text-center">
           <h1 className="text-[40px] font-bold leading-[1.3] text-white">{title}</h1>
-          <p className="text-[17px] text-indigo-200">{subtitle}</p>
+          <p className="text-[17px] text-band-fg-muted">{subtitle}</p>
         </div>
 
         <div className="flex w-full flex-col items-center gap-3.5">
           <form
             onSubmit={submit}
-            className="flex w-full max-w-[800px] items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 pl-4 pr-1.5"
+            className="flex w-full max-w-[800px] items-center gap-2 rounded-xl border border-slate-200 bg-surface py-1.5 pl-4 pr-1.5"
           >
             <input
               type="text"
@@ -75,7 +78,7 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
             />
             <button
               type="submit"
-              className="shrink-0 rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
+              className="shrink-0 rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
             >
               공고 검색
             </button>
@@ -85,7 +88,7 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
               <Link
                 key={cat}
                 href={`/search?cat=${cat}`}
-                className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-medium text-indigo-100 transition-colors hover:bg-white/20"
+                className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-xs font-medium text-band-fg transition-colors hover:bg-white/20"
               >
                 {label}
               </Link>
@@ -99,7 +102,7 @@ export function HomeHero({ badge, title, subtitle, stats }: HomeHeroProps) {
               const inner = (
                 <>
                   <span className="text-2xl font-bold text-white">{stat.value}</span>
-                  <span className="text-[13px] text-indigo-300">{stat.label}</span>
+                  <span className="text-[13px] text-band-fg-subtle">{stat.label}</span>
                 </>
               );
               return (

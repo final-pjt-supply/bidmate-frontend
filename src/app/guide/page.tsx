@@ -77,7 +77,7 @@ export default function GuidePage() {
             {STEPS.map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="flex w-[360px] max-w-full flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-6"
+                className="flex w-[360px] max-w-full flex-col gap-2.5 rounded-xl border border-slate-200 bg-surface p-6"
               >
                 <span className="flex size-11 items-center justify-center rounded-full bg-indigo-50">
                   <Icon className="size-5 text-indigo-600" strokeWidth={2} />
@@ -96,7 +96,7 @@ export default function GuidePage() {
             {USE_STEPS.map((step, i) => (
               <div key={step} className="flex items-center gap-4">
                 {i > 0 && <span className="text-xs text-gray-500">→</span>}
-                <span className="rounded-full border border-slate-200 bg-white px-[18px] py-2.5 text-sm font-bold text-gray-900">
+                <span className="rounded-full border border-slate-200 bg-surface px-[18px] py-2.5 text-sm font-bold text-gray-900">
                   {step}
                 </span>
               </div>
@@ -111,7 +111,7 @@ export default function GuidePage() {
             {FAQS.map(({ q, a }) => (
               <div
                 key={q}
-                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-6 py-[18px]"
+                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-surface px-6 py-[18px]"
               >
                 <p className="text-[15px] font-bold text-gray-900">{q}</p>
                 <p className="text-sm leading-relaxed text-gray-500">{a}</p>

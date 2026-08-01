@@ -139,7 +139,7 @@ export function MasterSearchSelect({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
+          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-surface py-1 shadow-[0px_4px_12px_0px_var(--shadow-10)]"
         >
           {loading ? (
             <li className="px-3 py-1.5 text-sm text-slate-400">불러오는 중…</li>

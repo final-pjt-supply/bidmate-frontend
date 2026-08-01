@@ -72,7 +72,7 @@ export function TermsModal({ onClose, onAgree }: { onClose: () => void; onAgree:
         role="dialog"
         aria-modal="true"
         aria-label="이용약관 및 개인정보 처리 동의"
-        className="flex max-h-full w-full max-w-[540px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0px_16px_40px_0px_rgba(0,0,0,0.3)]"
+        className="flex max-h-full w-full max-w-[540px] flex-col overflow-hidden rounded-2xl bg-surface shadow-[0px_16px_40px_0px_var(--shadow-30)]"
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* head */}
@@ -114,7 +114,7 @@ export function TermsModal({ onClose, onAgree }: { onClose: () => void; onAgree:
             type="button"
             disabled={!reachedBottom}
             onClick={onAgree}
-            className="w-full rounded-md py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:bg-indigo-700/50 disabled:text-white enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
+            className="w-full rounded-md py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:bg-brand/50 disabled:text-white enabled:bg-brand enabled:text-white enabled:hover:bg-brand-hover"
           >
             동의하고 계속하기
           </button>

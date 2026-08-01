@@ -74,13 +74,13 @@ export function SyncIndicator({
         </button>
         <span
           role="tooltip"
-          className={`pointer-events-none absolute right-0 top-full z-10 mt-2 w-[340px] rounded-md bg-slate-400 px-[13px] py-[7px] text-[12px] font-medium leading-[1.4] text-white shadow-[0px_4px_10px_rgba(30,41,59,0.25)] transition-all duration-150 ${
+          className={`pointer-events-none absolute right-0 top-full z-10 mt-2 w-[340px] rounded-md bg-tooltip px-[13px] py-[7px] text-[12px] font-medium leading-[1.4] text-white shadow-[0px_4px_10px_rgba(30,41,59,0.25)] transition-all duration-150 ${
             open ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
           }`}
         >
           <span
             aria-hidden
-            className="absolute -top-1 right-1.5 size-2 rotate-45 rounded-[1px] bg-slate-400"
+            className="absolute -top-1 right-1.5 size-2 rotate-45 rounded-[1px] bg-tooltip"
           />
           나라장터 공고를 5분마다 수집하고, 첨부문서의 자격요건은 AI 분석을 거쳐 제공돼요. 게시 후 표시까지 시간이 걸릴 수 있어요.
         </span>

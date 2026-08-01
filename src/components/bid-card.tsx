@@ -109,7 +109,11 @@ export function BidCard({
           properties: { position, sort, list },
         })
       }
-      className={`flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:border-indigo-200 hover:shadow-md ${className}`}
+      // hover 그림자는 shadow-md(검정 알파 고정)를 쓰면 다크 페이지(#0d1117)에서 사라져
+      // 홈 그리드의 주 클릭 대상에 피드백이 테두리 색 변화 하나만 남는다. 기하는
+      // shadow-md 그대로 두고 색만 --shadow-10으로 바꿔 두 모드에서 다 보이게 한다
+      // (라이트 값은 rgba(0,0,0,0.1)로 shadow-md와 동일 — 겉모습이 바뀌지 않는다).
+      className={`flex flex-col gap-3 rounded-xl border border-slate-200 bg-surface p-5 transition-shadow hover:border-indigo-200 hover:shadow-[0_4px_6px_-1px_var(--shadow-10),0_2px_4px_-2px_var(--shadow-10)] ${className}`}
     >
       <div className="flex items-center justify-between">
         {/* D-day: 좌측 상단 고정 */}

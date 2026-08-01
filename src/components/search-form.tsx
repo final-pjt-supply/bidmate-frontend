@@ -30,7 +30,7 @@ export function SearchForm({ conditions }: { conditions: SearchConditions }) {
   return (
     <form
       onSubmit={submit}
-      className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white py-1.5 pl-[18px] pr-1.5"
+      className="flex items-center gap-2 rounded-xl border border-gray-300 bg-surface py-1.5 pl-[18px] pr-1.5"
     >
       <Search className="size-[18px] shrink-0 text-slate-400" strokeWidth={2} />
       <input
@@ -56,7 +56,7 @@ export function SearchForm({ conditions }: { conditions: SearchConditions }) {
       )}
       <button
         type="submit"
-        className="shrink-0 rounded-lg bg-indigo-700 px-6 py-2.5 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800"
+        className="shrink-0 rounded-lg bg-brand px-6 py-2.5 text-[15px] font-bold text-white transition-colors hover:bg-brand-hover"
       >
         검색
       </button>

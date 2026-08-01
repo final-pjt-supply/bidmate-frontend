@@ -35,7 +35,7 @@ function LoginGate() {
       <p className="text-sm text-gray-500">무료로 가입하면 회사 조건에 맞는 추천 공고를 볼 수 있어요.</p>
       <Link
         href="/signup"
-        className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+        className="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
       >
         무료로 시작하기
       </Link>
@@ -57,7 +57,7 @@ function SectionError({
       role="alert"
       className="flex flex-col items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-10 text-center"
     >
-      <span className="flex size-11 items-center justify-center rounded-full bg-white text-amber-600">
+      <span className="flex size-11 items-center justify-center rounded-full bg-surface text-amber-600">
         <AlertTriangle className="size-5" strokeWidth={2} />
       </span>
       <div>
@@ -68,7 +68,7 @@ function SectionError({
         type="button"
         disabled={retrying}
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3.5 py-2 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-surface px-3.5 py-2 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <RefreshCw className={`size-4 ${retrying ? "animate-spin" : ""}`} strokeWidth={2} />
         {retrying ? "다시 불러오는 중" : "다시 시도"}
@@ -80,7 +80,7 @@ function SectionError({
 /** 회사 정보가 없으면 매칭을 계산할 수 없다 — 빈 목록 대신 입력 경로를 준다(맞춤 추천 화면과 동일 문구). */
 function CompanyMissingSection() {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-10 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-surface px-4 py-10 text-center">
       <span className="flex size-11 items-center justify-center rounded-full bg-indigo-50">
         <Building2 className="size-5 text-indigo-600" strokeWidth={2} />
       </span>
@@ -92,7 +92,7 @@ function CompanyMissingSection() {
       </div>
       <Link
         href="/mypage?edit=1"
-        className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+        className="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
       >
         회사 정보 입력하기
       </Link>
@@ -102,7 +102,7 @@ function CompanyMissingSection() {
 
 function EmptySection({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-surface px-4 py-10 text-center text-sm text-slate-500">
       {message}
     </div>
   );
@@ -208,7 +208,7 @@ export function HomeBody({
               {Array.from({ length: MAX_CARDS }, (_, i) => (
                 <div
                   key={i}
-                  className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white"
+                  className="h-52 animate-pulse rounded-xl border border-slate-200 bg-surface"
                 />
               ))}
             </div>

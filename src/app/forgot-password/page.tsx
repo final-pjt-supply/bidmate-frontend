@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
           <button
             type="button"
             onClick={() => router.push("/login")}
-            className="rounded-md bg-indigo-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            className="rounded-md bg-brand py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
           >
             로그인하러 가기
           </button>
@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={email.trim() === "" || submitting}
-              className="rounded-md py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
+              className="rounded-md py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400 enabled:bg-brand enabled:text-white enabled:hover:bg-brand-hover"
             >
               {submitting ? "보내는 중…" : "인증코드 받기"}
             </button>
@@ -146,7 +146,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={code.trim() === "" || password === "" || submitting}
-              className="rounded-md py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
+              className="rounded-md py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400 enabled:bg-brand enabled:text-white enabled:hover:bg-brand-hover"
             >
               {submitting ? "변경 중…" : "비밀번호 변경"}
             </button>

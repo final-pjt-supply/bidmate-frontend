@@ -31,7 +31,7 @@ const fmt = (n: number | undefined) => (n == null ? "—" : `${n.toLocaleString(
 function HomeSkeleton() {
   return (
     <>
-      <section className="w-full animate-pulse bg-white px-4 py-[72px] sm:px-6 lg:px-10">
+      <section className="w-full animate-pulse bg-surface px-4 py-[72px] sm:px-6 lg:px-10">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-8">
           <div className="h-8 w-64 rounded-full bg-slate-100" />
           <div className="flex w-full flex-col items-center gap-3">
@@ -45,7 +45,7 @@ function HomeSkeleton() {
         <div className="mb-6 h-7 w-40 rounded bg-slate-100" />
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-52 rounded-xl border border-slate-200 bg-white" />
+            <div key={i} className="h-52 rounded-xl border border-slate-200 bg-surface" />
           ))}
         </div>
       </main>

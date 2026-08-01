@@ -21,7 +21,7 @@ export function AuthCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex w-full max-w-[440px] flex-col gap-[18px] rounded-2xl border border-slate-200 bg-white p-9 shadow-[0px_16px_40px_0px_rgba(0,0,0,0.12)]">
+    <div className="flex w-full max-w-[440px] flex-col gap-[18px] rounded-2xl border border-slate-200 bg-surface p-9 shadow-[0px_16px_40px_0px_var(--shadow-12)]">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <Link href="/" aria-label="닫기" className="text-gray-400 transition-colors hover:text-gray-600">

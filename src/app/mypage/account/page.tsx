@@ -77,7 +77,7 @@ export default function AccountPage() {
   return (
     <MypageShell title="계정 설정" description="로그인한 계정 정보와 로그아웃·탈퇴를 관리해요.">
       {/* 계정 정보 */}
-      <div className="flex w-full flex-col gap-4 rounded-xl border border-slate-200 bg-white p-7">
+      <div className="flex w-full flex-col gap-4 rounded-xl border border-slate-200 bg-surface p-7">
         <h2 className="text-[15px] font-bold text-gray-900">계정 정보</h2>
         <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
           <span className="text-xs font-medium text-gray-400">이메일</span>
@@ -96,7 +96,7 @@ export default function AccountPage() {
                 setPwError(null);
                 setPwDone(false);
               }}
-              className="shrink-0 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              className="shrink-0 rounded-md border border-slate-200 bg-surface px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
             >
               {pwOpen ? "취소" : "변경"}
             </button>
@@ -140,7 +140,7 @@ export default function AccountPage() {
               <button
                 type="submit"
                 disabled={pwSubmitting || !pwCurrent || !pwNext}
-                className="w-fit rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                className="w-fit rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400"
               >
                 {pwSubmitting ? "변경 중…" : "비밀번호 변경"}
               </button>
@@ -150,7 +150,7 @@ export default function AccountPage() {
       </div>
 
       {/* 로그아웃 / 탈퇴 */}
-      <div className="flex w-full flex-col gap-4 rounded-xl border border-slate-200 bg-white p-7">
+      <div className="flex w-full flex-col gap-4 rounded-xl border border-slate-200 bg-surface p-7">
         <h2 className="text-[15px] font-bold text-gray-900">로그인 · 탈퇴</h2>
 
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -208,7 +208,7 @@ export default function AccountPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="비밀번호"
                 autoComplete="current-password"
-                className="h-[42px] w-full max-w-[320px] rounded-lg border border-gray-300 bg-white px-3.5 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="h-[42px] w-full max-w-[320px] rounded-lg border border-gray-300 bg-surface px-3.5 text-sm text-gray-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
             </label>
 
@@ -219,14 +219,14 @@ export default function AccountPage() {
                 type="button"
                 onClick={withdraw}
                 disabled={password === "" || submitting}
-                className="rounded-md px-3.5 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-red-600 enabled:text-white enabled:hover:bg-red-700"
+                className="rounded-md px-3.5 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400 enabled:bg-danger enabled:text-white enabled:hover:bg-danger-hover"
               >
                 {submitting ? "처리 중…" : "탈퇴하기"}
               </button>
               <button
                 type="button"
                 onClick={cancelWithdraw}
-                className="rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                className="rounded-md border border-slate-200 bg-surface px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
               >
                 취소
               </button>

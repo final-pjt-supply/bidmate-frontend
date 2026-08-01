@@ -27,7 +27,7 @@ function GridSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-white" />
+        <div key={i} className="h-52 animate-pulse rounded-xl border border-slate-200 bg-surface" />
       ))}
     </div>
   );
@@ -65,7 +65,7 @@ function CenterCard({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+    <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-surface px-4 py-16 text-center">
       <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
         {icon}
       </span>
@@ -148,13 +148,13 @@ export function RecoView() {
           <div className="mt-1 flex gap-2">
             <Link
               href="/login"
-              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
             >
               로그인
             </Link>
             <Link
               href="/signup"
-              className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+              className="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
             >
               회원가입
             </Link>
@@ -184,7 +184,7 @@ export function RecoView() {
         >
           <Link
             href="/mypage?edit=1"
-            className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            className="mt-1 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
           >
             회사 정보 입력하기
           </Link>
@@ -260,7 +260,7 @@ export function RecoView() {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-20 text-center">
+        <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-surface py-20 text-center">
           <p className="text-[15px] font-bold text-gray-900">참가 가능한 공고가 아직 없어요</p>
           <p className="text-sm text-slate-500">
             회사 정보를 더 채우면 더 많은 공고와 매칭될 수 있어요.

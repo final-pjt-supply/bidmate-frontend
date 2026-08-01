@@ -179,7 +179,7 @@ export function MatchAxesTable({
             <li
               key={a.axis}
               className={`rounded-lg border px-3.5 py-3 ${
-                CARD_STYLE[a.status] ?? "border-slate-200 bg-white"
+                CARD_STYLE[a.status] ?? "border-slate-200 bg-surface"
               }`}
             >
               <div className="flex items-baseline justify-between gap-2">
@@ -291,7 +291,7 @@ export function MatchAxesTable({
       <div className="flex flex-wrap items-center gap-2 pt-3">
         <Link
           href="/mypage?edit=1"
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
         >
           <Settings2 className="size-3.5" strokeWidth={2} />
           회사 정보 수정

@@ -25,7 +25,7 @@ function CheckRow({
     <button type="button" role="checkbox" aria-checked={checked} onClick={onChange} className="flex w-fit items-center gap-2 text-left">
       <span
         className={`flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
-          checked ? "border-indigo-700 bg-indigo-700" : "border-slate-200 bg-white"
+          checked ? "border-brand bg-brand" : "border-slate-200 bg-surface"
         }`}
       >
         {checked && <Check className="size-3 text-white" strokeWidth={3} />}
@@ -65,13 +65,13 @@ export function AdvancedSearchPanel({ conditions }: { conditions: SearchConditio
 
   return (
     <details className="group" open={hasApplied}>
-      <summary className="flex h-8 w-fit cursor-pointer list-none items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50">
+      <summary className="flex h-8 w-fit cursor-pointer list-none items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-3 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50">
         상세 검색
         {hasApplied && <span className="size-1.5 rounded-full bg-indigo-600" aria-label="적용된 조건 있음" />}
         <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" strokeWidth={2} />
       </summary>
 
-      <div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5">
+      <div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 bg-surface px-5 py-3.5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
           <p className="shrink-0 text-xs font-bold text-gray-900 sm:w-[68px]">기타</p>
           <CheckRow
@@ -88,7 +88,7 @@ export function AdvancedSearchPanel({ conditions }: { conditions: SearchConditio
           <button
             type="button"
             onClick={reset}
-            className="rounded-md border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-surface px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
           >
             초기화
           </button>
@@ -96,7 +96,7 @@ export function AdvancedSearchPanel({ conditions }: { conditions: SearchConditio
             type="button"
             onClick={apply}
             disabled={!dirty}
-            className="rounded-md bg-indigo-700 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled-strong"
           >
             조건 적용
           </button>

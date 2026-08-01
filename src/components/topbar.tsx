@@ -58,7 +58,7 @@ function MobileNav({ items, active }: { items: typeof NAV_ITEMS; active: (href: 
       {open && (
         <div
           role="menu"
-          className="absolute left-0 top-full z-20 mt-2 w-[200px] rounded-md border border-slate-100 bg-white p-[5px] shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
+          className="absolute left-0 top-full z-20 mt-2 w-[200px] rounded-md border border-slate-100 bg-surface p-[5px] shadow-[0px_4px_12px_0px_var(--shadow-10)]"
         >
           {items.map(({ label, href }) => (
             <Link
@@ -116,7 +116,7 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
           open ? "bg-slate-200" : "bg-slate-100 hover:bg-slate-200"
         }`}
       >
-        <span className="flex size-7 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white">
+        <span className="flex size-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
           {company.replace(/^\(주\)/, "").charAt(0)}
         </span>
         <span className="text-[15px] font-bold text-gray-900">{company}</span>
@@ -129,7 +129,7 @@ function UserMenu({ company, onLogout }: { company: string; onLogout: () => void
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-20 mt-2 w-[180px] rounded-md border border-slate-100 bg-white p-[5px] shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)]"
+          className="absolute right-0 top-full z-20 mt-2 w-[180px] rounded-md border border-slate-100 bg-surface p-[5px] shadow-[0px_4px_12px_0px_var(--shadow-10)]"
         >
           <Link href="/mypage" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
             <User className="size-4 text-slate-500" strokeWidth={2} />
@@ -171,7 +171,7 @@ export function Topbar() {
     href !== "#" && (pathname === href || pathname.startsWith(`${href}/`));
 
   return (
-    <header className="w-full border-b border-slate-200 bg-white">
+    <header className="w-full border-b border-slate-200 bg-surface">
       <div className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
         {/* 브랜드 + 모바일 메뉴 버튼 */}
         <div className="flex items-center gap-1">
@@ -213,7 +213,7 @@ export function Topbar() {
               </Link>
               <Link
                 href="/signup"
-                className="flex h-8 items-center rounded-md bg-indigo-700 px-3 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
+                className="flex h-8 items-center rounded-md bg-brand px-3 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
               >
                 회원가입
               </Link>

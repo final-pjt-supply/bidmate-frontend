@@ -20,7 +20,7 @@ export function GuideCta() {
     <section className="flex flex-col items-center pb-16 pt-2">
       <Link
         href="/signup"
-        className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800"
+        className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
       >
         무료로 시작하기
       </Link>

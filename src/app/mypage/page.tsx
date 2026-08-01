@@ -349,7 +349,7 @@ export default function MyPage() {
       {editing ? (
         <form
           onSubmit={save}
-          className="flex w-full flex-col gap-[18px] rounded-xl border border-slate-200 bg-white p-7"
+          className="flex w-full flex-col gap-[18px] rounded-xl border border-slate-200 bg-surface p-7"
         >
           {carriedOverBanner}
           <div className="flex gap-4">
@@ -477,7 +477,7 @@ export default function MyPage() {
                               validUntil: e.target.checked ? "" : c.validUntil,
                             })
                           }
-                          className="size-3.5 accent-indigo-700"
+                          className="size-3.5 accent-brand"
                         />
                         무기한 (갱신 없는 인증)
                         {expired && (
@@ -562,7 +562,7 @@ export default function MyPage() {
                                 : "",
                             })
                           }
-                          className="size-3.5 accent-indigo-700"
+                          className="size-3.5 accent-brand"
                         />
                         직접생산확인증명서 보유
                         {expired && (
@@ -630,7 +630,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() => removePerformance(i)}
                         aria-label={`실적 ${i + 1} 삭제`}
-                        className="h-[46px] rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-500 transition-colors hover:bg-slate-50"
+                        className="h-[46px] rounded-md border border-slate-200 bg-surface px-3 text-sm text-slate-500 transition-colors hover:bg-slate-50"
                       >
                         삭제
                       </button>
@@ -833,14 +833,14 @@ export default function MyPage() {
             <button
               type="submit"
               disabled={saving || bizNoError !== "" || perfError || certError || capError}
-              className="rounded-[10px] bg-indigo-700 px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="rounded-[10px] bg-brand px-7 py-3 text-[15px] font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled-strong"
             >
               {saving ? "저장 중…" : "변경사항 저장"}
             </button>
           </div>
         </form>
       ) : (
-        <div className="flex w-full flex-col gap-[18px] rounded-xl border border-slate-200 bg-white p-7">
+        <div className="flex w-full flex-col gap-[18px] rounded-xl border border-slate-200 bg-surface p-7">
           {carriedOverBanner}
           <div className="flex gap-[34px]">
             <ViewField label="회사명" value={profile.name} />

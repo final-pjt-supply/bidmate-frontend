@@ -44,7 +44,7 @@ export function BidbotDock({
         type="button"
         onClick={() => onMode("popover")}
         aria-label="비드봇 열기"
-        className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-indigo-700 text-white shadow-[0px_8px_24px_rgba(67,56,202,0.4)] transition-colors hover:bg-indigo-800"
+        className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0px_8px_24px_rgba(67,56,202,0.4)] transition-colors hover:bg-brand-hover"
       >
         <Bot className="size-6" strokeWidth={2} />
       </button>
@@ -57,7 +57,7 @@ export function BidbotDock({
     <div
       role="dialog"
       aria-label="비드봇"
-      className={`fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0px_16px_40px_rgba(0,0,0,0.2)] ${
+      className={`fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-[0px_16px_40px_var(--shadow-20)] ${
         expanded ? "h-[70vh] w-[560px]" : "h-[480px] w-[360px]"
       }`}
     >
@@ -124,7 +124,7 @@ export function BidbotDock({
                 key={s}
                 type="button"
                 onClick={() => send(s)}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[12.5px] font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                className="rounded-full border border-slate-200 bg-surface px-3 py-1 text-[12.5px] font-medium text-slate-600 transition-colors hover:bg-slate-50"
               >
                 {s}
               </button>
@@ -136,7 +136,7 @@ export function BidbotDock({
         {messages.map((m, i) =>
           m.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-indigo-600 px-3.5 py-2 text-[13px] leading-relaxed text-white">
+              <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-brand-accent px-3.5 py-2 text-[13px] leading-relaxed text-white">
                 {m.text}
               </p>
             </div>
@@ -177,12 +177,12 @@ export function BidbotDock({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="질문 입력…"
-          className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+          className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-surface px-3 py-2 text-[13px] text-gray-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
         />
         <button
           type="submit"
           disabled={input.trim() === "" || pending}
-          className="shrink-0 rounded-lg bg-indigo-700 px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          className="shrink-0 rounded-lg bg-brand px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400"
         >
           전송
         </button>

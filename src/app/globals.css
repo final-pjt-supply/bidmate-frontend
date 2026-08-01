@@ -1,14 +1,284 @@
 @import "tailwindcss";
 
+/*
+  다크모드 — OS 설정만 따른다(prefers-color-scheme). 토글 UI·localStorage는 두지 않는다.
+  사용자가 OS에서 이미 내린 선택을 화면마다 다시 묻지 않기 위해서다.
+
+  구조를 이렇게 잡은 이유:
+  Tailwind v4는 `bg-slate-100` 같은 유틸리티를 `var(--color-slate-100)`으로 컴파일한다.
+  그래서 램프 변수 자체를 다크에서 재정의하면 컴포넌트에 `dark:` 변형을 1,100곳 넘게
+  붙이지 않고도 화면 전체가 뒤집힌다. 컴포넌트를 건드리는 경우는 아래 두 가지뿐이다.
+
+  1) 한 변수가 다크에서 서로 반대 방향으로 가야 하는 두 역할을 겸할 때.
+     - `bg-white`(표면)와 `text-white`(인디고 버튼 위 글자)는 같은 `--color-white`를 쓴다.
+       표면만 `--color-surface`로 빼고 `text-white`는 양쪽 모드에서 그대로 정답이라 둔다.
+     - `bg-indigo-700`(CTA 배경)과 `text-indigo-700`(강조 글자)도 같은 변수다.
+       배경만 `--color-brand`로 빼면 나머지 인디고는 전부 뒤집어도 안전하다.
+     - 같은 이유로 빨강·주황 solid 버튼(`--color-danger`, `--color-warn`)과
+       회색 툴팁(`--color-tooltip`)만 토큰으로 분리했다.
+  2) 라이트에서 이미 "어두운 대비 밴드"인 영역(히어로·푸터). 여기는 램프를 따라가면
+     혼자 밝아지므로 `--band-*` 토큰으로 뺐다. 이 밴드는 두 모드 모두 어두운 면이지만,
+     다크에서는 페이지 배경(#0d1117)에 맞춰 더 어둡게 간다. 라이트 값을 그대로
+     되돌리면 페이지보다 19배 밝아 눈부시기 때문이다.
+
+  라이트 모드 값은 기존과 100% 동일하다. 바뀌는 건 다크에서의 값뿐이다.
+*/
+
 :root {
+  /* 스크롤바·<input type="date">·기본 폼 컨트롤이 OS 설정을 따라가게 한다.
+     이게 없으면 다크 화면에 흰 스크롤바와 흰 날짜 피커가 남는다. */
+  color-scheme: light dark;
+
   --background: #ffffff;
   --foreground: #111827;
+
+  /* 라이트 값은 하드코딩하지 않고 Tailwind 램프 변수를 그대로 가리킨다.
+     v4 팔레트는 v3와 hex가 다르고 광색역 디스플레이에서는 lab() 값이 쓰이므로,
+     hex를 베껴 쓰면 라이트 화면이 미세하게 달라진다. */
+
+  /* 카드·패널·드롭다운 표면. 기존 bg-white 자리를 그대로 대체한다. */
+  --surface: var(--color-white);
+
+  /* 브랜드 CTA 배경 — 라이트에서는 indigo-700/800과 완전히 같은 색이다. */
+  --brand: var(--color-indigo-700);
+  --brand-hover: var(--color-indigo-800);
+  /* 채팅 말풍선·가중치 막대처럼 흰 글자를 얹는 indigo-600 solid 자리 */
+  --brand-accent: var(--color-indigo-600);
+
+  /* 히어로 그라데이션·푸터 면과 그 위 글자. 라이트에서 이미 어두운 대비 밴드라
+     램프를 그대로 따라가면 다크에서 이 두 영역만 거꾸로 밝아진다. */
+  --band-start: var(--color-indigo-800);
+  --band-mid: var(--color-indigo-600);
+  --band-end: var(--color-violet-700);
+  --band-surface: var(--color-slate-800);
+  --band-fg: var(--color-indigo-100);
+  --band-fg-muted: var(--color-indigo-200);
+  --band-fg-subtle: var(--color-indigo-300);
+  --band-fg-hover: var(--color-slate-200);
+
+  /* 흰 글자를 얹는 solid 버튼이라 다크에서도 어두운 채도를 유지해야 한다. */
+  --danger: var(--color-red-600);
+  --danger-hover: var(--color-red-700);
+  --warn: var(--color-amber-700);
+  --warn-hover: var(--color-amber-800);
+
+  /* 동기화 툴팁 배경(흰 글자) */
+  --tooltip: var(--color-slate-400);
+
+  /* 비활성 버튼 채움. 라이트에서는 slate-200 그대로라 겉모습이 바뀌지 않는다.
+     다크에서 slate-200(L* 21.77)은 카드(12.54)보다 밝아 비활성 버튼이 카드 위에서
+     가장 밝은 블록이 된다 — 다크에서 밝기는 곧 "누를 수 있다"는 신호라 방향이 뒤집힌다.
+     그 한 용도만 램프에서 떼어내 다크에서는 카드 아래로 가라앉힌다.
+     라이트에서 한 단계 진한 채움(slate-300)을 쓰던 자리는 -strong으로 따로 받는다 —
+     다크에서 slate-300은 L* 30.27(ΔL* +17.73)로 slate-200보다 더 심하게 뒤집힌다. */
+  --disabled: var(--color-slate-200);
+  --disabled-strong: var(--color-slate-300);
+
+  /* 하드코딩 그림자에 쓰는 색. 다크에서는 검은 그림자가 안 보이므로 농도를 올린다. */
+  --shadow-10: rgba(0, 0, 0, 0.1);
+  --shadow-12: rgba(0, 0, 0, 0.12);
+  --shadow-20: rgba(0, 0, 0, 0.2);
+  --shadow-30: rgba(0, 0, 0, 0.3);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-accent: var(--brand-accent);
+  --color-band-start: var(--band-start);
+  --color-band-mid: var(--band-mid);
+  --color-band-end: var(--band-end);
+  --color-band-surface: var(--band-surface);
+  --color-band-fg: var(--band-fg);
+  --color-band-fg-muted: var(--band-fg-muted);
+  --color-band-fg-subtle: var(--band-fg-subtle);
+  --color-band-fg-hover: var(--band-fg-hover);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-warn: var(--warn);
+  --color-warn-hover: var(--warn-hover);
+  --color-tooltip: var(--tooltip);
+  --color-disabled: var(--disabled);
+  --color-disabled-strong: var(--disabled-strong);
   --font-sans: var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
+}
+
+/*
+  다크 램프. 단순히 명도를 대칭으로 뒤집지 않았다. 대칭 반전을 하면 가장 많이 쓰이는
+  text-slate-400(91곳)이 #475569이 되어 본문 대비가 무너지기 때문이다. 대신 역할별로
+  맞췄다 — 낮은 단계(50/100)는 가라앉은 배경, 200~300은 표면 위에서 보이는 테두리,
+  400 이상은 AA를 넘는 글자.
+
+  명도 위계: 페이지(#0d1117) < bg-slate-50(#10161f) < bg-slate-100(#161d27)
+            < 카드 표면(#1a212c) < border-slate-200(#2b3542)
+  카드가 페이지 위로 떠 보이고, 보조 채움은 카드보다 가라앉고, 테두리는 카드 위에서
+  보인다. 라이트에서의 관계(카드 > 채움 > 테두리 순서로 눈에 띄는 정도)가 유지된다.
+
+  유채색(틴트) 축에도 같은 위계를 적용한다. 회색 축에만 적용했더니 상태 배지 배경이
+  카드 표면과 같은 명도로 붕괴했다(bg-amber-50 ΔL* 0.00, bg-rose-100 ΔL* +0.80 —
+  D-day "마감 임박" 칩이 중립 칩 bg-slate-200(ΔL* +9.24)보다 흐렸다).
+  카드 표면(L* 12.54) 기준 ΔL*를 단계별로 맞춘다. 색상각·채도는 기존 값 그대로 두고
+  명도만 올렸다(Lab에서 a*·b* 고정, 색상각 편차 1도 미만).
+     -50  : ΔL* 약 +4.6  (틴트 표면 — 카드 위에 얹힌 게 보이는 최소선)
+     -100 : ΔL* 약 +9.2  (강조 칩·hover 채움 — 중립 칩 slate-200과 동급)
+     -200 : ΔL* 약 +13.8 (틴트 테두리 — 기준은 원래 맞았던 emerald-200)
+*/
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d1117;
+    --foreground: #f0f3f7;
+    --surface: #1a212c;
+
+    /* CTA는 라이트와 같은 indigo-700 값을 유지한다. 흰 글자 대비 8.09:1로 AA를 넉넉히
+       넘으므로 다크라고 밝힐 이유가 없고, 밝히면 어두운 화면에서 버튼만 눈부시다.
+       램프는 아래에서 뒤집히므로 var()로 두면 밝아진다. 그래서 값을 고정한다. */
+    --brand: #432dd7;
+    /* hover만 한 단계 밝힌다(indigo-600 라이트 값, 흰 글자 6.46:1) — 다크에서는
+       눌리는 느낌이 어두워지는 쪽보다 밝아지는 쪽이 자연스럽다. */
+    --brand-hover: #4f39f6;
+    /* 말풍선·막대는 hover가 없어 base와 같은 기준을 그대로 쓴다. */
+    --brand-accent: #432dd7;
+
+    /* 밴드는 페이지 배경(휘도 0.006) 위에 얹히므로 라이트 값(0.115)을 그대로 쓰면
+       19배 밝아 눈부시다. 색상(인디고→바이올렛)은 유지한 채 휘도만 0.018~0.038로
+       내려 "밴드로는 보이되 눈부시지 않은" 구간에 둔다. */
+    --band-start: #201c56;
+    --band-mid: #2e267a;
+    --band-end: #43217e;
+    /* 푸터. 다크에서는 페이지보다 더 어두워질 수 없으니, 라이트에서 "가장 어두운
+       마감 밴드"였던 역할을 페이지 바로 위 한 단계로 옮긴다. */
+    --band-surface: var(--color-slate-100);
+    /* 밴드 위 글자. 램프가 뒤집혔으므로 같은 역할의 반대편 단계를 가리킨다
+       (hex를 베끼지 않아 팔레트가 바뀌어도 따라간다). */
+    --band-fg: var(--color-indigo-950);
+    --band-fg-muted: var(--color-indigo-900);
+    --band-fg-subtle: var(--color-indigo-800);
+    --band-fg-hover: var(--color-slate-800);
+
+    /* 빨강·주황 solid 버튼은 램프를 따라가면 밝아져 흰 글자가 깨진다. 라이트 값 고정. */
+    --danger: #e40014;
+    --danger-hover: #bf000f;
+    --warn: #b75000;
+    --warn-hover: #953d00;
+
+    --tooltip: #334155;
+
+    /* 카드보다 가라앉는 채움(slate-100, ΔL* -2.01) — 라이트에서 slate-200이 흰 카드보다
+       어두워 "꺼진 면"으로 읽히던 관계를 다크에서 그대로 되살린다.
+       라이트에서 두 단계로 갈리던 비활성 채움은 다크에서 한 값으로 합친다 — 어느 쪽도
+       "누를 수 있다"로 읽히면 안 되고, 카드 아래 한 단계면 그 역할에 충분하다. */
+    --disabled: var(--color-slate-100);
+    --disabled-strong: var(--disabled);
+
+    --shadow-10: rgba(0, 0, 0, 0.5);
+    --shadow-12: rgba(0, 0, 0, 0.6);
+    --shadow-20: rgba(0, 0, 0, 0.7);
+    --shadow-30: rgba(0, 0, 0, 0.8);
+
+    /* slate — 표면·테두리·본문 텍스트의 기본 램프 */
+    --color-slate-50: #10161f;
+    --color-slate-100: #161d27;
+    --color-slate-200: #2b3542;
+    --color-slate-300: #3d4859;
+    --color-slate-400: #94a3b8;
+    --color-slate-500: #a8b3c2;
+    --color-slate-600: #c0c9d5;
+    --color-slate-700: #d3dae3;
+    --color-slate-800: #e3e8ee;
+    --color-slate-900: #f0f3f7;
+    --color-slate-950: #f8fafc;
+
+    /* gray — 이 레포에서는 입력 테두리와 본문 텍스트에만 쓴다. 다크에서 slate와 다른
+       중립을 쓸 이유가 없어(50~300은 원래 hex도 같았다) slate를 가리킨다. 두 벌을
+       손으로 유지하면 slate만 조정했을 때 gray가 조용히 어긋난다. */
+    --color-gray-50: var(--color-slate-50);
+    --color-gray-100: var(--color-slate-100);
+    --color-gray-200: var(--color-slate-200);
+    --color-gray-300: var(--color-slate-300);
+    --color-gray-400: var(--color-slate-400);
+    --color-gray-500: var(--color-slate-500);
+    --color-gray-600: var(--color-slate-600);
+    --color-gray-700: var(--color-slate-700);
+    --color-gray-800: var(--color-slate-800);
+    --color-gray-900: var(--color-slate-900);
+    --color-gray-950: var(--color-slate-950);
+
+    /* indigo — CTA 배경은 --brand로 빠졌으므로 남은 용도(틴트 표면·강조 글자·
+       포커스 링)는 전부 뒤집는 게 맞다 */
+    --color-indigo-50: #222747;
+    --color-indigo-100: #2a315b;
+    --color-indigo-200: #333c73;
+    --color-indigo-300: #4a55a3;
+    --color-indigo-400: #7d87ee;
+    --color-indigo-500: #8f99f4;
+    --color-indigo-600: #a3abf8;
+    --color-indigo-700: #b5bbfa;
+    --color-indigo-800: #c7cbfc;
+    --color-indigo-900: #d9dcfd;
+    --color-indigo-950: #eceefe;
+
+    /* 상태 배지는 bg-*-50 + text-*-700 패턴이라 뒤집으면 그대로
+       "어두운 배경 + 밝은 글자"가 된다 */
+    /* rose-100은 D-day "마감 임박" 칩이다 — 중립 칩(slate-200, ΔL* +9.24)과 같은
+       명도까지 올리고 채도로 앞선다. rose-200은 적합도 표의 '미충족' 행 테두리라
+       '충족'(emerald-200, ΔL* +13.76)보다 흐리면 강조가 뒤집힌다. */
+    --color-rose-50: #3b242b;
+    --color-rose-100: #492c35;
+    --color-rose-200: #5b3240;
+    --color-rose-300: #6b3143;
+    --color-rose-400: #f2758d;
+    --color-rose-500: #f78ba0;
+    --color-rose-600: #faa0b2;
+    --color-rose-700: #fdb8c6;
+    --color-rose-800: #fed0d9;
+    --color-rose-900: #ffe4ea;
+    --color-rose-950: #fff1f4;
+
+    --color-amber-50: #342914;
+    --color-amber-100: #403217;
+    --color-amber-200: #493610;
+    --color-amber-300: #5f4716;
+    --color-amber-400: #e8ae2e;
+    --color-amber-500: #efba3f;
+    --color-amber-600: #f4c85c;
+    --color-amber-700: #f8d67f;
+    --color-amber-800: #fbe3a4;
+    --color-amber-900: #fdefc8;
+    --color-amber-950: #fef8e4;
+
+    --color-emerald-50: #172f23;
+    --color-emerald-100: #1b3a2b;
+    --color-emerald-200: #1a4634;
+    --color-emerald-300: #256b4d;
+    --color-emerald-400: #3cd39b;
+    --color-emerald-500: #4dd9a5;
+    --color-emerald-600: #6ce0b6;
+    --color-emerald-700: #93e9c9;
+    --color-emerald-800: #b9f1db;
+    --color-emerald-900: #d8f7ea;
+    --color-emerald-950: #edfcf5;
+
+    /* red-200은 회원 탈퇴 박스 테두리다. red-50을 올린 만큼 같이 올리지 않으면
+       테두리가 자기 배경에 묻힌다. */
+    --color-red-50: #3d2323;
+    --color-red-100: #4d2b2a;
+    --color-red-200: #603130;
+    --color-red-300: #7a2c2c;
+    --color-red-400: #f27272;
+    --color-red-500: #f58585;
+    --color-red-600: #f89a9a;
+    --color-red-700: #fbb4b4;
+    --color-red-800: #fdcccc;
+    --color-red-900: #fee2e2;
+    --color-red-950: #fef2f2;
+
+    /* 달력의 토요일 표시에만 쓴다 */
+    --color-sky-400: #6ec8fb;
+    --color-sky-500: #7dd3fc;
+  }
 }
 
 /* 페이지마다 스크롤바 유무로 레이아웃이 좌우로 밀리지 않도록 스크롤바 자리를 항상 예약 */

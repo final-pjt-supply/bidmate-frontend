@@ -140,7 +140,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={code.trim() === "" || submitting}
-              className="rounded-[10px] py-3 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
+              className="rounded-[10px] py-3 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400 enabled:bg-brand enabled:text-white enabled:hover:bg-brand-hover"
             >
               {submitting ? "확인 중…" : "인증 완료"}
             </button>
@@ -166,8 +166,8 @@ export default function SignupPage() {
   if (step === "done") {
     return (
       <AuthCardLayout>
-        <div className="flex w-full max-w-[520px] flex-col items-center gap-3.5 rounded-2xl border border-slate-200 bg-white p-11 text-center">
-          <span className="flex size-14 items-center justify-center rounded-full bg-indigo-700">
+        <div className="flex w-full max-w-[520px] flex-col items-center gap-3.5 rounded-2xl border border-slate-200 bg-surface p-11 text-center">
+          <span className="flex size-14 items-center justify-center rounded-full bg-brand">
             <Check className="size-[26px] text-white" strokeWidth={3} />
           </span>
           <h1 className="text-2xl font-bold text-gray-900">가입이 완료됐어요!</h1>
@@ -178,7 +178,7 @@ export default function SignupPage() {
           <button
             type="button"
             onClick={() => router.push("/login")}
-            className="w-full rounded-[10px] bg-indigo-700 py-3 text-[15px] font-bold text-white transition-colors hover:bg-indigo-800"
+            className="w-full rounded-[10px] bg-brand py-3 text-[15px] font-bold text-white transition-colors hover:bg-brand-hover"
           >
             로그인하러 가기
           </button>
@@ -295,7 +295,7 @@ export default function SignupPage() {
                 <span
                   aria-hidden
                   className={`flex size-[18px] items-center justify-center rounded-[5px] border ${
-                    agree ? "border-indigo-700 bg-indigo-700" : "border-gray-300 bg-white"
+                    agree ? "border-brand bg-brand" : "border-gray-300 bg-surface"
                   }`}
                 >
                   {agree && <Check className="size-3 text-white" strokeWidth={3} />}
@@ -319,7 +319,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={!canSubmit || submitting}
-              className="rounded-[10px] py-3 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-indigo-700 enabled:text-white enabled:hover:bg-indigo-800"
+              className="rounded-[10px] py-3 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:bg-disabled disabled:text-slate-400 enabled:bg-brand enabled:text-white enabled:hover:bg-brand-hover"
             >
               {submitting ? "가입 중…" : "회원가입"}
             </button>
