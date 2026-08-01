@@ -152,7 +152,7 @@ export function DateField({
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-[280px] rounded-xl border border-slate-200 bg-white p-3 shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)]">
+        <div className="absolute z-30 mt-1 w-[280px] rounded-xl border border-slate-200 bg-surface p-3 shadow-[0px_8px_24px_0px_var(--shadow-12)]">
           {/* 헤더 — 가운데 라벨을 누르면 한 단계 넓게(날짜→월→연) 고를 수 있다 */}
           <div className="flex items-center justify-between">
             <div className="flex gap-0.5">
@@ -240,7 +240,7 @@ export function DateField({
                     aria-current={isToday ? "date" : undefined}
                     className={`mx-auto flex size-8 items-center justify-center rounded-md text-sm transition-colors ${
                       isSel
-                        ? "bg-indigo-700 font-bold text-white"
+                        ? "bg-brand font-bold text-white"
                         : isToday
                           ? "font-bold text-indigo-600 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-50"
                           : `hover:bg-slate-100 ${
@@ -270,7 +270,7 @@ export function DateField({
                     }}
                     className={`flex h-10 items-center justify-center rounded-md text-sm transition-colors ${
                       isSel
-                        ? "bg-indigo-700 font-bold text-white"
+                        ? "bg-brand font-bold text-white"
                         : isNow
                           ? "font-bold text-indigo-600 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-50"
                           : "text-slate-700 hover:bg-slate-100"
@@ -298,7 +298,7 @@ export function DateField({
                     }}
                     className={`flex h-10 items-center justify-center rounded-md text-sm transition-colors ${
                       isSel
-                        ? "bg-indigo-700 font-bold text-white"
+                        ? "bg-brand font-bold text-white"
                         : isNow
                           ? "font-bold text-indigo-600 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-50"
                           : "text-slate-700 hover:bg-slate-100"

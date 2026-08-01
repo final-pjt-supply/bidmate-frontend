@@ -42,7 +42,7 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="flex w-full max-w-[400px] flex-col gap-2 rounded-2xl bg-white px-6 pb-5 pt-6 shadow-[0px_16px_40px_0px_rgba(0,0,0,0.3)]"
+        className="flex w-full max-w-[400px] flex-col gap-2 rounded-2xl bg-surface px-6 pb-5 pt-6 shadow-[0px_16px_40px_0px_var(--shadow-30)]"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <h2 className="text-[15px] font-bold text-gray-900">{title}</h2>
@@ -52,7 +52,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="rounded-md border border-slate-200 bg-surface px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
           >
             취소
           </button>
@@ -60,7 +60,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="rounded-md bg-red-600 px-3.5 py-2 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+            className="rounded-md bg-danger px-3.5 py-2 text-sm font-bold text-white transition-colors hover:bg-danger-hover disabled:cursor-not-allowed disabled:bg-red-300"
           >
             {pending ? "처리 중…" : confirmLabel}
           </button>

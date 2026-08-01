@@ -12,7 +12,7 @@ export default function SupportPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
-      <main className="flex w-full flex-1 flex-col items-center gap-3.5 bg-white px-4 pb-40 pt-36 text-center sm:px-6">
+      <main className="flex w-full flex-1 flex-col items-center gap-3.5 bg-surface px-4 pb-40 pt-36 text-center sm:px-6">
         <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
           <Wrench className="size-[22px] text-indigo-600" strokeWidth={2} />
         </span>

@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/site-footer";
 /** 공고 카드 스켈레톤 (BidCard와 동일한 골격) */
 export function BidCardSkeleton() {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-surface p-5">
       <div className="h-6 w-14 rounded-md bg-slate-100" />
       <div className="min-h-[46px] space-y-2 pt-1">
         <div className="h-4 w-full rounded bg-slate-100" />
@@ -46,7 +46,7 @@ export function DetailPageSkeleton() {
       <main className="flex flex-1 flex-col">
         <div className="mx-auto flex w-full max-w-4xl animate-pulse flex-col gap-4 px-4 pb-16 pt-6 sm:px-6 lg:px-10">
           {/* 헤더 카드 */}
-          <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-surface p-6">
             <div className="h-5 w-24 rounded-md bg-slate-100" />
             <div className="h-7 w-3/4 rounded bg-slate-100" />
             <div className="h-4 w-1/2 rounded bg-slate-100" />
@@ -57,7 +57,7 @@ export function DetailPageSkeleton() {
           </div>
           {/* 섹션 카드 2개 */}
           {[0, 1].map((s) => (
-            <div key={s} className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6">
+            <div key={s} className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-surface p-6">
               <div className="h-5 w-32 rounded bg-slate-100" />
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (

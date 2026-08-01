@@ -73,7 +73,7 @@ export default function ScrapsPage() {
             type="button"
             disabled={loading}
             onClick={() => void load()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-surface px-3 py-1.5 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} strokeWidth={2} />
             {loading ? "불러오는 중" : "다시 시도"}
@@ -94,7 +94,7 @@ export default function ScrapsPage() {
           ))}
         </div>
       ) : !error ? (
-        <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+        <div className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-surface px-4 py-16 text-center">
           <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
             <Bookmark className="size-[22px] text-indigo-600" strokeWidth={2} />
           </span>
@@ -104,7 +104,7 @@ export default function ScrapsPage() {
           </p>
           <Link
             href="/search"
-            className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+            className="mt-1 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
           >
             공고 검색하러 가기
           </Link>

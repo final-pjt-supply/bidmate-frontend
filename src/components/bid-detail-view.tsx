@@ -67,7 +67,7 @@ function formatDate(iso: string | null | undefined, withTime = false): string {
 /** 섹션 카드 래퍼 */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6">
+    <section className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-surface p-6">
       <h2 className="text-[15px] font-bold text-gray-900">{title}</h2>
       {children}
     </section>
@@ -203,7 +203,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
       </nav>
 
       {/* 헤더 카드 */}
-      <section className="flex flex-col gap-3.5 rounded-xl border border-slate-200 bg-white p-5">
+      <section className="flex flex-col gap-3.5 rounded-xl border border-slate-200 bg-surface p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex gap-1.5">
             <span className="rounded-md bg-indigo-50 px-[9px] py-[3px] text-xs font-bold text-indigo-800">
@@ -264,7 +264,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             <button
               type="button"
               onClick={askBidbot}
-              className="flex h-8 items-center gap-1.5 rounded-md bg-indigo-700 px-2.5 text-xs font-bold text-white transition-colors hover:bg-indigo-800"
+              className="flex h-8 items-center gap-1.5 rounded-md bg-brand px-2.5 text-xs font-bold text-white transition-colors hover:bg-brand-hover"
             >
               <MessageCircleQuestion className="size-3.5" strokeWidth={2} />이 공고에 대해 질문하기
             </button>
@@ -277,8 +277,8 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               onClick={() => logEvent("bid_external_link_clicked", { bid_id: bid.bid_id })}
               className={
                 BIDBOT_ENABLED
-                  ? "flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50"
-                  : "flex h-8 items-center gap-1.5 rounded-md bg-indigo-700 px-2.5 text-xs font-bold text-white transition-colors hover:bg-indigo-800"
+                  ? "flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-2.5 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                  : "flex h-8 items-center gap-1.5 rounded-md bg-brand px-2.5 text-xs font-bold text-white transition-colors hover:bg-brand-hover"
               }
             >
               <ExternalLink className="size-3.5" strokeWidth={2} />
@@ -294,11 +294,11 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           첫 렌더에선 로그인 여부를 아직 모른다). 그 순간엔 아무 쪽으로도 단정하지 않고
           중립 스켈레톤만 보여준다. */}
       {!ready ? (
-        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
+        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-surface px-4 py-8">
           <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
         </section>
       ) : isMember && matchLoading && !match ? (
-        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-8">
+        <section className="flex items-center justify-center rounded-xl border border-slate-200 bg-surface px-4 py-8">
           <div className="h-24 w-full max-w-sm animate-pulse rounded-lg bg-slate-100" />
         </section>
       ) : isMember && match ? (
@@ -315,7 +315,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
                 type="button"
                 disabled={matchLoading}
                 onClick={() => setMatchReloadKey((key) => key + 1)}
-                className="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md border border-amber-300 bg-surface px-3 py-1.5 text-sm font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {matchLoading ? "불러오는 중" : "다시 시도"}
               </button>
@@ -328,7 +328,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
           role="alert"
           className="flex flex-col items-center gap-3.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-8 text-center"
         >
-          <span className="flex size-[52px] items-center justify-center rounded-full bg-white">
+          <span className="flex size-[52px] items-center justify-center rounded-full bg-surface">
             <AlertTriangle className="size-[22px] text-amber-600" strokeWidth={2} />
           </span>
           {/* 본문에 matchError를 그대로 두면 제목과 같은 문장이 두 번 나온다 — 제목은 상태,
@@ -342,13 +342,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             type="button"
             disabled={matchLoading}
             onClick={() => setMatchReloadKey((key) => key + 1)}
-            className="mt-1 rounded-md bg-amber-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-1 rounded-md bg-warn px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-warn-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {matchLoading ? "다시 불러오는 중" : "다시 시도"}
           </button>
         </section>
       ) : (
-        <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-8 text-center">
+        <section className="flex flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-surface px-4 py-8 text-center">
           <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
             <Lock className="size-[22px] text-indigo-600" strokeWidth={2} />
           </span>
@@ -362,7 +362,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               </p>
               <Link
                 href="/mypage?edit=1"
-                className="mt-1 rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+                className="mt-1 rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
               >
                 회사 정보 입력하기
               </Link>
@@ -380,13 +380,13 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               <div className="mt-1 flex gap-2">
                 <Link
                   href="/login"
-                  className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
                 >
                   로그인
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+                  className="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
                 >
                   회원가입
                 </Link>
@@ -453,7 +453,7 @@ export function BidDetailView({ bid }: { bid: Bid }) {
               막대의 몫 자체가 정보라 비율이 글자보다 우선한다. */}
           <div className="flex h-9 w-full overflow-hidden rounded-md">
             <div
-              className="flex min-w-0 items-center justify-center overflow-hidden whitespace-nowrap bg-indigo-600 text-xs font-bold text-white"
+              className="flex min-w-0 items-center justify-center overflow-hidden whitespace-nowrap bg-brand-accent text-xs font-bold text-white"
               style={{ width: `${techWeight}%` }}
             >
               기술 {techWeight}점

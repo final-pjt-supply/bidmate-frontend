@@ -104,7 +104,7 @@ export function SearchView({
                   className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
                     active
                       ? "bg-indigo-50 text-indigo-700"
-                      : "border border-slate-200 bg-white font-medium text-slate-400 hover:bg-slate-50"
+                      : "border border-slate-200 bg-surface font-medium text-slate-400 hover:bg-slate-50"
                   }`}
                 >
                   {label}
@@ -129,7 +129,7 @@ export function SearchView({
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white py-20 text-center">
+        <div className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-surface py-20 text-center">
           <p className="text-[15px] font-bold text-gray-900">
             {query ? "검색 결과가 없어요" : "표시할 공고가 없어요"}
           </p>
@@ -168,7 +168,7 @@ export function SearchView({
                 aria-current={p === page ? "page" : undefined}
                 className={`flex size-9 items-center justify-center rounded-lg text-sm transition-colors ${
                   p === page
-                    ? "bg-indigo-700 font-bold text-white"
+                    ? "bg-brand font-bold text-white"
                     : "text-slate-500 hover:bg-slate-100"
                 }`}
               >

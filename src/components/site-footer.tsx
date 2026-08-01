@@ -11,9 +11,12 @@ const FOOTER_LINKS: { label: string; href: string }[] = [
   { label: "고객센터", href: "/support" },
 ];
 
+// 배경은 band-surface 토큰. 라이트에서 이미 어두운 마감 밴드라 램프를 그대로 따라가면
+// 다크에서 혼자 밝아진다(globals.css 참고). 링크 hover도 램프를 따라가면 다크에서
+// 어두워지므로 토큰을 쓴다 — 나머지 글자색은 뒤집혀도 방향이 맞아 그대로 둔다.
 export function SiteFooter() {
   return (
-    <footer className="w-full bg-slate-800">
+    <footer className="w-full bg-band-surface">
       {/*
         저작권 문구를 absolute로 가운데 띄우면 flex 계산에서 빠져 좁은 화면에서
         브랜드·링크 위에 겹치므로, 항상 정상 흐름에 두고 정렬만 바꾼다.
@@ -27,7 +30,7 @@ export function SiteFooter() {
         </span>
         <div className="flex flex-wrap justify-center gap-5 text-[11.5px] text-slate-400 lg:justify-end lg:justify-self-end">
           {FOOTER_LINKS.map(({ label, href }) => (
-            <Link key={label} href={href} className="transition-colors hover:text-slate-200">
+            <Link key={label} href={href} className="transition-colors hover:text-band-fg-hover">
               {label}
             </Link>
           ))}
@@ -39,7 +42,7 @@ export function SiteFooter() {
             href={FEEDBACK_FORM_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="transition-colors hover:text-slate-200"
+            className="transition-colors hover:text-band-fg-hover"
           >
             의견 보내기
           </a>

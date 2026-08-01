@@ -8,7 +8,7 @@ export default function NotFound() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 items-center justify-center px-4">
-        <div className="flex w-full max-w-md flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
+        <div className="flex w-full max-w-md flex-col items-center gap-3.5 rounded-xl border border-slate-200 bg-surface px-4 py-16 text-center">
           <span className="flex size-[52px] items-center justify-center rounded-full bg-indigo-50">
             <FileQuestion className="size-[22px] text-indigo-600" strokeWidth={2} />
           </span>
@@ -19,13 +19,13 @@ export default function NotFound() {
           <div className="mt-1 flex gap-2">
             <Link
               href="/"
-              className="rounded-md bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-800"
+              className="rounded-md bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
             >
               홈으로
             </Link>
             <Link
               href="/search"
-              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+              className="rounded-md border border-slate-200 bg-surface px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
             >
               공고 검색
             </Link>
