@@ -180,7 +180,9 @@ export function Topbar() {
               에서는 그게 유일한 이동 경로라 막힌 것처럼 느껴졌다. */}
           <MobileNav items={NAV_ITEMS} active={isActive} />
           <Link href="/" className="flex items-center">
-            <span className="text-xl font-bold text-indigo-700 sm:text-2xl">비드프렌드</span>
+            {/* 워드마크는 영문, 서술 문장은 한글(페이지 타이틀·약관 등). 푸터도 영문이라
+                헤더/푸터 워드마크가 이걸로 통일된다. */}
+            <span className="text-xl font-bold text-indigo-700 sm:text-2xl">BidFriend</span>
           </Link>
         </div>
 
