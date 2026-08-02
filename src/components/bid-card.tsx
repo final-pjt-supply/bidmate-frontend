@@ -146,6 +146,21 @@ export function BidCard({
         <span className="rounded-md bg-indigo-50 px-[9px] py-[3px] text-xs font-bold text-indigo-800">
           {categoryLabel(bid.bid_category)}
         </span>
+        {/* 품목 태그: 업종의 하위 분류라 업종 바로 옆에 둔다 — 떨어뜨리면 낙찰방법과
+            같은 층위로 읽힌다. 업종만큼 확실한 값은 아니라(분류 모델 추정이 섞여 있다)
+            채움색 대신 테두리로만 구분해 강조를 한 단계 낮춘다.
+            서버가 신뢰도 낮은 태그를 null로 걸러 보내므로 여기선 유무만 본다.
+
+            ⚠ 이 배지가 늘면서 좁은 폭에서 태그 줄이 두 줄로 접힌다. 실측(2026-08-03):
+              태블릿 2열(카드 내부 302px)에서 12개 중 2개가 줄바꿈돼 카드 높이가
+              190px 균일에서 192/214 두 종류가 됐다. 데스크탑은 영향 없다.
+              낙찰방법을 빼면 해소되지만, 낙찰방법도 참여 판단에 쓰이는 정보라
+              남기고 높이 편차를 감수하기로 했다(2026-08-03 결정). */}
+        {bid.item_tag && (
+          <span className="rounded-md border border-indigo-200 px-[9px] py-[3px] text-xs font-bold text-indigo-700">
+            {bid.item_tag}
+          </span>
+        )}
         {method && (
           <span className="rounded-md bg-slate-100 px-[9px] py-[3px] text-xs font-bold text-slate-600">
             {method}

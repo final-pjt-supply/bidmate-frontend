@@ -77,6 +77,15 @@ export interface Bid {
   openg_dt?: string | null;
   bid_ntce_dtl_url?: string;
   qualification?: Qualification; // 상세 응답에만
+  /**
+   * 품목 태그. 업종(bid_category)의 하위 분류다 — 물품 → "토목·건설자재",
+   * 용역 → "IT시스템"처럼 무엇에 관한 공고인지 한 단계 좁혀준다.
+   *
+   * 분류 신뢰도가 낮으면 서버가 null로 내려준다(약 7.9%). 프론트가 "미분류"
+   * 같은 문구를 대신 그리면 안 된다 — 그건 공고 정보가 아니라 분류기의 한계라
+   * 담당자 판단에 도움이 안 되면서 자리만 차지한다.
+   */
+  item_tag?: string | null;
   match_score?: number | null;   // 목록 응답: 카드 배지용
   match?: Match | null;          // 상세 응답: 적합도 표용
 }
