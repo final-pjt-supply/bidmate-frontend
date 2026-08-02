@@ -209,6 +209,14 @@ export function BidDetailView({ bid }: { bid: Bid }) {
             <span className="rounded-md bg-indigo-50 px-[9px] py-[3px] text-xs font-bold text-indigo-800">
               {categoryLabel(bid.bid_category)}
             </span>
+            {/* 품목 태그. 카드와 같은 규약 — 업종의 하위 분류라 바로 옆에 두고,
+                모델 추정이 섞인 값이라 테두리로만 구분해 강조를 낮춘다.
+                신뢰도가 낮으면 서버가 null로 걸러 보낸다. */}
+            {bid.item_tag && (
+              <span className="rounded-md border border-indigo-200 px-[9px] py-[3px] text-xs font-bold text-indigo-700">
+                {bid.item_tag}
+              </span>
+            )}
             {bid.cntrct_cncls_mthd_nm && (
               <span className="rounded-md bg-slate-100 px-[9px] py-[3px] text-xs font-bold text-slate-600">
                 {bid.cntrct_cncls_mthd_nm}
