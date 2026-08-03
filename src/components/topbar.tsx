@@ -15,6 +15,7 @@ const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "맞춤 추천", href: "/recommend" },
   { label: "AI 추천", href: "/ai-recommend" },
   ...(BIDBOT_ENABLED ? [{ label: "비드봇", href: "/bidbot" }] : []),
+  { label: "통계", href: "/stats" },
   { label: "이용안내", href: "/guide" },
 ];
 
