@@ -99,6 +99,11 @@ run_slot() {
 
   new_container="${container}"
   wait_for_health "http://127.0.0.1:${port}/health"
+
+  # /health는 상수 200이라 Node 프로세스 생존만 증명한다. 실제 SSR 렌더까지 확인해야
+  # 500이나 빈 화면을 트래픽 전환 '전에' 잡는다. 홈은 백엔드 조회가 실패해도
+  # allSettled로 200을 반환하므로(src/app/page.tsx), 이 검사는 백엔드 장애에 물리지 않는다.
+  wait_for_health "http://127.0.0.1:${port}/"
 }
 
 validate_nginx_source() {
