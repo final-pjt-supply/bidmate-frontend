@@ -12,6 +12,10 @@ env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: bidmate-frontend
   EC2_INSTANCE_ID: i-054a12633e0093178
+  # Grafana 컨테이너가 /etc/grafana 로 마운트하는 호스트 경로.
+  # 레포 변수(vars.GRAFANA_DIR)로 덮어쓸 수 있다 — 경로가 바뀌어도 코드 수정 불요.
+  # 확인법: docker inspect <grafana> --format '{{json .Mounts}}'
+  GRAFANA_DIR: ${{ vars.GRAFANA_DIR }}
   # 백엔드 주소(사설 IP). 컨테이너 실행 시 런타임 주입 → 바뀌면 여기만 수정.
   API_BASE_URL: http://10.0.140.134:8000
   # Cognito 식별자 — 브라우저에 노출되는 공개 값이라 비밀이 아니다(Secrets 불필요).
@@ -120,10 +124,17 @@ jobs:
           set -e
           DEPLOY_SCRIPT_B64=$(base64 -w 0 deploy/blue-green-deploy.sh)
           NGINX_CONFIG_B64=$(base64 -w 0 deploy/nginx.conf)
+          # Grafana 대시보드 JSON 을 폴더째 실어 보낸다. 프로비저닝 provider 가
+          # 30초마다 폴더를 다시 읽으므로(deploy/grafana/provisioning/dashboards/
+          # bidmate.yaml) 컨테이너 재시작 없이 반영된다.
+          GRAFANA_DIR="${GRAFANA_DIR:-/opt/bidmate-grafana}"
+          DASHBOARDS_B64=$(tar -C deploy/grafana -cz dashboards | base64 -w 0)
 
           jq -n \
             --arg deploy_script "$DEPLOY_SCRIPT_B64" \
             --arg nginx_config "$NGINX_CONFIG_B64" \
+            --arg dashboards "$DASHBOARDS_B64" \
+            --arg grafana_dir "$GRAFANA_DIR" \
             --arg registry "$REGISTRY" \
             --arg region "$AWS_REGION" \
             --arg image "$IMAGE" \
@@ -135,6 +146,9 @@ jobs:
                 ("printf %s " + ($deploy_script | @sh) + " | base64 -d > /opt/bidmate-frontend/deploy.sh"),
                 ("printf %s " + ($nginx_config | @sh) + " | base64 -d > /opt/bidmate-frontend/nginx.conf"),
                 "chmod 0755 /opt/bidmate-frontend/deploy.sh",
+                ("install -d -m 0755 " + ($grafana_dir | @sh)),
+                ("printf %s " + ($dashboards | @sh) + " | base64 -d | tar -C " + ($grafana_dir | @sh) + " -xz || echo GRAFANA_SYNC_FAILED"),
+                ("ls -1 " + ($grafana_dir | @sh) + "/dashboards || true"),
                 ("aws ecr get-login-password --region " + ($region | @sh) + " | docker login --username AWS --password-stdin " + ($registry | @sh)),
                 ("docker pull " + ($image | @sh)),
                 ("IMAGE=" + ($image | @sh) + " API_BASE_URL=" + ($api_base_url | @sh) + " /opt/bidmate-frontend/deploy.sh")
