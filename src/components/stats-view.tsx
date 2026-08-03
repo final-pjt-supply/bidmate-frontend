@@ -14,14 +14,22 @@ import { categoryLabel } from "@/lib/format";
  * 관례이고(search-params.ts) 새로고침·공유·뒤로가기가 그냥 된다. 그래서 이 파일은
  * 클라이언트 컴포넌트가 아니고, 컨트롤은 버튼이 아니라 링크다.
  *
- * 섹션 순서는 행동에 가까운 것부터다 — 조건 → 예산 규모(참여 가능 여부를 가른다)
- * → 수요기관(누구를 볼지) → 월별 추세(참고). 추세는 7개월치라 단독으로 결정을
- * 바꾸지 못해 폭을 1/3만 준다.
+ * 섹션 순서는 조건 → 월별 추세 → 수요기관 → 예산 규모다. 월별 추세를 맨 위에 크게
+ * 두는 건 조건을 바꿀 때 형태가 가장 눈에 띄게 달라지는 그래프여서다. 나머지 둘은
+ * 순위·분포라 목록에 가깝고, 좁은 폭에서도 읽힌다.
  */
 
-const CATEGORIES: BidCategory[] = ["cnstwk", "servc", "thng", "frgcpt"];
+/** 업종 축과 품목 축 모두 "전체"를 같은 문자열로 쓴다(집계 스크립트의 c/tag 값과 일치). */
 const ALL = "ALL";
-const DEFAULT_CATEGORY: BidCategory = "thng";
+/** 업종 무관 집계. 목업 JSON에 c='ALL' 행으로 따로 들어 있다 — 업종별 상위 N을 합쳐
+ *  만들 수 없기 때문이다(어느 업종에서도 N위 밖이던 기관이 통째로 빠진다). */
+export type StatsCategory = BidCategory | typeof ALL;
+
+const CATEGORIES: StatsCategory[] = [ALL, "cnstwk", "servc", "thng", "frgcpt"];
+// 통계 화면의 첫 인상은 시장 전체 규모다. 업종은 그다음에 좁힌다.
+const DEFAULT_CATEGORY: StatsCategory = ALL;
+
+const catLabelOf = (c: StatsCategory) => (c === ALL ? "전체" : categoryLabel(c));
 
 // 예산 구간. 참여 가능 규모를 가르는 경계로 잡았다 — 소액수의(5천만),
 // 적격심사 하한(2억), 종합심사 영역(10억)이 실무에서 쓰는 구분선이다.
@@ -34,8 +42,6 @@ const BUDGET_LABELS = [
   "50억 이상",
 ];
 
-export type StatsMetric = "cnt" | "eok";
-
 type InstRow = { c: string; tag: string; name: string; cnt: number; eok: number };
 
 export type StatsData = {
@@ -47,7 +53,11 @@ export type StatsData = {
   /** 금액 정보 자체가 없는 업종(외자). "금액이 0"과 구분해야 한다. */
   amountUnavailable: string[];
   monthly: { m: string; c: string; tag: string; cnt: number }[];
-  /** 건수용·금액용을 따로 뽑는다. 건수 top-8을 금액으로 재정렬하면 순위가 틀린다. */
+  /**
+   * 화면은 byCount만 쓴다. byAmount(추정가격 합계)는 순위가 발주 빈도와 무관해서 뺐다 —
+   * 전체 1위가 9.7조짜리 공고 1건을 낸 기관이고 2·3위도 5건씩이다. presmpt_prce가
+   * 단가x총예상수량이라 계약금액도 아니다. 집계 API가 생기면 byAmount도 같이 지운다.
+   */
   institutions: { byCount: InstRow[]; byAmount: InstRow[] };
   /** 기관 순위에서 뺀 단가계약('각 수요기관') 건수. 각주로 밝힌다. */
   excludedMas: Record<string, number>;
@@ -56,10 +66,9 @@ export type StatsData = {
 };
 
 export type StatsConditions = {
-  category: BidCategory;
+  category: StatsCategory;
   /** URL에서 온 값이라 신뢰하지 않는다. 칩으로 고를 수 있는 태그만 인정한다. */
   tag?: string;
-  metric: StatsMetric;
 };
 
 /** 조건 일부를 바꾼 통계 URL. 기본값은 쿼리에서 빼 URL을 짧게 둔다. */
@@ -71,9 +80,17 @@ function statsHref(
   const qs = new URLSearchParams();
   if (next.category !== DEFAULT_CATEGORY) qs.set("cat", next.category);
   if (next.tag && next.tag !== ALL) qs.set("tag", next.tag);
-  if (next.metric !== "cnt") qs.set("by", next.metric);
   const s = qs.toString();
   return s ? `/stats?${s}` : "/stats";
+}
+
+/** 공고 검색으로 넘기는 링크. '전체'는 업종 조건 없이 보낸다(검색의 cat은 업종 코드만 받는다). */
+function searchHref(category: StatsCategory, q?: string): string {
+  const qs = new URLSearchParams();
+  if (category !== ALL) qs.set("cat", category);
+  if (q) qs.set("q", q);
+  const s = qs.toString();
+  return s ? `/search?${s}` : "/search";
 }
 
 /** "2026-01"~"2026-07" → "2026.01~07" (해가 넘어가면 양쪽 다 표기) */
@@ -86,13 +103,6 @@ function periodLabel({ from, to }: { from: string; to: string }): string {
 /** 기간은 헤더에 이미 적혀 있으므로 축에는 월만 둔다(좁은 칼럼에 연도까지 안 들어간다). */
 const monthLabel = (m: string) => `${Number(m.slice(5))}월`;
 
-/**
- * eok는 presmpt_prce(추정가격) 합계다. bdgt_amt가 아니므로 format.ts의 관례대로
- * 출처를 접두어로 밝힌다. 조 단위로 바꾸지 않는 건 한 목록에서 단위가 섞이면
- * 순위 비교가 어려워지기 때문이다.
- */
-const formatEok = (eok: number) => `추정 ${eok.toLocaleString()}억`;
-
 export function StatsView({
   data,
   conditions,
@@ -104,31 +114,47 @@ export function StatsView({
   const tagOptions = data.tags[category] ?? [];
   const tag = tagOptions.some((t) => t.tag === conditions.tag) ? conditions.tag! : ALL;
 
-  // 금액 정보가 없는 업종에서는 금액 순위가 성립하지 않는다. URL에 by=eok가 남아
-  // 있어도(업종만 바꾼 경우) 건수로 되돌린다.
+  // 예산 분포를 그릴 수 있는 업종인지. 외자는 금액 자체가 안 들어온다.
   const amountAvailable = !data.amountUnavailable.includes(category);
-  const metric: StatsMetric = amountAvailable ? conditions.metric : "cnt";
-  const current = { category, tag, metric };
+  const current = { category, tag };
 
-  const catLabel = categoryLabel(category);
+  const catLabel = catLabelOf(category);
   const conditionLabel = tag === ALL ? catLabel : `${catLabel} ‘${tag}’`;
   const total = (tag === ALL ? data.totals[category] : data.tagTotals[category]?.[tag]) ?? 0;
 
-  const trend = data.monthly
+  // 축은 1~12월 열두 칸 고정이다. 관측된 달만 그리면 칸이 넓어져 막대가 기둥처럼
+  // 보이고, 무엇보다 7칸짜리 축은 "한 해가 7개월"인 것처럼 읽힌다.
+  // 아직 안 온 달은 0이 아니라 null이다 — 0으로 그리면 "그 달 발주가 없었다"는
+  // 거짓이 된다(집계 스크립트가 진행 중인 달을 빼는 것과 같은 이유).
+  // 기간이 해를 넘기면 열두 칸에 안 들어가므로 관측된 달만 그대로 쓴다.
+  const observed = data.monthly
     .filter((r) => r.c === category && r.tag === tag)
-    .sort((a, b) => a.m.localeCompare(b.m))
-    .map((r) => ({ label: monthLabel(r.m), value: r.cnt }));
+    .sort((a, b) => a.m.localeCompare(b.m));
+  const [fromYear, toYear] = [data.period.from.slice(0, 4), data.period.to.slice(0, 4)];
+  const trend =
+    fromYear === toYear
+      ? Array.from({ length: 12 }, (_, i) => {
+          const m = `${toYear}-${String(i + 1).padStart(2, "0")}`;
+          return { label: `${i + 1}월`, value: observed.find((r) => r.m === m)?.cnt ?? null };
+        })
+      : observed.map((r) => ({ label: monthLabel(r.m), value: r.cnt as number | null }));
 
-  const institutions = (metric === "cnt" ? data.institutions.byCount : data.institutions.byAmount)
+  const institutions = data.institutions.byCount
     .filter((r) => r.c === category && r.tag === tag)
-    .sort((a, b) => b[metric] - a[metric]);
+    .sort((a, b) => b.cnt - a.cnt);
 
-  // 모든 공고가 다섯 구간 중 하나에 들어가므로 구간 합 = 모집단(total)이다.
-  // 그래서 %의 분모를 헤더에 적힌 총계와 같은 값으로 쓸 수 있다.
-  const budget = BUDGET_LABELS.map((label, i) => {
-    const cnt = data.budget.find((r) => r.c === category && r.tag === tag && r.b === i)?.cnt ?? 0;
-    return { label, cnt, pct: total ? (cnt / total) * 100 : 0 };
-  });
+  // %의 분모는 헤더 총계가 아니라 구간 합이다. 업종을 하나 고르면 둘이 같지만,
+  // '전체'에서는 금액 정보가 없는 외자가 예산 집계에서만 빠져 총계보다 작다.
+  // 총계로 나누면 %가 100에 못 미친다(실제로 97.7%가 된다).
+  const budgetCounts = BUDGET_LABELS.map((label, i) => ({
+    label,
+    cnt: data.budget.find((r) => r.c === category && r.tag === tag && r.b === i)?.cnt ?? 0,
+  }));
+  const budgetTotal = budgetCounts.reduce((s, b) => s + b.cnt, 0);
+  const budget = budgetCounts.map((b) => ({
+    ...b,
+    pct: budgetTotal ? (b.cnt / budgetTotal) * 100 : 0,
+  }));
 
   // hint는 "읽는 법"이 아니라 데이터에서 계산한 결론 한 줄이다. 7개월치로는
   // 근거가 없으므로 예측·추천은 쓰지 않는다(사실만).
@@ -139,16 +165,17 @@ export function StatsView({
       : "";
 
   const topInst = institutions[0];
-  const instHint = !topInst
-    ? ""
-    : metric === "cnt"
-      ? `가장 많이 발주한 곳은 ${topInst.name}(${topInst.cnt.toLocaleString()}건)이에요`
-      : `추정가격 합계가 가장 큰 곳은 ${topInst.name}(${formatEok(topInst.eok)})이에요`;
+  const instHint = topInst
+    ? `가장 많이 발주한 곳은 ${topInst.name}(${topInst.cnt.toLocaleString()}건)이에요`
+    : "";
 
-  const peak = trend.length ? trend.reduce((a, b) => (b.value > a.value ? b : a)) : null;
+  // 아직 안 온 달은 평균에서도 빼야 한다. 열두 칸으로 나누면 없는 5개월이
+  // 0건으로 취급돼 월평균이 실제의 7/12로 내려간다.
+  const filled = trend.filter((r): r is { label: string; value: number } => r.value !== null);
+  const peak = filled.length ? filled.reduce((a, b) => (b.value > a.value ? b : a)) : null;
   const trendHint = peak
     ? `${peak.label}이 ${peak.value.toLocaleString()}건으로 가장 많았어요 · 월평균 ${Math.round(
-        trend.reduce((s, r) => s + r.value, 0) / trend.length
+        filled.reduce((s, r) => s + r.value, 0) / filled.length
       ).toLocaleString()}건`
     : "";
 
@@ -171,7 +198,7 @@ export function StatsView({
           한 번 고르고 마는 컨트롤이라 solid 채움은 쓰지 않는다(화면의 solid는 CTA 하나). */}
       <section
         aria-label="집계 조건 선택"
-        className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-surface p-4"
+        className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-surface p-4 shadow-[0_1px_2px_0_var(--shadow-10)]"
       >
         <div className="flex flex-wrap gap-2.5">
           {CATEGORIES.map((c) => {
@@ -181,6 +208,9 @@ export function StatsView({
                 key={c}
                 // 업종이 바뀌면 품목 목록 자체가 달라진다
                 href={statsHref(current, { category: c, tag: ALL })}
+                // 같은 화면의 조건만 바꾸는 링크다. 기본값(맨 위로 스크롤)을 두면
+                // 아래쪽 섹션을 보다가 조건을 바꿀 때마다 화면이 튄다.
+                scroll={false}
                 aria-current={active ? "true" : undefined}
                 className={`rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
                   active
@@ -188,7 +218,7 @@ export function StatsView({
                     : "border-transparent bg-slate-100 text-slate-500 hover:bg-slate-200"
                 }`}
               >
-                {categoryLabel(c)}
+                {catLabelOf(c)}
               </Link>
             );
           })}
@@ -212,50 +242,19 @@ export function StatsView({
         </div>
       </section>
 
-      {/* 이 화면에서 가장 강조하는 섹션. "우리가 들어갈 수 있는 규모인가"가
-          참여 여부를 가장 먼저 가른다. */}
-      <Section title="예산 규모 분포" hint={amountAvailable ? budgetHint : ""} strong>
-        {!amountAvailable ? (
-          // 외자는 presmpt_prce가 전부 0이다. "금액이 0"이 아니라 "값을 못 받았다"는
-          // 뜻이라 0을 사실로 그리면 "전부 5천만 미만 100%"라는 거짓이 뜬다.
-          // (bid-detail-view의 null 처리와 같은 원칙)
-          <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-            {catLabel} 공고는 금액 정보가 제공되지 않아요. 규모 분포 대신 건수 기준으로만 볼 수 있어요.
-          </p>
-        ) : total === 0 ? (
+      {/* 이 화면의 메인 그래프. 조건을 바꿀 때마다 형태가 가장 크게 달라지는 것이
+          월별 추세라, 폭을 다 주고 맨 위에 둔다. */}
+      <Section title="월별 공고 추세" hint={trendHint} strong>
+        {trend.length === 0 ? (
           <Empty conditionLabel={conditionLabel} />
         ) : (
-          <>
-            <RankList
-              strong
-              rows={budget.map((b) => ({
-                key: b.label,
-                label: b.label,
-                text: `${b.cnt.toLocaleString()}건`,
-                note: `${b.pct.toFixed(1)}%`,
-                weight: b.cnt,
-              }))}
-            />
-            <p className="text-xs text-slate-500">
-              추정가격 기준 · {conditionLabel} {total.toLocaleString()}건이 분모예요
-            </p>
-          </>
+          <BarChart rows={trend} />
         )}
       </Section>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Section
-            title="자주 발주하는 수요기관"
-            hint={instHint}
-            action={
-              <MetricToggle
-                current={current}
-                amountAvailable={amountAvailable}
-                catLabel={catLabel}
-              />
-            }
-          >
+          <Section title="자주 발주하는 수요기관" hint={instHint}>
             {institutions.length === 0 ? (
               <Empty conditionLabel={conditionLabel} />
             ) : (
@@ -263,24 +262,51 @@ export function StatsView({
                 rows={institutions.map((r) => ({
                   key: r.name,
                   label: r.name,
-                  text: metric === "cnt" ? `${r.cnt.toLocaleString()}건` : formatEok(r.eok),
-                  weight: r[metric],
+                  text: `${r.cnt.toLocaleString()}건`,
+                  weight: r.cnt,
                   // 검색 q는 공고명·수요기관·공고기관 부분일치라 기관명을 그대로 넘긴다.
-                  href: `/search?cat=${category}&q=${encodeURIComponent(r.name)}`,
+                  href: searchHref(category, r.name),
                 }))}
               />
             )}
             {excludedMas > 0 && (
               <p className="text-xs text-slate-500">
                 ‘각 수요기관’(다수공급자·제3자단가계약)은 특정 기관이 아니라서 순위에서 뺐어요 —{" "}
-                {catLabel} 전체 {excludedMas.toLocaleString()}건.
+                {catLabel} 공고 {excludedMas.toLocaleString()}건.
               </p>
             )}
           </Section>
         </div>
 
-        <Section title="월별 공고 추세" hint={trendHint}>
-          {trend.length === 0 ? <Empty conditionLabel={conditionLabel} /> : <BarChart rows={trend} />}
+        <Section title="예산 규모 분포" hint={amountAvailable ? budgetHint : ""}>
+          {!amountAvailable ? (
+            // 외자는 presmpt_prce가 전부 0이다. "금액이 0"이 아니라 "값을 못 받았다"는
+            // 뜻이라 0을 사실로 그리면 "전부 5천만 미만 100%"라는 거짓이 뜬다.
+            // (bid-detail-view의 null 처리와 같은 원칙)
+            <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              {catLabel} 공고는 금액 정보가 제공되지 않아요. 규모 분포 대신 건수 기준으로만 볼 수
+              있어요.
+            </p>
+          ) : total === 0 ? (
+            <Empty conditionLabel={conditionLabel} />
+          ) : (
+            <>
+              <RankList
+                rows={budget.map((b) => ({
+                  key: b.label,
+                  label: b.label,
+                  text: `${b.cnt.toLocaleString()}건`,
+                  note: `${b.pct.toFixed(1)}%`,
+                  weight: b.cnt,
+                }))}
+              />
+              <p className="text-xs text-slate-500">
+                추정가격 기준 · {budgetTotal.toLocaleString()}건이 분모예요
+                {budgetTotal < total &&
+                  ` — ${(total - budgetTotal).toLocaleString()}건은 금액 정보가 없어 뺐어요`}
+              </p>
+            </>
+          )}
         </Section>
       </div>
 
@@ -289,7 +315,7 @@ export function StatsView({
           품목을 고른 경우엔 아래에 한 줄로 밝힌다. */}
       <div className="flex flex-col items-center gap-2 pt-1">
         <Link
-          href={`/search?cat=${category}`}
+          href={searchHref(category)}
           className="rounded-md bg-brand px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
         >
           {catLabel} 공고 보러 가기
@@ -318,6 +344,7 @@ function TagChip({
   return (
     <Link
       href={href}
+      scroll={false}
       aria-current={active ? "true" : undefined}
       className={`rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
         active
@@ -333,93 +360,89 @@ function TagChip({
   );
 }
 
-/** 건수/금액 전환. 금액 정보가 없는 업종에서는 금액 쪽을 비활성으로 둔다. */
-function MetricToggle({
-  current,
-  amountAvailable,
-  catLabel,
-}: {
-  current: Required<StatsConditions>;
-  amountAvailable: boolean;
-  catLabel: string;
-}) {
-  const cls = (active: boolean) =>
-    `rounded px-2.5 py-1 text-xs font-bold transition-colors ${
-      active ? "bg-surface text-indigo-700 shadow-sm" : "text-slate-500"
-    }`;
-  return (
-    <div className="flex shrink-0 gap-0.5 rounded-md bg-slate-100 p-0.5">
-      <Link
-        href={statsHref(current, { metric: "cnt" })}
-        aria-current={current.metric === "cnt" ? "true" : undefined}
-        className={cls(current.metric === "cnt")}
-      >
-        건수
-      </Link>
-      {amountAvailable ? (
-        <Link
-          href={statsHref(current, { metric: "eok" })}
-          aria-current={current.metric === "eok" ? "true" : undefined}
-          className={cls(current.metric === "eok")}
-        >
-          금액
-        </Link>
-      ) : (
-        <span
-          aria-disabled="true"
-          title={`${catLabel} 공고는 금액 정보가 제공되지 않아요`}
-          className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-bold text-slate-500 opacity-60"
-        >
-          금액
-        </span>
-      )}
-    </div>
-  );
-}
-
 function Section({
   title,
   hint,
-  action,
   strong,
   children,
 }: {
   title: string;
   hint: string;
-  action?: React.ReactNode;
   strong?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex h-full flex-col gap-4 rounded-xl border border-slate-200 bg-surface p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 className={`font-bold text-gray-900 ${strong ? "text-lg" : "text-base"}`}>{title}</h2>
-          {hint && <p className="text-sm text-slate-600">{hint}</p>}
-        </div>
-        {action}
+    // 라이트에서 페이지 배경(slate-50)과 카드(흰색)의 ΔL*가 1.9뿐이라 테두리만으로는
+    // 카드가 뜨지 않는다. 배경을 더 내리면 다크에서 오히려 대비가 줄어(#10161f→#161d27)
+    // 반대 결과가 나오므로, 배경 대신 그림자로 띄운다. 값은 bid-card의 hover 그림자와
+    // 같은 토큰을 쓰되 한 단계 약하게 — 카드가 13개라 강하면 화면이 시끄럽다.
+    <section className="flex h-full flex-col gap-4 rounded-xl border border-slate-200 bg-surface p-5 shadow-[0_1px_2px_0_var(--shadow-10)]">
+      <div className="flex flex-col gap-1">
+        <h2 className={`font-bold text-gray-900 ${strong ? "text-lg" : "text-base"}`}>{title}</h2>
+        {hint && <p className="text-sm text-slate-600">{hint}</p>}
       </div>
       {children}
     </section>
   );
 }
 
-/** 세로 막대. 값 자체보다 "언제 몰리는가"를 보는 용도라 눈금선은 두지 않는다. */
-function BarChart({ rows }: { rows: { label: string; value: number }[] }) {
-  const max = Math.max(1, ...rows.map((r) => r.value));
+/**
+ * 세로 막대. 값 자체보다 "언제 몰리는가"를 보는 용도라 눈금선은 두지 않는다.
+ * value가 null인 칸은 아직 집계되지 않은 달이다. 0높이 막대로 그리지 않고 칸만
+ * 비운다 — 바닥에 붙은 막대는 "발주 0건"으로 읽히는데 그건 사실이 아니다.
+ */
+function BarChart({ rows }: { rows: { label: string; value: number | null }[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.value ?? 0));
   return (
-    <div className="flex h-[150px] items-end gap-1">
-      {rows.map((r) => (
-        <div key={r.label} className="flex flex-1 flex-col items-center gap-1">
-          <span className="text-xs font-bold text-slate-600">{r.value.toLocaleString()}</span>
-          <div
-            aria-hidden="true"
-            className="w-full rounded-t bg-indigo-500"
-            style={{ height: `${Math.max(2, (r.value / max) * 96)}px` }}
-          />
-          <span className="text-xs whitespace-nowrap text-slate-500">{r.label}</span>
-        </div>
-      ))}
+    <div className="flex h-[320px] items-end gap-1.5 sm:gap-2">
+      {rows.map((r) => {
+        const top = r.value !== null && r.value === max;
+        const value = r.value === null ? "집계 전" : `${r.value.toLocaleString()}건`;
+        return (
+          <div key={r.label} className="group relative flex flex-1 flex-col items-center gap-2">
+            {/* 값은 hover·focus 때만 띄운다. 막대마다 숫자를 상시 노출하면 차트가
+                숫자판이 되어 정작 형태(언제 몰리는가)가 안 읽힌다. 마우스가 없는
+                환경을 위해 포커스에도 같이 열고, 막대 자체에 aria-label을 달아
+                스크린리더는 tooltip 없이도 값을 읽게 한다.
+                크기·그림자는 sync-indicator의 툴팁을 따르되 배경은 bg-tooltip(라이트에서
+                slate-400)을 쓰지 않는다 — 흰 글자 대비가 2.6:1이라 값을 읽는 용도로는 못 쓴다.
+                slate-700은 두 모드 모두 흰 글자 9.6:1이고, 라이트에선 카드보다 어둡고
+                다크에선 표면보다 밝아 양쪽에서 떠 보인다. */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded-md bg-slate-700 px-[13px] py-[7px] text-[12px] leading-[1.4] font-medium whitespace-nowrap text-white opacity-0 shadow-[0px_4px_10px_rgba(30,41,59,0.25)] transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+            >
+              {r.label} {value}
+            </span>
+            <div
+              role="img"
+              aria-label={`${r.label} ${value}`}
+              tabIndex={0}
+              className={`w-full cursor-default rounded-t transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none ${
+                r.value === null
+                  ? "bg-slate-100"
+                  : top
+                    ? "bg-indigo-500 hover:bg-indigo-600"
+                    : "bg-indigo-200 hover:bg-indigo-300"
+              }`}
+              // 집계 전 칸은 축에 자리만 남긴다(2px). 값이 있는 칸의 최소 높이(4px)보다
+              // 낮게 둬야 "아주 적은 달"과 구분된다.
+              style={{ height: r.value === null ? "2px" : `${Math.max(4, (r.value / max) * 270)}px` }}
+            />
+            <span
+              className={`text-xs whitespace-nowrap ${
+                r.value === null
+                  ? "text-slate-300"
+                  : top
+                    ? "font-bold text-indigo-700"
+                    : "text-slate-500"
+              }`}
+            >
+              {r.label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -438,8 +461,9 @@ type RankRow = {
 function RankList({ rows, strong }: { rows: RankRow[]; strong?: boolean }) {
   const max = Math.max(1, ...rows.map((r) => r.weight));
   return (
-    <ul className="flex flex-col gap-2.5">
+    <ul className="flex flex-col gap-3.5">
       {rows.map((r) => {
+        const top = r.weight === max;
         const body = (
           <>
             <div className="flex items-baseline justify-between gap-3">
@@ -452,16 +476,28 @@ function RankList({ rows, strong }: { rows: RankRow[]; strong?: boolean }) {
                 }`}
               >
                 {r.text}
-                {r.note && <span className="ml-1.5 text-xs font-normal text-slate-500">{r.note}</span>}
               </span>
             </div>
-            {/* 값이 옆에 텍스트로 있으므로 막대는 장식이다 */}
-            <div aria-hidden="true" className="h-1.5 w-full rounded-full bg-slate-100">
+            {/* 막대가 이 섹션의 본문이다. 얇게 깔면 라벨의 밑줄로 읽혀 눈이 숫자만
+                보고 지나간다. 비율(note)은 막대 아래로 내려 "그림 → 수치" 순서로 읽히게 했다.
+                hint 문장이 짚는 1위만 채도를 살린다 — 전부 같은 색이면 "가장 많아요"라고
+                써 있어도 눈이 그 막대를 못 찾는다. */}
+            <div
+              aria-hidden="true"
+              className={`w-full rounded-full bg-slate-100 ${strong ? "h-3.5" : "h-2.5"}`}
+            >
               <div
-                className="h-full rounded-full bg-indigo-500"
+                className={`h-full rounded-full transition-colors ${
+                  top ? "bg-indigo-500" : "bg-indigo-200 group-hover/row:bg-indigo-300"
+                }`}
                 style={{ width: `${Math.max(1, (r.weight / max) * 100)}%` }}
               />
             </div>
+            {r.note && (
+              <span className={`text-xs ${top ? "font-bold text-indigo-700" : "text-slate-500"}`}>
+                {r.note}
+              </span>
+            )}
           </>
         );
         return (
@@ -469,12 +505,12 @@ function RankList({ rows, strong }: { rows: RankRow[]; strong?: boolean }) {
             {r.href ? (
               <Link
                 href={r.href}
-                className="-mx-2 flex flex-col gap-1 rounded-md px-2 py-1 transition-colors hover:bg-slate-50"
+                className="group/row -mx-2 flex flex-col gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-slate-50"
               >
                 {body}
               </Link>
             ) : (
-              <div className="flex flex-col gap-1">{body}</div>
+              <div className="group/row flex flex-col gap-1.5">{body}</div>
             )}
           </li>
         );

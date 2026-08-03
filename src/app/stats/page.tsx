@@ -3,14 +3,12 @@ import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 import { StatsView } from "@/components/stats-view";
 import mock from "@/lib/data/stats-mock.json";
-import type { StatsData, StatsMetric } from "@/components/stats-view";
-import type { BidCategory } from "@/lib/types";
+import type { StatsCategory, StatsData } from "@/components/stats-view";
 
-const CATEGORIES: BidCategory[] = ["cnstwk", "servc", "thng", "frgcpt"];
-// 기본 업종. 물품이 품목 태그가 가장 고르게 퍼져 있어 첫 화면으로 삼는다.
-const toCategory = (v?: string): BidCategory =>
-  v && (CATEGORIES as string[]).includes(v) ? (v as BidCategory) : "thng";
-const toMetric = (v?: string): StatsMetric => (v === "eok" ? "eok" : "cnt");
+const CATEGORIES: StatsCategory[] = ["ALL", "cnstwk", "servc", "thng", "frgcpt"];
+// 기본은 업종 무관 전체. 시장 규모를 먼저 보여주고 업종은 화면에서 좁힌다.
+const toCategory = (v?: string): StatsCategory =>
+  v && (CATEGORIES as string[]).includes(v) ? (v as StatsCategory) : "ALL";
 
 export const metadata: Metadata = {
   title: "공고 통계 · 비드프렌드",
@@ -27,13 +25,13 @@ export const metadata: Metadata = {
  * 다르면 레이아웃 판단이 빗나가기 때문이다(기관명이 "기후에너지환경부
  * 국립환경과학원"처럼 길다).
  *
- * 화면 상태는 쿼리스트링이 정본이다(cat·tag·by). 검색 화면과 같은 관례다.
+ * 화면 상태는 쿼리스트링이 정본이다(cat·tag). 검색 화면과 같은 관례다.
  * 태그 유효성은 업종별 목록을 알아야 판단할 수 있어 StatsView에서 거른다.
  */
 export default async function StatsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string; tag?: string; by?: string }>;
+  searchParams: Promise<{ cat?: string; tag?: string }>;
 }) {
   const sp = await searchParams;
 
@@ -43,11 +41,7 @@ export default async function StatsPage({
       <main className="flex flex-1 flex-col">
         <StatsView
           data={mock as StatsData}
-          conditions={{
-            category: toCategory(sp.cat),
-            tag: sp.tag,
-            metric: toMetric(sp.by),
-          }}
+          conditions={{ category: toCategory(sp.cat), tag: sp.tag }}
         />
       </main>
       <SiteFooter />

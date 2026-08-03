@@ -24,22 +24,33 @@
   6. 기관 순위는 건수용·금액용을 따로 뽑는다. 건수 top-N을 금액으로 재정렬하면
      금액 순위가 틀린다(이전 버전의 실제 버그).
 
+'전체'(업종 무관) 집계도 같이 뽑는다. 업종별 상위 N만 저장하므로 화면에서 네 업종을
+합쳐 봐야 전체 순위가 안 나온다 — 어느 업종에서도 N위 밖이던 기관이 합산으로는 상위일
+수 있는데 그 값이 JSON에 없다. 그래서 c='ALL' 행을 DB에서 따로 집계한다.
+예산 구간만은 외자를 뺀다(금액 정보가 없어 전 건이 최저 구간에 몰린다 — 위 2번).
+
 실행:
-  RDS 접속 정보는 파이프라인 레포의 .env를 읽는다.
+  접속 정보는 이 레포의 .env(POSTGRES_*)를 읽는다.
   python scripts/gen-stats-mock.py
 """
 import json
+import os
 import re
 from collections import defaultdict
 from pathlib import Path
 
 import psycopg2
 
-PIPELINE_ENV = Path(r"C:\Users\user\Desktop\PROJECTS\bidding-agent\.env")
-OUT = Path(__file__).resolve().parent.parent / "src" / "lib" / "data" / "stats-mock.json"
+ROOT = Path(__file__).resolve().parent.parent
+ENV = ROOT / ".env"
+OUT = ROOT / "src" / "lib" / "data" / "stats-mock.json"
 
 MAS_PLACEHOLDER = "각 수요기관"
 TOP_N = 8
+# 업종 무관 집계에 쓰는 키. 태그 축의 'ALL'과 같은 문자열이고 화면도 같은 값을 본다.
+ALL = "ALL"
+# 금액 축에서만 빼는 업종. presmpt_prce가 전 건 0이라 합산하면 최저 구간이 부풀려진다.
+NO_AMOUNT = "frgcpt"
 BUCKET_SQL = """CASE WHEN b.presmpt_prce < 5e7 THEN 0 WHEN b.presmpt_prce < 2e8 THEN 1
   WHEN b.presmpt_prce < 1e9 THEN 2 WHEN b.presmpt_prce < 5e9 THEN 3 ELSE 4 END"""
 # 태그 신뢰도가 낮은 건 파이프라인이 source에 _low를 붙인다. 통계에서 빼면 분포가
@@ -51,13 +62,19 @@ CLOSED_MONTHS = "b.bid_ntce_dt < date_trunc('month', CURRENT_DATE)"
 
 
 def connect():
+    """이 레포 .env의 POSTGRES_*를 읽는다. 실제 환경변수가 있으면 그쪽이 이긴다 —
+    레포 .env는 베스천 터널(localhost:5433) 기준이라 터널 없이 돌릴 때는
+    POSTGRES_HOST=... 를 앞에 붙여 RDS로 직접 붙는다."""
     env = {}
-    for line in PIPELINE_ENV.read_text(encoding="utf-8").splitlines():
+    for line in ENV.read_text(encoding="utf-8").splitlines():
         m = re.match(r"^([A-Za-z_]+)=(.*)$", line.strip())
         if m:
             env[m.group(1)] = m.group(2).strip().strip('"').strip("'")
-    return psycopg2.connect(host=env["RDS_Host"], dbname=env["RDS_DB"],
-                            user=env["RDS_Username"], password=env["RDS_Password"], port=5432)
+    env.update({k: v for k, v in os.environ.items() if k.startswith("POSTGRES_")})
+    return psycopg2.connect(host=env["POSTGRES_HOST"], dbname=env["POSTGRES_DB"],
+                            user=env["POSTGRES_USER"], password=env["POSTGRES_PASSWORD"],
+                            port=int(env.get("POSTGRES_PORT", 5432)),
+                            sslmode=env.get("POSTGRES_SSLMODE", "prefer"))
 
 
 # 상위기관의 하위조직임을 알려주는 꼬리말. 이게 붙은 경우에만 묶는다.
@@ -126,10 +143,16 @@ def main():
     # 업종별 총계 — 화면이 모집단(분모)을 보여줄 수 있게
     cur.execute(f"SELECT b.bid_category, count(*) FROM bid_table b WHERE {CLOSED_MONTHS} GROUP BY 1")
     out["totals"] = {c: n for c, n in cur.fetchall()}
+    cur.execute(f"SELECT count(*) FROM bid_table b WHERE {CLOSED_MONTHS}")
+    out["totals"][ALL] = cur.fetchone()[0]
+
     cur.execute(f"SELECT b.bid_category, t.tag, count(*) FROM bid_table b {TAG_JOIN} WHERE {CLOSED_MONTHS} GROUP BY 1,2")
     tag_totals = defaultdict(dict)
     for c, tag, n in cur.fetchall():
         tag_totals[c][tag] = n
+    cur.execute(f"SELECT t.tag, count(*) FROM bid_table b {TAG_JOIN} WHERE {CLOSED_MONTHS} GROUP BY 1")
+    for tag, n in cur.fetchall():
+        tag_totals[ALL][tag] = n
     out["tagTotals"] = tag_totals
 
     # 태그 목록(상위 N). 상위 8개가 물량의 71~91%를 덮는다.
@@ -149,6 +172,12 @@ def main():
     cur.execute(f"""SELECT to_char(b.bid_ntce_dt,'YYYY-MM'), b.bid_category, t.tag, count(*)
         FROM bid_table b {TAG_JOIN} WHERE {CLOSED_MONTHS} GROUP BY 1,2,3""")
     monthly += [{"m": a, "c": b, "tag": c, "cnt": d} for a, b, c, d in cur.fetchall()]
+    cur.execute(f"""SELECT to_char(b.bid_ntce_dt,'YYYY-MM'), 'ALL', 'ALL', count(*)
+        FROM bid_table b WHERE {CLOSED_MONTHS} GROUP BY 1""")
+    monthly += [{"m": a, "c": b, "tag": c, "cnt": d} for a, b, c, d in cur.fetchall()]
+    cur.execute(f"""SELECT to_char(b.bid_ntce_dt,'YYYY-MM'), 'ALL', t.tag, count(*)
+        FROM bid_table b {TAG_JOIN} WHERE {CLOSED_MONTHS} GROUP BY 1,3""")
+    monthly += [{"m": a, "c": b, "tag": c, "cnt": d} for a, b, c, d in cur.fetchall()]
     out["monthly"] = fill_gaps(monthly, "m")
 
     # 기관 순위. 건수용과 금액용을 따로 뽑는다.
@@ -157,6 +186,14 @@ def main():
         FROM bid_table b WHERE b.dminstt_nm <> %s AND {CLOSED_MONTHS} GROUP BY 1,2,3""", (MAS_PLACEHOLDER,))
     raw = [(a, b, c, d, e) for a, b, c, d, e in cur.fetchall()]
     cur.execute(f"""SELECT b.bid_category, t.tag, b.dminstt_nm, count(*), sum(b.presmpt_prce)
+        FROM bid_table b {TAG_JOIN} WHERE b.dminstt_nm <> %s AND {CLOSED_MONTHS} GROUP BY 1,2,3""", (MAS_PLACEHOLDER,))
+    raw += [(a, b, c, d, e) for a, b, c, d, e in cur.fetchall()]
+    # 전체 순위는 여기서 따로 집계해야 한다. 업종별 상위 N을 합치면 어느 업종에서도
+    # N위 밖이던 기관이 통째로 빠져 순위가 틀린다(조달청이 물품 296건만으로 잡히는 식).
+    cur.execute(f"""SELECT 'ALL', 'ALL', b.dminstt_nm, count(*), sum(b.presmpt_prce)
+        FROM bid_table b WHERE b.dminstt_nm <> %s AND {CLOSED_MONTHS} GROUP BY 1,2,3""", (MAS_PLACEHOLDER,))
+    raw += [(a, b, c, d, e) for a, b, c, d, e in cur.fetchall()]
+    cur.execute(f"""SELECT 'ALL', t.tag, b.dminstt_nm, count(*), sum(b.presmpt_prce)
         FROM bid_table b {TAG_JOIN} WHERE b.dminstt_nm <> %s AND {CLOSED_MONTHS} GROUP BY 1,2,3""", (MAS_PLACEHOLDER,))
     raw += [(a, b, c, d, e) for a, b, c, d, e in cur.fetchall()]
 
@@ -180,11 +217,20 @@ def main():
     # 순위에서 뺀 단가계약 건수 — 화면이 각주로 밝힐 수 있게
     cur.execute(f"SELECT b.bid_category, count(*) FROM bid_table b WHERE b.dminstt_nm=%s AND {CLOSED_MONTHS} GROUP BY 1", (MAS_PLACEHOLDER,))
     out["excludedMas"] = {c: n for c, n in cur.fetchall()}
+    cur.execute(f"SELECT count(*) FROM bid_table b WHERE b.dminstt_nm=%s AND {CLOSED_MONTHS}", (MAS_PLACEHOLDER,))
+    out["excludedMas"][ALL] = cur.fetchone()[0]
 
     # 예산 구간. 경계는 실무 기준선이다(소액수의 5천만 / 적격심사 2억 / 종합심사 10억).
     cur.execute(f"SELECT b.bid_category,'ALL',{BUCKET_SQL},count(*) FROM bid_table b WHERE {CLOSED_MONTHS} GROUP BY 1,2,3")
     budget = [{"c": a, "tag": b, "b": c, "cnt": d} for a, b, c, d in cur.fetchall()]
     cur.execute(f"SELECT b.bid_category,t.tag,{BUCKET_SQL},count(*) FROM bid_table b {TAG_JOIN} WHERE {CLOSED_MONTHS} GROUP BY 1,2,3")
+    budget += [{"c": a, "tag": b, "b": c, "cnt": d} for a, b, c, d in cur.fetchall()]
+    # 전체 예산 분포에서는 외자를 뺀다. 금액 정보가 없어 전 건이 최저 구간으로 떨어지므로
+    # 합산하면 "5천만 미만"이 그만큼 부풀려진다. 분모가 총계와 달라지는 건 화면이 각주로 밝힌다.
+    no_amt = f"b.bid_category <> '{NO_AMOUNT}'"
+    cur.execute(f"SELECT 'ALL','ALL',{BUCKET_SQL},count(*) FROM bid_table b WHERE {no_amt} AND {CLOSED_MONTHS} GROUP BY 1,2,3")
+    budget += [{"c": a, "tag": b, "b": c, "cnt": d} for a, b, c, d in cur.fetchall()]
+    cur.execute(f"SELECT 'ALL',t.tag,{BUCKET_SQL},count(*) FROM bid_table b {TAG_JOIN} WHERE {no_amt} AND {CLOSED_MONTHS} GROUP BY 1,2,3")
     budget += [{"c": a, "tag": b, "b": c, "cnt": d} for a, b, c, d in cur.fetchall()]
     out["budget"] = budget
 
