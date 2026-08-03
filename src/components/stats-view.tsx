@@ -1,9 +1,12 @@
 import Link from "next/link";
-import type { BidCategory } from "@/lib/types";
+import type { StatsCategory, StatsData } from "@/lib/api/stats";
 import { categoryLabel } from "@/lib/format";
 
 /**
- * 공고 통계 화면 (목업 단계).
+ * 공고 통계 화면.
+ *
+ * 데이터는 GET /stats에서 한 조건(업종 x 품목) 분량만 내려온다 — 이 컴포넌트는
+ * 거르지 않고 받은 대로 그린다. 집계는 DB의 bid_stats matview에 있다.
  *
  * 차트 라이브러리를 쓰지 않고 div 막대로 그린다. 필요한 건 가로/세로 막대
  * 두 종류뿐이라 recharts(~100KB)를 들일 이유가 없고, 축 눈금·툴팁 커스터마이징에
@@ -19,11 +22,8 @@ import { categoryLabel } from "@/lib/format";
  * 순위·분포라 목록에 가깝고, 좁은 폭에서도 읽힌다.
  */
 
-/** 업종 축과 품목 축 모두 "전체"를 같은 문자열로 쓴다(집계 스크립트의 c/tag 값과 일치). */
+/** 업종 무관 집계. 백엔드 StatsCategory / matview의 category 값과 같은 문자열. */
 const ALL = "ALL";
-/** 업종 무관 집계. 목업 JSON에 c='ALL' 행으로 따로 들어 있다 — 업종별 상위 N을 합쳐
- *  만들 수 없기 때문이다(어느 업종에서도 N위 밖이던 기관이 통째로 빠진다). */
-export type StatsCategory = BidCategory | typeof ALL;
 
 const CATEGORIES: StatsCategory[] = [ALL, "cnstwk", "servc", "thng", "frgcpt"];
 // 통계 화면의 첫 인상은 시장 전체 규모다. 업종은 그다음에 좁힌다.
@@ -42,40 +42,10 @@ const BUDGET_LABELS = [
   "50억 이상",
 ];
 
-type InstRow = { c: string; tag: string; name: string; cnt: number; eok: number };
-
-export type StatsData = {
-  /** 업종별 총 공고 수. 화면이 분모를 밝히는 근거다. */
-  totals: Record<string, number>;
-  tagTotals: Record<string, Record<string, number>>;
-  /** 업종별 상위 8개 품목 태그. 이게 물량의 71~91%를 덮는다. */
-  tags: Record<string, { tag: string; cnt: number }[]>;
-  /** 금액 정보 자체가 없는 업종(외자). "금액이 0"과 구분해야 한다. */
-  amountUnavailable: string[];
-  monthly: { m: string; c: string; tag: string; cnt: number }[];
-  /**
-   * 화면은 byCount만 쓴다. byAmount(추정가격 합계)는 순위가 발주 빈도와 무관해서 뺐다 —
-   * 전체 1위가 9.7조짜리 공고 1건을 낸 기관이고 2·3위도 5건씩이다. presmpt_prce가
-   * 단가x총예상수량이라 계약금액도 아니다. 집계 API가 생기면 byAmount도 같이 지운다.
-   */
-  institutions: { byCount: InstRow[]; byAmount: InstRow[] };
-  /** 기관 순위에서 뺀 단가계약('각 수요기관') 건수. 각주로 밝힌다. */
-  excludedMas: Record<string, number>;
-  budget: { c: string; tag: string; b: number; cnt: number }[];
-  period: { from: string; to: string };
-};
-
-export type StatsConditions = {
-  category: StatsCategory;
-  /** URL에서 온 값이라 신뢰하지 않는다. 칩으로 고를 수 있는 태그만 인정한다. */
-  tag?: string;
-};
+type Conditions = { category: StatsCategory; tag: string };
 
 /** 조건 일부를 바꾼 통계 URL. 기본값은 쿼리에서 빼 URL을 짧게 둔다. */
-function statsHref(
-  current: Required<StatsConditions>,
-  changes: Partial<StatsConditions>
-): string {
+function statsHref(current: Conditions, changes: Partial<Conditions>): string {
   const next = { ...current, ...changes };
   const qs = new URLSearchParams();
   if (next.category !== DEFAULT_CATEGORY) qs.set("cat", next.category);
@@ -105,31 +75,32 @@ const monthLabel = (m: string) => `${Number(m.slice(5))}월`;
 
 export function StatsView({
   data,
-  conditions,
+  categoryTotal,
 }: {
   data: StatsData;
-  conditions: StatsConditions;
+  /** '전체' 칩에 붙는 업종 총계. 응답의 total은 조건 단위라 품목을 고르면 달라진다. */
+  categoryTotal: number;
 }) {
-  const { category } = conditions;
-  const tagOptions = data.tags[category] ?? [];
-  const tag = tagOptions.some((t) => t.tag === conditions.tag) ? conditions.tag! : ALL;
+  // 조건은 서버가 확정해 돌려준 값을 쓴다. tag 유효성(상위 8개 안인지)은 화면이
+  // 판단할 수 없다 — 고를 수 있는 목록이 이 응답 안에 들어 있기 때문이다.
+  const category = data.conditions.category;
+  const tag = data.conditions.tag ?? ALL;
+  const tagOptions = data.tags;
 
   // 예산 분포를 그릴 수 있는 업종인지. 외자는 금액 자체가 안 들어온다.
-  const amountAvailable = !data.amountUnavailable.includes(category);
+  const amountAvailable = data.amount_available;
   const current = { category, tag };
 
   const catLabel = catLabelOf(category);
   const conditionLabel = tag === ALL ? catLabel : `${catLabel} ‘${tag}’`;
-  const total = (tag === ALL ? data.totals[category] : data.tagTotals[category]?.[tag]) ?? 0;
+  const total = data.total;
 
   // 축은 1~12월 열두 칸 고정이다. 관측된 달만 그리면 칸이 넓어져 막대가 기둥처럼
   // 보이고, 무엇보다 7칸짜리 축은 "한 해가 7개월"인 것처럼 읽힌다.
   // 아직 안 온 달은 0이 아니라 null이다 — 0으로 그리면 "그 달 발주가 없었다"는
-  // 거짓이 된다(집계 스크립트가 진행 중인 달을 빼는 것과 같은 이유).
+  // 거짓이 된다(집계가 진행 중인 달을 빼는 것과 같은 이유).
   // 기간이 해를 넘기면 열두 칸에 안 들어가므로 관측된 달만 그대로 쓴다.
-  const observed = data.monthly
-    .filter((r) => r.c === category && r.tag === tag)
-    .sort((a, b) => a.m.localeCompare(b.m));
+  const observed = [...data.monthly].sort((a, b) => a.m.localeCompare(b.m));
   const [fromYear, toYear] = [data.period.from.slice(0, 4), data.period.to.slice(0, 4)];
   const trend =
     fromYear === toYear
@@ -139,22 +110,17 @@ export function StatsView({
         })
       : observed.map((r) => ({ label: monthLabel(r.m), value: r.cnt as number | null }));
 
-  const institutions = data.institutions.byCount
-    .filter((r) => r.c === category && r.tag === tag)
-    .sort((a, b) => b.cnt - a.cnt);
+  const institutions = data.institutions;
 
   // %의 분모는 헤더 총계가 아니라 구간 합이다. 업종을 하나 고르면 둘이 같지만,
   // '전체'에서는 금액 정보가 없는 외자가 예산 집계에서만 빠져 총계보다 작다.
   // 총계로 나누면 %가 100에 못 미친다(실제로 97.7%가 된다).
-  const budgetCounts = BUDGET_LABELS.map((label, i) => ({
-    label,
-    cnt: data.budget.find((r) => r.c === category && r.tag === tag && r.b === i)?.cnt ?? 0,
-  }));
-  const budgetTotal = budgetCounts.reduce((s, b) => s + b.cnt, 0);
-  const budget = budgetCounts.map((b) => ({
-    ...b,
-    pct: budgetTotal ? (b.cnt / budgetTotal) * 100 : 0,
-  }));
+  const budgetTotal = data.budget.total;
+  const budget = BUDGET_LABELS.map((label, i) => {
+    // 0건인 구간은 응답에 행이 없다. 다섯 칸은 항상 그려야 분포가 읽힌다.
+    const cnt = data.budget.buckets.find((r) => r.b === i)?.cnt ?? 0;
+    return { label, cnt, pct: budgetTotal ? (cnt / budgetTotal) * 100 : 0 };
+  });
 
   // hint는 "읽는 법"이 아니라 데이터에서 계산한 결론 한 줄이다. 7개월치로는
   // 근거가 없으므로 예측·추천은 쓰지 않는다(사실만).
@@ -179,7 +145,7 @@ export function StatsView({
       ).toLocaleString()}건`
     : "";
 
-  const excludedMas = data.excludedMas[category] ?? 0;
+  const excludedMas = data.excluded_mas;
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-7 sm:px-6 lg:px-10">
@@ -228,7 +194,7 @@ export function StatsView({
             href={statsHref(current, { tag: ALL })}
             active={tag === ALL}
             label="전체"
-            count={data.totals[category] ?? 0}
+            count={categoryTotal}
           />
           {tagOptions.map((t) => (
             <TagChip

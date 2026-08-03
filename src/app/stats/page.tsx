@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import { Topbar } from "@/components/topbar";
 import { SiteFooter } from "@/components/site-footer";
 import { StatsView } from "@/components/stats-view";
-import mock from "@/lib/data/stats-mock.json";
-import type { StatsCategory, StatsData } from "@/components/stats-view";
+import { getStats, type StatsCategory } from "@/lib/api/stats";
+import type { BidCategory } from "@/lib/types";
 
-const CATEGORIES: StatsCategory[] = ["ALL", "cnstwk", "servc", "thng", "frgcpt"];
+const CATEGORIES: BidCategory[] = ["cnstwk", "servc", "thng", "frgcpt"];
 // 기본은 업종 무관 전체. 시장 규모를 먼저 보여주고 업종은 화면에서 좁힌다.
+// 서버도 같은 기본값을 쓰지만 여기서 한 번 거르는 건 '전체' 칩의 활성 상태를
+// 판단하려면 화면이 category를 알아야 하기 때문이다.
 const toCategory = (v?: string): StatsCategory =>
-  v && (CATEGORIES as string[]).includes(v) ? (v as StatsCategory) : "ALL";
+  v === "ALL" || (v && (CATEGORIES as string[]).includes(v)) ? (v as StatsCategory) : "ALL";
 
 export const metadata: Metadata = {
   title: "공고 통계 · 비드프렌드",
@@ -17,16 +19,13 @@ export const metadata: Metadata = {
 };
 
 /**
- * ⚠ 목업 단계다. 화면 느낌을 먼저 보려고 실제 DB 수치를 JSON으로 떠서 붙였다
- * (2026-08-03 기준, 2026-01~07). 집계 테이블과 API가 준비되면 이 import를
- * 서버 fetch로 바꾸고 stats-mock.json은 지운다.
- *
- * 가짜 숫자가 아니라 실제 수치를 쓴 이유는, 축 범위나 이름 길이가 실제와
- * 다르면 레이아웃 판단이 빗나가기 때문이다(기관명이 "기후에너지환경부
- * 국립환경과학원"처럼 길다).
+ * 집계는 DB의 bid_stats matview에 있고 백엔드가 조회만 한다(bidmate-backend #125).
+ * 응답은 한 조건 분량이라 화면이 다시 거를 필요가 없다.
  *
  * 화면 상태는 쿼리스트링이 정본이다(cat·tag). 검색 화면과 같은 관례다.
- * 태그 유효성은 업종별 목록을 알아야 판단할 수 있어 StatsView에서 거른다.
+ * tag 유효성은 서버가 판단한다 — 고를 수 있는 품목 목록이 응답 안에 있어서
+ * 요청 전에는 알 수 없다. 무효하면 서버가 전체로 폴백하고 conditions에 실제 적용된
+ * 조건을 담아 돌려준다.
  */
 export default async function StatsPage({
   searchParams,
@@ -34,15 +33,21 @@ export default async function StatsPage({
   searchParams: Promise<{ cat?: string; tag?: string }>;
 }) {
   const sp = await searchParams;
+  const category = toCategory(sp.cat);
+
+  // 응답의 tags(품목 칩)는 업종 단위인데 total은 조건 단위다. 그래서 품목을 고른
+  // 상태에서는 '전체' 칩에 붙일 업종 총계가 응답에 없다. 그때만 업종 단위 응답을
+  // 한 번 더 받는다 — 45행 matview 조회라 비용이 없고, 캐시 키도 같아 재사용된다.
+  const [data, categoryScoped] = await Promise.all([
+    getStats({ category, tag: sp.tag }),
+    sp.tag ? getStats({ category }) : Promise.resolve(null),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Topbar />
       <main className="flex flex-1 flex-col">
-        <StatsView
-          data={mock as StatsData}
-          conditions={{ category: toCategory(sp.cat), tag: sp.tag }}
-        />
+        <StatsView data={data} categoryTotal={(categoryScoped ?? data).total} />
       </main>
       <SiteFooter />
     </div>
