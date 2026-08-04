@@ -11,7 +11,10 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: bidmate-frontend
-  EC2_INSTANCE_ID: i-054a12633e0093178
+  # ALB(app/bidmate-frontend) 타겟그룹에 등록된 인스턴스 전체. 공백 구분이며
+  # 인스턴스를 늘리면 여기에 추가해야 한다 — 빠뜨리면 그 서버만 옛 코드로
+  # 트래픽을 받는다(#197에서 실제로 겪었다).
+  EC2_INSTANCE_IDS: "i-054a12633e0093178 i-08977e1bc16bb21ee"
   # Grafana 컨테이너가 /etc/grafana 로 마운트하는 호스트 경로.
   # 레포 변수(vars.GRAFANA_DIR)로 덮어쓸 수 있다 — 경로가 바뀌어도 코드 수정 불요.
   # 확인법: docker inspect <grafana> --format '{{json .Mounts}}'
@@ -155,30 +158,43 @@ jobs:
               ]
             }' > /tmp/params.json
 
+          # ALB 타겟그룹의 모든 인스턴스에 같은 명령을 보낸다. 한 대만 배포하면
+          # 나머지가 옛 코드로 트래픽을 받는다(#197).
           CMD_ID=$(aws ssm send-command \
-            --instance-ids "$EC2_INSTANCE_ID" \
+            --instance-ids $EC2_INSTANCE_IDS \
             --document-name AWS-RunShellScript \
             --comment "deploy ${GITHUB_SHA::7}" \
             --parameters file:///tmp/params.json \
             --query Command.CommandId --output text)
           echo "SSM command: $CMD_ID"
 
-          # 완료까지 대기 (실패해도 아래에서 상태/로그를 찍기 위해 || true)
-          aws ssm wait command-executed \
-            --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" || true
+          # wait/get-command-invocation은 인스턴스 단수만 받으므로 대상마다 확인한다.
+          # 한 대라도 실패하면 실패로 끝내되, 로그는 전부 찍고 나서 판정한다 —
+          # 일부만 성공한 상태(=버전 혼재)를 조용히 넘기지 않기 위함이다.
+          FAILED=""
+          for ID in $EC2_INSTANCE_IDS; do
+            echo "===== $ID ====="
+            # 실패해도 아래에서 상태/로그를 찍기 위해 || true
+            aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$ID" || true
 
-          STATUS=$(aws ssm get-command-invocation \
-            --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
-            --query Status --output text)
-          echo "--- stdout ---"
-          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
-            --query StandardOutputContent --output text
-          echo "--- stderr ---"
-          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
-            --query StandardErrorContent --output text
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$CMD_ID" --instance-id "$ID" \
+              --query Status --output text)
+            echo "--- stdout ---"
+            aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$ID" \
+              --query StandardOutputContent --output text
+            echo "--- stderr ---"
+            aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$ID" \
+              --query StandardErrorContent --output text
 
-          echo "status: $STATUS"
-          [ "$STATUS" = "Success" ] || exit 1
+            echo "status: $STATUS"
+            [ "$STATUS" = "Success" ] || FAILED="$FAILED $ID"
+          done
+
+          if [ -n "$FAILED" ]; then
+            echo "배포 실패 인스턴스:$FAILED" >&2
+            exit 1
+          fi
 
       - name: Summary
         run: |
