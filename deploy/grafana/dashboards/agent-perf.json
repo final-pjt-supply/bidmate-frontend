@@ -28,7 +28,7 @@
           "statistic": "Sum",
           "dimensions": {},
           "label": "호출",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -67,7 +67,7 @@
           "statistic": "Sum",
           "dimensions": {},
           "label": "입력 토큰",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -102,7 +102,7 @@
           "statistic": "Sum",
           "dimensions": {},
           "label": "출력 토큰",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -137,7 +137,7 @@
           "statistic": "Sum",
           "dimensions": {},
           "label": "스로틀",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -152,7 +152,7 @@
           "statistic": "Sum",
           "dimensions": {},
           "label": "서버 오류",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -191,7 +191,7 @@
           "statistic": "Sum",
           "dimensions": { "ModelId": ["*"] },
           "label": "",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -219,7 +219,7 @@
           "statistic": "Sum",
           "dimensions": { "ModelId": ["*"] },
           "label": "입력",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -234,7 +234,7 @@
           "statistic": "Sum",
           "dimensions": { "ModelId": ["*"] },
           "label": "출력",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -262,7 +262,7 @@
           "statistic": "Average",
           "dimensions": { "ModelId": ["*"] },
           "label": "평균",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
@@ -277,7 +277,7 @@
           "statistic": "Maximum",
           "dimensions": { "ModelId": ["*"] },
           "label": "최대",
-          "matchExact": false,
+          "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "period": ""
