@@ -20,7 +20,8 @@ Claude Code가 이 레포에서 작업할 때 항상 따르는 규칙과 컨텍�
 
 - **Next.js (App Router) + TypeScript**
 - 상태관리 라이브러리 도입 금지(useState로 충분할 때까지)
-- 목업 데이터: `src/lib/data/bids.json` (실제 나라장터 공고 12건)
+- 공고 데이터는 백엔드 API에서 받는다(목업 없음 — `bids.json`은 실 API 전환 후 삭제됨, #203).
+  `src/lib/data/`에 남은 것은 면허·인증·지역·직급 **마스터 데이터**(`masters.ts`)로, 이건 계속 쓴다.
 - 타입: `@/lib/types` · 전처리 함수: `@/lib/format`
 
 ## 전처리 규칙 (표시용 가공은 프론트가)
