@@ -145,8 +145,6 @@ export function StatsView({
       ).toLocaleString()}건`
     : "";
 
-  const excludedMas = data.excluded_mas;
-
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-16 pt-7 sm:px-6 lg:px-10">
       <header className="flex flex-col gap-1">
@@ -235,12 +233,6 @@ export function StatsView({
                 }))}
               />
             )}
-            {excludedMas > 0 && (
-              <p className="text-xs text-slate-500">
-                ‘각 수요기관’(다수공급자·제3자단가계약)은 특정 기관이 아니라서 순위에서 뺐어요 —{" "}
-                {catLabel} 공고 {excludedMas.toLocaleString()}건.
-              </p>
-            )}
           </Section>
         </div>
 
@@ -266,11 +258,6 @@ export function StatsView({
                   weight: b.cnt,
                 }))}
               />
-              <p className="text-xs text-slate-500">
-                추정가격 기준 · {budgetTotal.toLocaleString()}건이 분모예요
-                {budgetTotal < total &&
-                  ` — ${(total - budgetTotal).toLocaleString()}건은 금액 정보가 없어 뺐어요`}
-              </p>
             </>
           )}
         </Section>
