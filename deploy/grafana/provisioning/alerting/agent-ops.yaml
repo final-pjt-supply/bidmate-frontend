@@ -1,0 +1,239 @@
+# 챗봇 에이전트 운영 알림 — 위험 신호를 디스코드로 통보한다.
+#
+# 왜 CloudWatch 알람이 아니라 그라파나 알림인가:
+#   에이전트 지표는 CloudWatch에 있으므로 CloudWatch 알람으로도 감시할 수 있다.
+#   그러나 CloudWatch 알람의 통지 경로는 SNS뿐이고, SNS는 디스코드 웹훅이 요구하는
+#   본문 형식을 그대로 보내지 못한다(중간에 Lambda 변환기가 필요하다).
+#   팀은 이미 그라파나 → 디스코드 경로를 쓰고 있으므로, 부품을 늘리지 않고
+#   그 경로에 얹는다. 데이터 출처는 여전히 CloudWatch 지표다.
+#
+# ── 주의 ────────────────────────────────────────────────────────────
+# 1. 연락처(contact point) 'discord'는 이 파일에 없다. 웹훅 URL이 비밀값이라
+#    커밋하지 않는다 — member-signup.yaml과 같은 규약. UI에 이미 존재한다.
+# 2. 파일로 프로비저닝한 규칙은 UI에서 수정할 수 없게 잠긴다(provenance=file).
+#    임계값을 화면에서 만지고 싶다면 이 파일을 두지 말고 API로 만든다.
+# 3. 평가 주기를 5분으로 둔 이유: 그라파나가 평가할 때마다 CloudWatch
+#    GetMetricData를 호출하고 그건 과금 대상이다. 1분 주기로 4개 규칙을 돌리면
+#    월 17만 회가 된다. 탐지가 최대 5분 늦어지는 대신 호출을 1/5로 줄인다.
+# 4. 임계값 4개는 전부 근거 있는 추측이지 측정값이 아니다. 1~2주 실데이터를
+#    보고 보정하는 것까지가 이 작업의 완결이다.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: agent-ops
+    folder: BidMate
+    interval: 5m
+    rules:
+
+      # ── ① LLM 재시도 급증 ───────────────────────────────────────────
+      # Bedrock 스로틀·장애의 가장 이른 신호다. 재시도 자체는 정상 운영에서도
+      # 가끔 나므로 0건을 기준으로 하면 시끄럽다. 15분에 5건이면 "가끔"이 아니다.
+      - uid: bidmate-agent-llm-retry
+        title: 에이전트 — LLM 재시도 급증
+        condition: C
+        noDataState: OK          # 재시도가 아예 없으면 계열이 없다 = 정상
+        execErrState: Error
+        for: 0s
+        isPaused: false
+        annotations:
+          summary: "⚠️ LLM 재시도가 15분에 5건 이상 발생했습니다"
+          description: Bedrock 스로틀 또는 장애가 의심됩니다. 그라파나 > BidMate > 'BidMate 챗봇 — LLM 성능'에서 스로틀·서버 오류 패널을 확인하세요.
+        labels:
+          service: bidmate-agent
+        notification_settings:
+          receiver: discord
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: cloudwatch
+            model:
+              refId: A
+              datasource: { type: cloudwatch, uid: cloudwatch }
+              queryMode: Metrics
+              region: default
+              namespace: Bidmate/Agent
+              metricName: LlmRetryTotal
+              statistic: Sum
+              dimensions: {}
+              matchExact: true
+              metricQueryType: 0
+              metricEditorMode: 0
+              period: "300"
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: sum
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [4] }   # 5건 이상
+
+      # ── ② 턴 지연 p95 ───────────────────────────────────────────────
+      # 사용자가 체감하는 느려짐. 순간 튐으로 울리지 않게 15분 연속 유지될 때만
+      # 발화한다(for: 15m). 트래픽이 없으면 계열도 없으므로 NoData는 정상으로 본다.
+      - uid: bidmate-agent-latency-p95
+        title: 에이전트 — 턴 지연 p95 15초 초과
+        condition: C
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        isPaused: false
+        annotations:
+          summary: "🐢 턴 지연 p95가 15초를 넘었습니다"
+          description: 15분 연속으로 상위 5% 응답이 15초를 초과했습니다. 그라파나 > BidMate > 'BidMate 챗봇 — 운영'의 route별 지연 패널에서 어느 갈래인지 확인하세요. 전 갈래가 함께 느려졌다면 LLM·DB 등 공용 구간 문제입니다.
+        labels:
+          service: bidmate-agent
+        notification_settings:
+          receiver: discord
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: cloudwatch
+            model:
+              refId: A
+              datasource: { type: cloudwatch, uid: cloudwatch }
+              queryMode: Metrics
+              region: default
+              namespace: Bidmate/Agent
+              metricName: TurnLatencyAll
+              statistic: p95
+              dimensions: {}
+              matchExact: true
+              metricQueryType: 0
+              metricEditorMode: 0
+              period: "300"
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [15000] }
+
+      # ── ③ 자격 판정 미산출 급증 ─────────────────────────────────────
+      # 판정 데이터가 비는 것은 대개 에이전트 코드가 아니라 데이터 파이프라인
+      # 사고다(match_results 적재 중단 등). 그래서 문구도 그쪽을 가리킨다.
+      - uid: bidmate-agent-no-verdict
+        title: 에이전트 — 자격 판정 미산출 급증
+        condition: C
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        isPaused: false
+        annotations:
+          summary: "📉 1시간 동안 자격 판정 미산출이 20건을 넘었습니다"
+          description: 요건 데이터가 없어 판정을 못 준 건이 급증했습니다. 코드가 아니라 match_results 적재가 멈췄을 가능성이 높습니다. 그라파나 > BidMate > 'BidMate 챗봇 — 품질'의 판정 미산출 패널을 확인하세요.
+        labels:
+          service: bidmate-agent
+        notification_settings:
+          receiver: discord
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: cloudwatch
+            model:
+              refId: A
+              datasource: { type: cloudwatch, uid: cloudwatch }
+              queryMode: Metrics
+              region: default
+              namespace: Bidmate/Agent
+              metricName: NoVerdictNoData
+              statistic: Sum
+              dimensions: {}
+              matchExact: true
+              metricQueryType: 0
+              metricEditorMode: 0
+              period: "300"
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: sum
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [20] }
+
+      # ── ④ 대화 두절 ─────────────────────────────────────────────────
+      # 2시간 동안 턴이 0건 = 서비스 다운 또는 로그 수집 중단.
+      # noDataState: Alerting 이 핵심이다 — "데이터가 아예 없음"도 울려야
+      # 감시 장치 자체의 고장을 잡는다.
+      #
+      # ⚠ 기본은 일시정지다. 지금은 24시간 트래픽이 없어서 켜두면 매일 밤 울린다.
+      #   실사용 트래픽이 붙으면 isPaused: false 로 바꾸고 커밋한다.
+      - uid: bidmate-agent-no-turns
+        title: 에이전트 — 2시간 대화 0건
+        condition: C
+        noDataState: Alerting
+        execErrState: Error
+        for: 0s
+        isPaused: true
+        annotations:
+          summary: "🚨 2시간 동안 챗봇 대화가 한 건도 없습니다"
+          description: 서비스가 죽었거나 로그 수집이 끊겼습니다. 컨테이너 상태(:8010/health)와 CloudWatch 로그 그룹 /bidmate/agent에 새 로그가 들어오는지 확인하세요.
+        labels:
+          service: bidmate-agent
+        notification_settings:
+          receiver: discord
+        data:
+          - refId: A
+            relativeTimeRange: { from: 7200, to: 0 }
+            datasourceUid: cloudwatch
+            model:
+              refId: A
+              datasource: { type: cloudwatch, uid: cloudwatch }
+              queryMode: Metrics
+              region: default
+              namespace: Bidmate/Agent
+              metricName: TurnTotal
+              statistic: Sum
+              dimensions: {}
+              matchExact: true
+              metricQueryType: 0
+              metricEditorMode: 0
+              period: "300"
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: A
+              reducer: sum
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource: { type: __expr__, uid: __expr__ }
+              expression: B
+              conditions:
+                - evaluator: { type: lt, params: [1] }
