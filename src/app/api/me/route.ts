@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 
-const API_BASE = process.env.API_BASE_URL ?? "http://54.180.233.72:8000";
+const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 
 /** 백엔드 /me로 그대로 중계한다. GET=조회, DELETE=회원 탈퇴(소프트 삭제). */
 async function proxy(req: Request, method: "GET" | "DELETE") {
