@@ -162,22 +162,32 @@ jobs:
               ]
             }' > /tmp/params.json
 
-          # ALB 타겟그룹의 모든 인스턴스에 같은 명령을 보낸다. 한 대만 배포하면
-          # 나머지가 옛 코드로 트래픽을 받는다(#197).
-          CMD_ID=$(aws ssm send-command \
-            --instance-ids $EC2_INSTANCE_IDS \
-            --document-name AWS-RunShellScript \
-            --comment "deploy ${GITHUB_SHA::7}" \
-            --parameters file:///tmp/params.json \
-            --query Command.CommandId --output text)
-          echo "SSM command: $CMD_ID"
-
-          # wait/get-command-invocation은 인스턴스 단수만 받으므로 대상마다 확인한다.
-          # 한 대라도 실패하면 실패로 끝내되, 로그는 전부 찍고 나서 판정한다 —
-          # 일부만 성공한 상태(=버전 혼재)를 조용히 넘기지 않기 위함이다.
-          FAILED=""
+          # 순차 롤링 — 한 대씩 배포하고 실패하면 즉시 멈춘다. 남은 인스턴스가 구버전을
+          # 계속 서빙하므로 그것이 곧 부분 롤백이다. #197('한 대만 배포해서 나머지가
+          # 영구히 옛 코드')과는 다르다 — 여기서는 실패했을 때만 멈춘다.
+          #
+          # 동시 발송에서 바꾼 이유: 배포 전 게이트를 통과했는데도 실제로는 망가진
+          # 버전이면, 동시에 보내면 두 대가 같이 전환돼 트래픽 100%가 깨진다.
+          # 순차면 첫 대에서 멈추므로 영향이 절반이고 나머지 한 대가 그대로 살아 있다.
+          #
+          # 전제: 롤링 중에는 두 인스턴스의 빌드가 잠시 다르다. Next.js는 정적 청크
+          # 경로에 빌드 ID가 박히므로, 새 HTML을 받은 브라우저가 구 인스턴스에 청크를
+          # 요청하면 404가 난다. ALB 타겟그룹 고정(스티키 세션)으로 한 사용자가 늘 같은
+          # 인스턴스로 가게 해 두었다 — 그 설정을 끄면 이 루프도 되돌려야 한다.
+          TOTAL=$(echo $EC2_INSTANCE_IDS | wc -w)
+          INDEX=0
           for ID in $EC2_INSTANCE_IDS; do
-            echo "===== $ID ====="
+            INDEX=$((INDEX + 1))
+            echo "===== [$INDEX/$TOTAL] $ID ====="
+
+            CMD_ID=$(aws ssm send-command \
+              --instance-ids "$ID" \
+              --document-name AWS-RunShellScript \
+              --comment "deploy ${GITHUB_SHA::7} ($INDEX/$TOTAL)" \
+              --parameters file:///tmp/params.json \
+              --query Command.CommandId --output text)
+            echo "SSM command: $CMD_ID"
+
             # 실패해도 아래에서 상태/로그를 찍기 위해 || true
             aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$ID" || true
 
@@ -192,13 +202,12 @@ jobs:
               --query StandardErrorContent --output text
 
             echo "status: $STATUS"
-            [ "$STATUS" = "Success" ] || FAILED="$FAILED $ID"
+            if [ "$STATUS" != "Success" ]; then
+              echo "배포 실패: $ID ($INDEX/$TOTAL). 남은 인스턴스는 건드리지 않는다." >&2
+              echo "구버전을 서빙 중인 인스턴스가 남아 있으므로 서비스는 계속된다." >&2
+              exit 1
+            fi
           done
-
-          if [ -n "$FAILED" ]; then
-            echo "배포 실패 인스턴스:$FAILED" >&2
-            exit 1
-          fi
 
       - name: Summary
         run: |
