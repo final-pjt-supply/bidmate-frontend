@@ -4,7 +4,7 @@
 
 import { NextResponse } from "next/server";
 
-const API_BASE = process.env.API_BASE_URL ?? "http://54.180.233.72:8000";
+const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000";
 const isDev = process.env.NODE_ENV !== "production";
 
 // 입력 상한 — 이벤트 하나는 보통 수백 바이트라 정상 배치(≤20건)는 넉넉히 든다.
