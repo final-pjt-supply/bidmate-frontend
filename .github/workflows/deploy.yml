@@ -108,10 +108,14 @@ jobs:
           tags: |
             ${{ env.IMAGE }}
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          # NEXT_PUBLIC_SENTRY_RELEASE 는 이미지 태그와 같은 커밋 SHA다.
+          # (이 블록 안에는 주석을 넣지 않는다 — 값이 아니라 문자열 목록이라
+          #  '#' 줄까지 빌드 인자로 전달된다)
           build-args: |
             NEXT_PUBLIC_COGNITO_USER_POOL_ID=${{ env.NEXT_PUBLIC_COGNITO_USER_POOL_ID }}
             NEXT_PUBLIC_COGNITO_CLIENT_ID=${{ env.NEXT_PUBLIC_COGNITO_CLIENT_ID }}
             NEXT_PUBLIC_BIDBOT_ENABLED=${{ env.NEXT_PUBLIC_BIDBOT_ENABLED }}
+            NEXT_PUBLIC_SENTRY_RELEASE=${{ github.sha }}
           # mode=max 여야 deps·builder 같은 중간 스테이지까지 캐시된다.
           # 기본값(min)은 최종 이미지 레이어만 담아 멀티스테이지에선 효과가 없다.
           cache-from: type=gha

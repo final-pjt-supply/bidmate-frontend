@@ -29,6 +29,12 @@ ENV NEXT_PUBLIC_COGNITO_CLIENT_ID=$NEXT_PUBLIC_COGNITO_CLIENT_ID
 ARG NEXT_PUBLIC_BIDBOT_ENABLED
 ENV NEXT_PUBLIC_BIDBOT_ENABLED=$NEXT_PUBLIC_BIDBOT_ENABLED
 
+# Sentry release = 커밋 SHA(= 이 이미지의 ECR 태그). 클라이언트 번들에 박혀야
+# 브라우저 에러에도 붙으므로 런타임 주입이 아니라 빌드 인자로 받는다.
+# 값이 없으면 release 없이 빌드된다(기존 동작).
+ARG NEXT_PUBLIC_SENTRY_RELEASE
+ENV NEXT_PUBLIC_SENTRY_RELEASE=$NEXT_PUBLIC_SENTRY_RELEASE
+
 # API_BASE_URL 은 서버에서만 쓰므로 런타임에 주입한다 → 여기 필요 없음.
 RUN npm run build
 

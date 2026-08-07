@@ -77,13 +77,30 @@ wait_for_health() {
   return 1
 }
 
+# EC2 인스턴스 ID를 IMDS에서 읽는다. Sentry 이벤트에 어느 인스턴스에서 난
+# 에러인지 남기기 위한 값 — 다중 AZ로 2대를 굴리면서 "절반만 실패"하는 장애를
+# 만났을 때 로그 서버를 일일이 뒤져야 했던 문제(2026-08-06) 대응.
+#
+# 이 인스턴스는 IMDSv2를 강제하므로 토큰을 먼저 받아야 한다(v1 방식은 401).
+# 실패해도 배포는 계속한다 — 태그가 없으면 Sentry 기본값(컨테이너 호스트명)이
+# 쓰일 뿐이고, 그것 때문에 배포를 막을 이유는 없다.
+instance_id() {
+  local token
+  token="$(curl -fsS -m 2 -X PUT http://169.254.169.254/latest/api/token \
+    -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null)" || return 0
+  curl -fsS -m 2 -H "X-aws-ec2-metadata-token: ${token}" \
+    http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || return 0
+}
+
 run_slot() {
   local slot=$1
   local port
   local container
+  local sentry_server_name
 
   port="$(slot_port "${slot}")"
   container="$(slot_container "${slot}")"
+  sentry_server_name="$(instance_id)"
 
   docker rm -f "${container}" >/dev/null 2>&1 || true
   docker run -d \
@@ -94,6 +111,7 @@ run_slot() {
     --publish "127.0.0.1:${port}:3000" \
     --env NODE_ENV=production \
     --env "API_BASE_URL=${API_BASE_URL}" \
+    --env "SENTRY_SERVER_NAME=${sentry_server_name}" \
     --restart unless-stopped \
     "${IMAGE}" >/dev/null
 
