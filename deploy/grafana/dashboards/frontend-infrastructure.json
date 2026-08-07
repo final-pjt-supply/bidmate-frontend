@@ -2,7 +2,12 @@
   "uid": "bidmate-frontend-infra",
   "title": "BidMate 프론트엔드 트래픽·리소스",
   "description": "프론트엔드 EC2의 CloudWatch 기본 지표를 이용한 트래픽·리소스 대시보드. 별도 에이전트나 커스텀 메트릭 없이 동작한다.",
-  "tags": ["bidmate", "frontend", "infrastructure", "cloudwatch"],
+  "tags": [
+    "bidmate",
+    "frontend",
+    "infrastructure",
+    "cloudwatch"
+  ],
   "timezone": "browser",
   "editable": true,
   "schemaVersion": 39,
@@ -13,7 +18,12 @@
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": ["5m", "15m", "30m", "1h"]
+    "refresh_intervals": [
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
   },
   "annotations": {
     "list": []
@@ -23,25 +33,58 @@
       "id": 1,
       "type": "stat",
       "title": "현재 CPU 사용률",
-      "description": "프론트엔드 EC2의 최근 CPU 평균. 기본 모니터링에서는 5분 간격으로 갱신된다.",
+      "description": "프론트엔드 EC2 2대의 최근 CPU 평균. 기본 모니터링에서는 5분 간격으로 갱신된다.",
       "datasource": {
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "CPUUtilization",
           "statistic": "Average",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "CPU 평균",
+          "label": "CPU 평균 · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "CPUUtilization",
+          "statistic": "Average",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "CPU 평균 · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -51,7 +94,9 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -68,13 +113,24 @@
           "min": 0,
           "max": 100,
           "decimals": 1,
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "green", "value": null},
-              {"color": "yellow", "value": 60},
-              {"color": "red", "value": 80}
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           }
         },
@@ -90,20 +146,53 @@
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "CPUUtilization",
           "statistic": "Maximum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "CPU 최대",
+          "label": "CPU 최대 · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "CPUUtilization",
+          "statistic": "Maximum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "CPU 최대 · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -113,7 +202,9 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": ["max"],
+          "calcs": [
+            "max"
+          ],
           "fields": "",
           "values": false
         },
@@ -130,13 +221,24 @@
           "min": 0,
           "max": 100,
           "decimals": 1,
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "green", "value": null},
-              {"color": "yellow", "value": 60},
-              {"color": "red", "value": 80}
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           }
         },
@@ -147,25 +249,58 @@
       "id": 3,
       "type": "stat",
       "title": "최근 24시간 수신량",
-      "description": "현재 선택된 시간 범위에서 EC2가 수신한 네트워크 바이트 합계.",
+      "description": "현재 선택된 시간 범위에서 EC2 2대가 각각 수신한 네트워크 바이트 합계.",
       "datasource": {
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "NetworkIn",
           "statistic": "Sum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "수신",
+          "label": "수신 · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "NetworkIn",
+          "statistic": "Sum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "수신 · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -175,7 +310,9 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": ["sum"],
+          "calcs": [
+            "sum"
+          ],
           "fields": "",
           "values": false
         },
@@ -190,7 +327,10 @@
         "defaults": {
           "unit": "bytes",
           "decimals": 1,
-          "color": {"mode": "fixed", "fixedColor": "blue"}
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
         },
         "overrides": []
       }
@@ -199,25 +339,58 @@
       "id": 4,
       "type": "stat",
       "title": "최근 24시간 송신량",
-      "description": "현재 선택된 시간 범위에서 EC2가 송신한 네트워크 바이트 합계.",
+      "description": "현재 선택된 시간 범위에서 EC2 2대가 각각 송신한 네트워크 바이트 합계.",
       "datasource": {
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "NetworkOut",
           "statistic": "Sum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "송신",
+          "label": "송신 · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "NetworkOut",
+          "statistic": "Sum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "송신 · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -227,7 +400,9 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": ["sum"],
+          "calcs": [
+            "sum"
+          ],
           "fields": "",
           "values": false
         },
@@ -242,7 +417,10 @@
         "defaults": {
           "unit": "bytes",
           "decimals": 1,
-          "color": {"mode": "fixed", "fixedColor": "purple"}
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
         },
         "overrides": []
       }
@@ -256,20 +434,30 @@
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 6},
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "CPUUtilization",
           "statistic": "Average",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "평균 CPU",
+          "label": "평균 CPU · AZ-a",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -278,16 +466,67 @@
         },
         {
           "refId": "B",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "CPUUtilization",
+          "statistic": "Average",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "평균 CPU · AZ-c",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "CPUUtilization",
           "statistic": "Maximum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "최대 CPU",
+          "label": "최대 CPU · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "CPUUtilization",
+          "statistic": "Maximum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "최대 CPU · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -299,10 +538,16 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "showLegend": true
         },
-        "tooltip": {"mode": "multi", "sort": "desc"}
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "fieldConfig": {
         "defaults": {
@@ -310,7 +555,9 @@
           "min": 0,
           "max": 100,
           "decimals": 1,
-          "color": {"mode": "palette-classic"},
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "linear",
@@ -321,14 +568,24 @@
             "showPoints": "never",
             "axisPlacement": "auto",
             "axisLabel": "",
-            "scaleDistribution": {"type": "linear"},
-            "thresholdsStyle": {"mode": "line"}
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
           },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "green", "value": null},
-              {"color": "red", "value": 80}
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           }
         },
@@ -344,20 +601,30 @@
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 6},
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "NetworkIn",
           "statistic": "Sum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "수신",
+          "label": "수신 · AZ-a",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -366,16 +633,67 @@
         },
         {
           "refId": "B",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "NetworkIn",
+          "statistic": "Sum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "수신 · AZ-c",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "NetworkOut",
           "statistic": "Sum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "송신",
+          "label": "송신 · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "NetworkOut",
+          "statistic": "Sum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "송신 · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -387,16 +705,24 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "calcs": ["sum", "max"],
+          "calcs": [
+            "sum",
+            "max"
+          ],
           "showLegend": true
         },
-        "tooltip": {"mode": "multi", "sort": "desc"}
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
           "decimals": 1,
-          "color": {"mode": "palette-classic"},
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "linear",
@@ -407,8 +733,12 @@
             "showPoints": "never",
             "axisPlacement": "auto",
             "axisLabel": "",
-            "scaleDistribution": {"type": "linear"},
-            "thresholdsStyle": {"mode": "off"}
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           }
         },
         "overrides": []
@@ -423,20 +753,30 @@
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 15},
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "NetworkPacketsIn",
           "statistic": "Sum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "수신 패킷",
+          "label": "수신 패킷 · AZ-a",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -445,16 +785,67 @@
         },
         {
           "refId": "B",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "NetworkPacketsIn",
+          "statistic": "Sum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "수신 패킷 · AZ-c",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "NetworkPacketsOut",
           "statistic": "Sum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "송신 패킷",
+          "label": "송신 패킷 · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "300"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "NetworkPacketsOut",
+          "statistic": "Sum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "송신 패킷 · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -466,16 +857,24 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "calcs": ["sum", "max"],
+          "calcs": [
+            "sum",
+            "max"
+          ],
           "showLegend": true
         },
-        "tooltip": {"mode": "multi", "sort": "desc"}
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "decimals": 0,
-          "color": {"mode": "palette-classic"},
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "linear",
@@ -486,8 +885,12 @@
             "showPoints": "never",
             "axisPlacement": "auto",
             "axisLabel": "",
-            "scaleDistribution": {"type": "linear"},
-            "thresholdsStyle": {"mode": "off"}
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           }
         },
         "overrides": []
@@ -502,20 +905,30 @@
         "type": "cloudwatch",
         "uid": "cloudwatch"
       },
-      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 15},
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "StatusCheckFailed_Instance",
           "statistic": "Maximum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "인스턴스 검사 실패",
+          "label": "인스턴스 검사 실패 · AZ-a",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -524,16 +937,67 @@
         },
         {
           "refId": "B",
-          "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "StatusCheckFailed_Instance",
+          "statistic": "Maximum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "인스턴스 검사 실패 · AZ-c",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "60"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
           "queryMode": "Metrics",
           "region": "default",
           "namespace": "AWS/EC2",
           "metricName": "StatusCheckFailed_System",
           "statistic": "Maximum",
           "dimensions": {
-            "InstanceId": ["i-054a12633e0093178"]
+            "InstanceId": [
+              "i-054a12633e0093178"
+            ]
           },
-          "label": "시스템 검사 실패",
+          "label": "시스템 검사 실패 · AZ-a",
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "",
+          "period": "60"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/EC2",
+          "metricName": "StatusCheckFailed_System",
+          "statistic": "Maximum",
+          "dimensions": {
+            "InstanceId": [
+              "i-08977e1bc16bb21ee"
+            ]
+          },
+          "label": "시스템 검사 실패 · AZ-c",
           "matchExact": true,
           "metricQueryType": 0,
           "metricEditorMode": 0,
@@ -545,17 +1009,24 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "calcs": ["max"],
+          "calcs": [
+            "max"
+          ],
           "showLegend": true
         },
-        "tooltip": {"mode": "multi", "sort": "desc"}
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "min": 0,
           "decimals": 0,
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "stepAfter",
@@ -566,14 +1037,24 @@
             "showPoints": "never",
             "axisPlacement": "auto",
             "axisLabel": "",
-            "scaleDistribution": {"type": "linear"},
-            "thresholdsStyle": {"mode": "area"}
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "area"
+            }
           },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "green", "value": null},
-              {"color": "red", "value": 1}
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           }
         },
@@ -585,10 +1066,15 @@
       "type": "text",
       "title": "수집 범위 안내",
       "description": "현재 대시보드가 보여주는 범위와 추가 수집이 필요한 지표를 구분한다.",
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
       "options": {
         "mode": "markdown",
-        "content": "### 현재 바로 확인 가능\n\n- EC2 CPU 사용률과 최대치\n- 네트워크 수신·송신량 및 패킷 수\n- EC2 인스턴스·시스템 상태 검사\n\n### 아직 포함되지 않은 항목\n\n- 메모리·디스크 사용률: **CloudWatch Agent** 설치 필요\n- 컨테이너별 CPU·메모리: **cAdvisor/Prometheus 또는 Container Insights** 필요\n- 방문자·최근 5분 활성 사용자: **애플리케이션 이벤트 또는 액세스 로그 집계** 필요\n\n> 현재 패널은 CloudWatch 기본 EC2 지표만 사용하며 5분 주기로 갱신됩니다."
+        "content": "### 대상 인스턴스\n\nALB 타겟그룹의 EC2 2대를 모두 표시한다. 범례의 `AZ-a`(i-054a1263…)와\n`AZ-c`(i-08977e1b…)로 구분하며, 한쪽만 튀는지 바로 비교할 수 있다.\n인스턴스를 늘리면 이 대시보드의 각 패널에도 target을 추가해야 한다.\n\n### 현재 바로 확인 가능\n\n- EC2 CPU 사용률과 최대치\n- 네트워크 수신·송신량 및 패킷 수\n- EC2 인스턴스·시스템 상태 검사\n\n### 아직 포함되지 않은 항목\n\n- 메모리·디스크 사용률: **CloudWatch Agent** 설치 필요\n- 컨테이너별 CPU·메모리: **cAdvisor/Prometheus 또는 Container Insights** 필요\n- 방문자·최근 5분 활성 사용자: **애플리케이션 이벤트 또는 액세스 로그 집계** 필요\n\n> 현재 패널은 CloudWatch 기본 EC2 지표만 사용하며 5분 주기로 갱신됩니다."
       }
     }
   ]
