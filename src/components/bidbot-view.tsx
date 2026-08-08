@@ -2,13 +2,34 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Bot, Check, Copy, Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, Bot, Check, ChevronDown, Copy, ExternalLink, FileText, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { logEvent } from "@/lib/analytics/track";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useBidbotChat, useChatSessions, type ChatMessage } from "@/lib/bidbot";
+import { useBidbotChat, useChatSessions, type ChatMessage, type Citation } from "@/lib/bidbot";
 
 export type { ChatMessage };
+
+export type CitationGroup = Citation & { citations: Citation[] };
+
+/** One source card per bid, even when retrieval returned multiple text chunks. */
+export function groupCitations(citations: Citation[]): CitationGroup[] {
+  const byBid = new Map<string, CitationGroup>();
+  for (const citation of citations) {
+    const existing = byBid.get(citation.bid_id);
+    if (existing) {
+      existing.citations.push(citation);
+      continue;
+    }
+    byBid.set(citation.bid_id, { ...citation, citations: [citation] });
+  }
+  return [...byBid.values()];
+}
+
+function citationPreview(text: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  return normalized.length > 180 ? `${normalized.slice(0, 180)}…` : normalized;
+}
 
 export const BOT_DISCLAIMER =
   "비드봇의 답변은 AI 분석 기반 참고용이에요. 입찰 전 나라장터 원문에서 꼭 확인해 주세요.";
@@ -74,20 +95,52 @@ export function BotBubble({ message, compact = false }: { message: ChatMessage; 
 
       {/* 근거 인용 — 답변의 출처 공고로 이동 */}
       {message.citations && message.citations.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {message.citations.slice(0, 3).map((c, i) => (
-            <Link
-              key={`${c.bid_id}-${c.chunk_idx}-${i}`}
-              href={`/bids/${c.bid_id}`}
-              title={c.text}
-              className="rounded-md border border-slate-200 bg-surface px-2 py-1 text-[11.5px] text-slate-500 transition-colors hover:bg-slate-50"
-            >
-              근거 {i + 1}
-            </Link>
-          ))}
-        </div>
+        <CitationSources citations={message.citations} compact={compact} />
       )}
     </div>
+  );
+}
+
+function CitationSources({ citations, compact }: { citations: Citation[]; compact: boolean }) {
+  const allSources = groupCitations(citations);
+  const sources = allSources.slice(0, 3);
+  const hiddenCount = allSources.length - sources.length;
+
+  return (
+    <details className="group w-full max-w-xl rounded-lg border border-slate-200 bg-surface">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[12.5px] font-medium text-slate-600 marker:content-none">
+        <span className="flex items-center gap-1.5">
+          <FileText className="size-3.5 text-indigo-500" strokeWidth={2} />
+          참고한 공고문 {allSources.length}건
+        </span>
+        <ChevronDown className="size-3.5 text-slate-400 transition-transform group-open:rotate-180" strokeWidth={2} />
+      </summary>
+      <div className="flex flex-col gap-2 border-t border-slate-100 p-2">
+        {sources.map((source) => (
+          <div key={source.bid_id} className="rounded-md bg-slate-50 px-3 py-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-slate-700">공고번호 {source.bid_id}</p>
+                <p className={`mt-1 text-slate-500 ${compact ? "text-[11px]" : "text-[12px]"}`}>
+                  {citationPreview(source.text) || "참고한 원문을 불러오지 못했습니다."}
+                </p>
+              </div>
+              <Link
+                href={`/bids/${source.bid_id}`}
+                className="shrink-0 rounded-md px-1 py-0.5 text-[11.5px] font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+              >
+                <span className="flex items-center gap-1">
+                  상세 보기 <ExternalLink className="size-3" strokeWidth={2} />
+                </span>
+              </Link>
+            </div>
+          </div>
+        ))}
+        {hiddenCount > 0 && (
+          <p className="px-1 text-[11px] text-slate-400">그 외 참고 공고문 {hiddenCount}건</p>
+        )}
+      </div>
+    </details>
   );
 }
 
