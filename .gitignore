@@ -58,3 +58,7 @@ next-env.d.ts
 
 # 목업 생성 스크립트의 파이썬 캐시
 scripts/__pycache__/
+
+# 로컬 개발 서버 로그
+local-frontend.log
+local-frontend.err.log
