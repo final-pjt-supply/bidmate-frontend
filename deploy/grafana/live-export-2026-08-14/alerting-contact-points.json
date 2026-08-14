@@ -1,0 +1,12 @@
+[
+  {
+    "uid": "cftjhlt2qzda8a",
+    "name": "discord",
+    "type": "discord",
+    "settings": {
+      "url": "[REDACTED]",
+      "use_discord_username": false
+    },
+    "disableResolveMessage": false
+  }
+]
