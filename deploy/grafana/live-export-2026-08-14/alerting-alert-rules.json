@@ -1,0 +1,532 @@
+[
+  {
+    "id": 2,
+    "uid": "bidmate-agent-llm-retry",
+    "orgID": 1,
+    "folderUID": "fftfzgahv6qrkf",
+    "ruleGroup": "agent-ops",
+    "title": "에이전트 — LLM 재시도 급증",
+    "condition": "C",
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 900,
+          "to": 0
+        },
+        "datasourceUid": "cloudwatch",
+        "model": {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "dimensions": {},
+          "intervalMs": 1000,
+          "matchExact": true,
+          "maxDataPoints": 43200,
+          "metricEditorMode": 0,
+          "metricName": "LlmRetryTotal",
+          "metricQueryType": 0,
+          "namespace": "Bidmate/Agent",
+          "period": "300",
+          "queryMode": "Metrics",
+          "refId": "A",
+          "region": "default",
+          "statistic": "Sum"
+        }
+      },
+      {
+        "refId": "B",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "reducer": "sum",
+          "refId": "B",
+          "type": "reduce"
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  4
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "B",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "C",
+          "type": "threshold"
+        }
+      }
+    ],
+    "updated": "2026-08-14T07:17:29Z",
+    "noDataState": "OK",
+    "execErrState": "Error",
+    "for": "0s",
+    "keep_firing_for": "0s",
+    "annotations": {
+      "description": "Bedrock 스로틀 또는 장애가 의심됩니다. 그라파나 > BidMate > 'BidMate 챗봇 — LLM 성능'에서 스로틀·서버 오류 패널을 확인하세요.",
+      "summary": "⚠️ LLM 재시도가 15분에 5건 이상 발생했습니다"
+    },
+    "labels": {
+      "service": "bidmate-agent"
+    },
+    "provenance": "file",
+    "isPaused": false,
+    "notification_settings": {
+      "receiver": "discord"
+    },
+    "record": null
+  },
+  {
+    "id": 3,
+    "uid": "bidmate-agent-latency-p95",
+    "orgID": 1,
+    "folderUID": "fftfzgahv6qrkf",
+    "ruleGroup": "agent-ops",
+    "title": "에이전트 — 턴 지연 p95 15초 초과",
+    "condition": "C",
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 900,
+          "to": 0
+        },
+        "datasourceUid": "cloudwatch",
+        "model": {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "dimensions": {},
+          "intervalMs": 1000,
+          "matchExact": true,
+          "maxDataPoints": 43200,
+          "metricEditorMode": 0,
+          "metricName": "TurnLatencyAll",
+          "metricQueryType": 0,
+          "namespace": "Bidmate/Agent",
+          "period": "300",
+          "queryMode": "Metrics",
+          "refId": "A",
+          "region": "default",
+          "statistic": "p95"
+        }
+      },
+      {
+        "refId": "B",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "reducer": "last",
+          "refId": "B",
+          "type": "reduce"
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  15000
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "B",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "C",
+          "type": "threshold"
+        }
+      }
+    ],
+    "updated": "2026-08-14T07:17:29Z",
+    "noDataState": "OK",
+    "execErrState": "Error",
+    "for": "15m",
+    "keep_firing_for": "0s",
+    "annotations": {
+      "description": "15분 연속으로 상위 5% 응답이 15초를 초과했습니다. 그라파나 > BidMate > 'BidMate 챗봇 — 운영'의 route별 지연 패널에서 어느 갈래인지 확인하세요. 전 갈래가 함께 느려졌다면 LLM·DB 등 공용 구간 문제입니다.",
+      "summary": "🐢 턴 지연 p95가 15초를 넘었습니다"
+    },
+    "labels": {
+      "service": "bidmate-agent"
+    },
+    "provenance": "file",
+    "isPaused": false,
+    "notification_settings": {
+      "receiver": "discord"
+    },
+    "record": null
+  },
+  {
+    "id": 4,
+    "uid": "bidmate-agent-no-verdict",
+    "orgID": 1,
+    "folderUID": "fftfzgahv6qrkf",
+    "ruleGroup": "agent-ops",
+    "title": "에이전트 — 자격 판정 미산출 급증",
+    "condition": "C",
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 3600,
+          "to": 0
+        },
+        "datasourceUid": "cloudwatch",
+        "model": {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "dimensions": {},
+          "intervalMs": 1000,
+          "matchExact": true,
+          "maxDataPoints": 43200,
+          "metricEditorMode": 0,
+          "metricName": "NoVerdictNoData",
+          "metricQueryType": 0,
+          "namespace": "Bidmate/Agent",
+          "period": "300",
+          "queryMode": "Metrics",
+          "refId": "A",
+          "region": "default",
+          "statistic": "Sum"
+        }
+      },
+      {
+        "refId": "B",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "reducer": "sum",
+          "refId": "B",
+          "type": "reduce"
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  20
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "B",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "C",
+          "type": "threshold"
+        }
+      }
+    ],
+    "updated": "2026-08-14T07:17:29Z",
+    "noDataState": "OK",
+    "execErrState": "Error",
+    "for": "0s",
+    "keep_firing_for": "0s",
+    "annotations": {
+      "description": "요건 데이터가 없어 판정을 못 준 건이 급증했습니다. 코드가 아니라 match_results 적재가 멈췄을 가능성이 높습니다. 그라파나 > BidMate > 'BidMate 챗봇 — 품질'의 판정 미산출 패널을 확인하세요.",
+      "summary": "📉 1시간 동안 자격 판정 미산출이 20건을 넘었습니다"
+    },
+    "labels": {
+      "service": "bidmate-agent"
+    },
+    "provenance": "file",
+    "isPaused": false,
+    "notification_settings": {
+      "receiver": "discord"
+    },
+    "record": null
+  },
+  {
+    "id": 5,
+    "uid": "bidmate-agent-no-turns",
+    "orgID": 1,
+    "folderUID": "fftfzgahv6qrkf",
+    "ruleGroup": "agent-ops",
+    "title": "에이전트 — 2시간 대화 0건",
+    "condition": "C",
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 7200,
+          "to": 0
+        },
+        "datasourceUid": "cloudwatch",
+        "model": {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "dimensions": {},
+          "intervalMs": 1000,
+          "matchExact": true,
+          "maxDataPoints": 43200,
+          "metricEditorMode": 0,
+          "metricName": "TurnTotal",
+          "metricQueryType": 0,
+          "namespace": "Bidmate/Agent",
+          "period": "300",
+          "queryMode": "Metrics",
+          "refId": "A",
+          "region": "default",
+          "statistic": "Sum"
+        }
+      },
+      {
+        "refId": "B",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "reducer": "sum",
+          "refId": "B",
+          "type": "reduce"
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  1
+                ],
+                "type": "lt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "B",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "C",
+          "type": "threshold"
+        }
+      }
+    ],
+    "updated": "2026-08-14T07:17:29Z",
+    "noDataState": "Alerting",
+    "execErrState": "Error",
+    "for": "0s",
+    "keep_firing_for": "0s",
+    "annotations": {
+      "description": "서비스가 죽었거나 로그 수집이 끊겼습니다. 컨테이너 상태(:8010/health)와 CloudWatch 로그 그룹 /bidmate/agent에 새 로그가 들어오는지 확인하세요.",
+      "summary": "🚨 2시간 동안 챗봇 대화가 한 건도 없습니다"
+    },
+    "labels": {
+      "service": "bidmate-agent"
+    },
+    "provenance": "file",
+    "isPaused": true,
+    "notification_settings": {
+      "receiver": "discord"
+    },
+    "record": null
+  },
+  {
+    "id": 1,
+    "uid": "cftji0e2l7qpsc",
+    "orgID": 1,
+    "folderUID": "fftfzgahv6qrkf",
+    "ruleGroup": "member-signup",
+    "title": "신규 회원 가입",
+    "condition": "C",
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 600,
+          "to": 0
+        },
+        "datasourceUid": "bidmate-rds",
+        "model": {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "bidmate-rds"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS recent\nFROM companies\nWHERE created_at >= (now() AT TIME ZONE 'Asia/Seoul') - interval '5 minutes'",
+          "refId": "A"
+        }
+      },
+      {
+        "refId": "B",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "reducer": "last",
+          "refId": "B",
+          "type": "reduce"
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  0
+                ],
+                "type": "gt"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "B",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "C",
+          "type": "threshold"
+        }
+      }
+    ],
+    "updated": "2026-07-29T05:17:24Z",
+    "noDataState": "OK",
+    "execErrState": "Error",
+    "for": "0s",
+    "keep_firing_for": "0s",
+    "annotations": {
+      "description": "최근 5분 내 companies 테이블에 신규 가입이 생겼습니다. 그라파나 > BidMate 서비스 지표에서 총 회원수를 확인하세요.",
+      "summary": "새 회원이 가입했습니다 🎉"
+    },
+    "isPaused": false,
+    "notification_settings": {
+      "receiver": "discord"
+    },
+    "record": null
+  }
+]
