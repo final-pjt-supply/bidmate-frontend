@@ -1,0 +1,35 @@
+name: CI
+
+# 머지 전 품질 게이트 — 타입·린트·테스트·빌드.
+# v1의 AWS 배포 잡(ECR→SSM 블루그린)은 인프라 종료로 제거했다.
+# 전체 배포 워크플로는 v1-aws 릴리즈 스냅샷에 보존되어 있다.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and component tests
+        run: npm run test:ci
+
+      - name: Build
+        run: npm run build
